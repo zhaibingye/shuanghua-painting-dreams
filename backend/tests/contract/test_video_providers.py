@@ -47,7 +47,7 @@ async def test_byte_video_payload_and_status(settings: Settings) -> None:
                 "firstFrameUrl": "https://example.com/first.png",
                 "lastFrameUrl": "https://example.com/last.png",
             },
-            "options": {"returnLastFrame": True},
+            "options": {"returnLastFrame": True, "resolution": "4k"},
         }
     )
 
@@ -58,6 +58,7 @@ async def test_byte_video_payload_and_status(settings: Settings) -> None:
     assert create_payload is not None
     assert create_payload["content"][1]["role"] == "first_frame"
     assert create_payload["return_last_frame"] is True
+    assert create_payload["resolution"] == "4k"
     assert "service_tier" not in create_payload
     assert status.status == TaskStatus.SUCCEEDED
     assert status.output is not None

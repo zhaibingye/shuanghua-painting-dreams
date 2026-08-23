@@ -159,7 +159,7 @@ _PROVIDER_DATA: tuple[ProviderMetadata, ...] = (
                 "durationMin": 4,
                 "durationMax": 15,
                 "automaticDuration": True,
-                "resolutions": ["480p", "720p", "1080p"],
+                "resolutions": ["480p", "720p", "1080p", "4k"],
                 "aspectRatios": ["16:9", "4:3", "1:1", "3:4", "9:16", "21:9", "adaptive"],
                 "generateAudio": True,
                 "cameraFixed": False,
@@ -248,7 +248,19 @@ def validate_openai_image_request(
         raise _capability_error("gpt-image-2 当前不支持透明背景。", request.api_format)
 
 
+_SEEDANCE_2_0_MODEL_ID = "doubao-seedance-2-0-260128"
+_SEEDANCE_SPECIAL_EDITION_SUFFIX = "-se"
+_RESOLUTION_1080P = "1080p"
+
+
 def byte_dance_model_capabilities(model_id: str) -> dict[str, Any]:
+    capabilities = _byte_dance_family_capabilities(model_id)
+    if model_id.endswith(_SEEDANCE_SPECIAL_EDITION_SUFFIX):
+        _ensure_resolution(capabilities, _RESOLUTION_1080P)
+    return capabilities
+
+
+def _byte_dance_family_capabilities(model_id: str) -> dict[str, Any]:
     if model_id.startswith("doubao-seedance-2-0-fast-"):
         return {
             "durationMin": 4,
@@ -265,7 +277,7 @@ def byte_dance_model_capabilities(model_id: str) -> dict[str, Any]:
         provider = next(
             item for item in _PROVIDER_DATA if item.api_format == ApiFormat.BYTE_DANCE_VIDEO
         )
-        return deepcopy(provider.known_models["doubao-seedance-2-0-260128"])
+        return deepcopy(provider.known_models[_SEEDANCE_2_0_MODEL_ID])
     if model_id.startswith("doubao-seedance-1-5-pro-"):
         return {
             "durationMin": 4,
@@ -313,6 +325,15 @@ def byte_dance_model_capabilities(model_id: str) -> dict[str, Any]:
         "serviceTierParameter": False,
         "webSearch": False,
     }
+
+
+def _ensure_resolution(capabilities: dict[str, Any], resolution: str) -> None:
+    resolutions = capabilities["resolutions"]
+    if not isinstance(resolutions, list):
+        capabilities["resolutions"] = [resolution]
+        return
+    if resolution not in resolutions:
+        capabilities["resolutions"] = [*resolutions, resolution]
 
 
 def validate_byte_dance_video_request(request: ByteDanceVideoGenerationRequest) -> None:

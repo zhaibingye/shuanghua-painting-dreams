@@ -12,6 +12,8 @@ ByteDanceVideoMode = Literal[
     "referenceToVideo",
 ]
 XAIVideoMode = Literal["textToVideo", "firstFrameToVideo", "referenceToVideo"]
+ByteDanceVideoResolution = Literal["480p", "720p", "1080p", "4k"]
+XAIVideoResolution = Literal["480p", "720p", "1080p"]
 
 
 class ByteDanceVideoInputs(ApiModel):
@@ -24,7 +26,7 @@ class ByteDanceVideoInputs(ApiModel):
 
 class ByteDanceVideoOptions(ApiModel):
     duration: int = Field(default=5, ge=-1, le=15)
-    resolution: Literal["480p", "720p", "1080p"] = "720p"
+    resolution: ByteDanceVideoResolution = "720p"
     aspect_ratio: Literal["16:9", "4:3", "1:1", "3:4", "9:16", "21:9", "adaptive"] = "adaptive"
     generate_audio: bool = False
     watermark: bool = False
@@ -98,7 +100,7 @@ class XAIVideoInputs(ApiModel):
 
 class XAIVideoOptions(ApiModel):
     duration: int = Field(default=8, ge=1, le=15)
-    resolution: Literal["480p", "720p", "1080p"] = "720p"
+    resolution: XAIVideoResolution = "720p"
     aspect_ratio: Literal["16:9", "9:16", "1:1", "4:3", "3:4", "3:2", "2:3"] = "16:9"
 
 

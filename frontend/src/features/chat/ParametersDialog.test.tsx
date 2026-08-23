@@ -47,6 +47,38 @@ function renderDialog(openAIImageEditing: boolean) {
   )
 }
 
+describe('ParametersDialog ByteDance video resolutions', () => {
+  it('renders 4k when Seedance 2.0 capabilities include it', () => {
+    render(
+      <ParametersDialog
+        open
+        conversation={{
+          ...conversation,
+          mediaKind: 'video',
+          apiFormat: 'byteDanceVideo',
+          modelId: 'doubao-seedance-2-0-260128',
+        }}
+        options={{ duration: 5, resolution: '720p', aspectRatio: 'adaptive' }}
+        videoDraft={defaultVideoDraft}
+        modelCapabilities={{
+          automaticDuration: true,
+          resolutions: ['480p', '720p', '1080p', '4k'],
+          generateAudio: true,
+          webSearch: true,
+        }}
+        openAIImageEditing={false}
+        onOpenChange={vi.fn()}
+        onOption={vi.fn()}
+        onVideoDraft={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByLabelText('分辨率')).toHaveValue('720p')
+    expect(screen.getByRole('option', { name: '4k' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: '1080p' })).toBeInTheDocument()
+  })
+})
+
 describe('ParametersDialog OpenAI Images mode', () => {
   it('shows generation-only streaming controls without a reference image', () => {
     renderDialog(false)

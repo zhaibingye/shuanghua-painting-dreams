@@ -41,6 +41,7 @@ import {
   type DraftImage,
 } from './image-turn'
 import { MessageList } from './MessageList'
+import { clampByteDanceResolution, resolveModelCapabilities } from './model-capabilities'
 import { ParametersDialog } from './ParametersDialog'
 import {
   buildVideoExtensionRequest,
@@ -90,11 +91,17 @@ export function ChatPage({ onOpenSidebar }: { onOpenSidebar: () => void }) {
 
   const currentConversationId = conversation?.id
   const currentApiFormat = conversation?.apiFormat
+  const currentModelId = conversation?.modelId
 
   useEffect(() => {
     if (!currentApiFormat) return
-    const defaults = useSettingsStore.getState().settings.formats[currentApiFormat].defaults
-    setTurnOptions({ ...defaults })
+    const defaults = {
+      ...useSettingsStore.getState().settings.formats[currentApiFormat].defaults,
+    }
+    if (currentApiFormat === 'byteDanceVideo' && currentModelId) {
+      defaults.resolution = clampByteDanceResolution(defaults.resolution, currentModelId)
+    }
+    setTurnOptions(defaults)
     setPrompt('')
     setVideoDraft({ ...defaultVideoDraft })
     setMaskDataUrl(null)
@@ -103,7 +110,7 @@ export function ChatPage({ onOpenSidebar }: { onOpenSidebar: () => void }) {
       revokeDraftImages(current)
       return []
     })
-  }, [currentApiFormat, currentConversationId])
+  }, [currentApiFormat, currentConversationId, currentModelId])
 
   useEffect(
     () => () => {
@@ -127,9 +134,13 @@ export function ChatPage({ onOpenSidebar }: { onOpenSidebar: () => void }) {
 
   const capabilities = useMemo(
     () =>
-      metadata?.providers
-        .find((provider) => provider.apiFormat === conversation?.apiFormat)
-        ?.knownModels?.[conversation?.modelId ?? ''],
+      resolveModelCapabilities({
+        apiFormat: conversation?.apiFormat,
+        modelId: conversation?.modelId,
+        provider: metadata?.providers.find(
+          (provider) => provider.apiFormat === conversation?.apiFormat,
+        ),
+      }),
     [conversation?.apiFormat, conversation?.modelId, metadata?.providers],
   )
 

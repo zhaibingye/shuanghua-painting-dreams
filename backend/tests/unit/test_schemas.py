@@ -101,6 +101,34 @@ def test_media_inputs_reject_obviously_non_public_urls(media_url: str) -> None:
         )
 
 
+def test_byte_dance_options_accept_4k() -> None:
+    request = ByteDanceVideoGenerationRequest.model_validate(
+        {
+            "apiFormat": "byteDanceVideo",
+            "baseUrl": "https://shapi.vip",
+            "modelId": "doubao-seedance-2-0-260128",
+            "mode": "textToVideo",
+            "prompt": "snow",
+            "options": {"resolution": "4k"},
+        }
+    )
+    assert request.options.resolution == "4k"
+
+
+def test_xai_video_options_reject_4k() -> None:
+    with pytest.raises(ValidationError):
+        XAIVideoGenerationRequest.model_validate(
+            {
+                "apiFormat": "xaiVideo",
+                "baseUrl": "https://shapi.vip",
+                "modelId": "grok-imagine-video-1.5",
+                "mode": "textToVideo",
+                "prompt": "snow",
+                "options": {"resolution": "4k"},
+            }
+        )
+
+
 def test_xai_first_frame_and_reference_images_are_mutually_exclusive() -> None:
     with pytest.raises(ValidationError):
         XAIVideoGenerationRequest.model_validate(

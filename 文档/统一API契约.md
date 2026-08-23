@@ -348,6 +348,9 @@ Seedance 规则：
 - `doubao-seedance-2-0-*` 与 2.0 fast 必须省略 `service_tier`。
 - 明确支持该字段的 1.5/1.0 模型才序列化 `service_tier`。
 - 前端能力表对 2.0 隐藏服务等级控件。
+- Seedance 2.0 旗舰（`doubao-seedance-2-0-*`，不含 fast）支持 `480p` / `720p` / `1080p` / `4k`。
+- Seedance 2.0 fast 默认仅支持 `480p` / `720p`。
+- 任意模型 ID 以 `-se` 结尾时，可在该系列原有分辨率上使用 `1080p`，例如 `doubao-seedance-2-0-fast-260128-se`。
 
 ## 9. 错误与取消
 

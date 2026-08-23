@@ -43,6 +43,15 @@ async def test_health_and_metadata() -> None:
         if provider["apiFormat"] == "openaiResponsesImage"
     )
     assert responses["defaultModelId"] == "gpt-5.6-luna"
+    byte_dance = next(
+        provider for provider in payload["providers"] if provider["apiFormat"] == "byteDanceVideo"
+    )
+    assert byte_dance["knownModels"]["doubao-seedance-2-0-260128"]["resolutions"] == [
+        "480p",
+        "720p",
+        "1080p",
+        "4k",
+    ]
 
 
 @pytest.mark.asyncio

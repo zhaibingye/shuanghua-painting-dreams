@@ -5,6 +5,7 @@ import type {
 import type { StoredConversation } from '../../storage/db'
 import { isPublicHttpUrl } from '../../utils/url'
 import { draftToApiAsset, type DraftImage } from './image-turn'
+import { clampByteDanceResolution, XAI_VIDEO_RESOLUTIONS } from './model-capabilities'
 
 export type ByteVideoMode =
   | 'textToVideo'
@@ -137,12 +138,7 @@ export function buildVideoGenerationRequest(options: {
       },
       options: {
         duration: numberOption(turnOptions, 'duration', 5),
-        resolution: enumOption(
-          turnOptions,
-          'resolution',
-          ['480p', '720p', '1080p'],
-          '720p',
-        ),
+        resolution: clampByteDanceResolution(turnOptions.resolution, conversation.modelId),
         aspectRatio: enumOption(
           turnOptions,
           'aspectRatio',
@@ -183,7 +179,7 @@ export function buildVideoGenerationRequest(options: {
       resolution: enumOption(
         turnOptions,
         'resolution',
-        ['480p', '720p', '1080p'],
+        XAI_VIDEO_RESOLUTIONS,
         '720p',
       ),
       aspectRatio: enumOption(

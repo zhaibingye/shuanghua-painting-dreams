@@ -121,6 +121,21 @@ test('Seedance 2.0 隐藏并省略不支持的 service_tier 参数', async ({ pa
   await expect(page.getByText('生成同步音频')).toBeVisible()
   await expect(page.getByText('Web Search')).toBeVisible()
   await expect(page.getByText('服务等级')).toHaveCount(0)
+  await expect(page.getByLabel('分辨率')).toHaveValue('720p')
+  await expect(page.getByLabel('分辨率').locator('option[value="4k"]')).toHaveCount(1)
+  await expect(page.getByLabel('分辨率').locator('option[value="1080p"]')).toHaveCount(1)
+})
+
+test('Seedance 2.0 fast-se 可选择 1080p 但不能选择 4k', async ({ page }) => {
+  await ignoreKeyGate(page)
+  await createConversation(page, 'video', 'byteDanceVideo', 'doubao-seedance-2-0-fast-260128-se')
+  await page.getByRole('button', { name: '参数', exact: true }).click()
+
+  const resolution = page.getByLabel('分辨率')
+  await expect(resolution.locator('option[value="1080p"]')).toHaveCount(1)
+  await expect(resolution.locator('option[value="4k"]')).toHaveCount(0)
+  await resolution.selectOption('1080p')
+  await expect(resolution).toHaveValue('1080p')
 })
 
 async function ignoreKeyGate(page: Page): Promise<void> {
@@ -131,12 +146,14 @@ async function createConversation(
   page: Page,
   kind: 'image' | 'video',
   format: string,
+  modelId?: string,
 ): Promise<void> {
   const name = kind === 'image' ? /图片对话/ : /视频对话/
   await page.getByRole('button', { name }).first().click()
   const dialog = page.getByRole('dialog')
   if (kind === 'video') await dialog.getByRole('button', { name: '视频对话' }).click()
   await dialog.getByLabel('API 格式').selectOption(format)
+  if (modelId) await dialog.getByLabel('模型 ID').fill(modelId)
   await dialog.getByRole('button', { name: '创建对话' }).click()
 }
 
