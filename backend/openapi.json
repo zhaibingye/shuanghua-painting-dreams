@@ -1,0 +1,2616 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "霜华绘梦 API",
+    "description": "无状态的多供应商图片与视频生成 API 适配层。",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/v1/health/live": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Live",
+        "operationId": "live_api_v1_health_live_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/health/ready": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Ready",
+        "operationId": "ready_api_v1_health_ready_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadyResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/metadata/providers": {
+      "get": {
+        "tags": [
+          "metadata"
+        ],
+        "summary": "Providers",
+        "operationId": "providers_api_v1_metadata_providers_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderMetadataResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/images/generations": {
+      "post": {
+        "tags": [
+          "images"
+        ],
+        "summary": "Generate Image",
+        "operationId": "generate_image_api_v1_images_generations_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/GeminiImageGenerationRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/OpenAIImageGenerationRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/XAIImageGenerationRequest"
+                  }
+                ],
+                "title": "Request"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImageOperationResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    },
+    "/api/v1/images/edits": {
+      "post": {
+        "tags": [
+          "images"
+        ],
+        "summary": "Edit Image",
+        "operationId": "edit_image_api_v1_images_edits_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/GeminiImageEditRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/OpenAIImageEditRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/XAIImageEditRequest"
+                  }
+                ],
+                "title": "Request"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImageOperationResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    },
+    "/api/v1/images/conversation-turns/stream": {
+      "post": {
+        "tags": [
+          "images"
+        ],
+        "summary": "Stream Image Conversation Turn",
+        "operationId": "stream_image_conversation_turn_api_v1_images_conversation_turns_stream_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/OpenAIImageTurnRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/OpenAIResponsesImageTurnRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/GeminiImageTurnRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/XAIImageTurnRequest"
+                  }
+                ],
+                "title": "Request"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    },
+    "/api/v1/videos/generations": {
+      "post": {
+        "tags": [
+          "videos"
+        ],
+        "summary": "Create Video",
+        "operationId": "create_video_api_v1_videos_generations_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ByteDanceVideoGenerationRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/XAIVideoGenerationRequest"
+                  }
+                ],
+                "title": "Request"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VideoCreationResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    },
+    "/api/v1/videos/extensions": {
+      "post": {
+        "tags": [
+          "videos"
+        ],
+        "summary": "Extend Video",
+        "operationId": "extend_video_api_v1_videos_extensions_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/XAIVideoExtensionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VideoCreationResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    },
+    "/api/v1/video-tasks/status": {
+      "post": {
+        "tags": [
+          "videos"
+        ],
+        "summary": "Video Task Status",
+        "operationId": "video_task_status_api_v1_video_tasks_status_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VideoTaskStatusRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VideoTaskStatusResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ApiFormat": {
+        "type": "string",
+        "enum": [
+          "googleGeminiImage",
+          "openaiImage",
+          "openaiResponsesImage",
+          "xaiImage",
+          "byteDanceVideo",
+          "xaiVideo"
+        ],
+        "title": "ApiFormat"
+      },
+      "ByteDanceVideoGenerationRequest": {
+        "properties": {
+          "apiFormat": {
+            "type": "string",
+            "const": "byteDanceVideo",
+            "title": "Apiformat"
+          },
+          "baseUrl": {
+            "type": "string",
+            "maxLength": 2048,
+            "minLength": 8,
+            "title": "Baseurl"
+          },
+          "modelId": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Modelid"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "textToVideo",
+              "firstFrameToVideo",
+              "firstLastFrameToVideo",
+              "referenceToVideo"
+            ],
+            "title": "Mode"
+          },
+          "prompt": {
+            "type": "string",
+            "maxLength": 32000,
+            "title": "Prompt",
+            "default": ""
+          },
+          "inputs": {
+            "$ref": "#/components/schemas/ByteDanceVideoInputs"
+          },
+          "options": {
+            "$ref": "#/components/schemas/ByteDanceVideoOptions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "apiFormat",
+          "baseUrl",
+          "modelId",
+          "mode"
+        ],
+        "title": "ByteDanceVideoGenerationRequest"
+      },
+      "ByteDanceVideoInputs": {
+        "properties": {
+          "firstFrameUrl": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "format": "uri"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Firstframeurl"
+          },
+          "lastFrameUrl": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "format": "uri"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastframeurl"
+          },
+          "referenceImageUrls": {
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "format": "uri"
+            },
+            "type": "array",
+            "maxItems": 4,
+            "title": "Referenceimageurls"
+          },
+          "referenceVideoUrl": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "format": "uri"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Referencevideourl"
+          },
+          "referenceAudioUrl": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "format": "uri"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Referenceaudiourl"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ByteDanceVideoInputs"
+      },
+      "ByteDanceVideoOptions": {
+        "properties": {
+          "duration": {
+            "type": "integer",
+            "maximum": 15.0,
+            "minimum": -1.0,
+            "title": "Duration",
+            "default": 5
+          },
+          "resolution": {
+            "type": "string",
+            "enum": [
+              "480p",
+              "720p",
+              "1080p"
+            ],
+            "title": "Resolution",
+            "default": "720p"
+          },
+          "aspectRatio": {
+            "type": "string",
+            "enum": [
+              "16:9",
+              "4:3",
+              "1:1",
+              "3:4",
+              "9:16",
+              "21:9",
+              "adaptive"
+            ],
+            "title": "Aspectratio",
+            "default": "adaptive"
+          },
+          "generateAudio": {
+            "type": "boolean",
+            "title": "Generateaudio",
+            "default": false
+          },
+          "watermark": {
+            "type": "boolean",
+            "title": "Watermark",
+            "default": false
+          },
+          "seed": {
+            "type": "integer",
+            "maximum": 4294967295.0,
+            "minimum": -1.0,
+            "title": "Seed",
+            "default": -1
+          },
+          "returnLastFrame": {
+            "type": "boolean",
+            "title": "Returnlastframe",
+            "default": false
+          },
+          "cameraFixed": {
+            "type": "boolean",
+            "title": "Camerafixed",
+            "default": false
+          },
+          "serviceTier": {
+            "type": "string",
+            "enum": [
+              "default",
+              "flex"
+            ],
+            "title": "Servicetier",
+            "default": "default"
+          },
+          "webSearch": {
+            "type": "boolean",
+            "title": "Websearch",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ByteDanceVideoOptions"
+      },
+      "CreatedVideoTaskResponse": {
+        "properties": {
+          "taskId": {
+            "type": "string",
+            "title": "Taskid"
+          },
+          "apiFormat": {
+            "$ref": "#/components/schemas/ApiFormat"
+          },
+          "operation": {
+            "$ref": "#/components/schemas/TaskOperation"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "taskId",
+          "apiFormat",
+          "operation",
+          "status"
+        ],
+        "title": "CreatedVideoTaskResponse"
+      },
+      "DataUrlImageAsset": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "dataUrl",
+            "title": "Kind",
+            "default": "dataUrl"
+          },
+          "dataUrl": {
+            "type": "string",
+            "minLength": 32,
+            "title": "Dataurl"
+          },
+          "filename": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filename"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "dataUrl"
+        ],
+        "title": "DataUrlImageAsset"
+      },
+      "GeminiConversationContent": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "user",
+              "model"
+            ],
+            "title": "Role"
+          },
+          "parts": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/GeminiTextPart"
+                },
+                {
+                  "$ref": "#/components/schemas/GeminiImagePart"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "kind",
+                "mapping": {
+                  "image": "#/components/schemas/GeminiImagePart",
+                  "text": "#/components/schemas/GeminiTextPart"
+                }
+              }
+            },
+            "type": "array",
+            "maxItems": 128,
+            "minItems": 1,
+            "title": "Parts"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "role",
+          "parts"
+        ],
+        "title": "GeminiConversationContent"
+      },
+      "GeminiImageEditRequest": {
+        "properties": {
+          "apiFormat": {
+            "type": "string",
+            "const": "googleGeminiImage",
+            "title": "Apiformat"
+          },
+          "baseUrl": {
+            "type": "string",
+            "maxLength": 2048,
+            "minLength": 8,
+            "title": "Baseurl"
+          },
+          "modelId": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Modelid"
+          },
+          "prompt": {
+            "type": "string",
+            "maxLength": 32000,
+            "minLength": 1,
+            "title": "Prompt"
+          },
+          "images": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/DataUrlImageAsset"
+                },
+                {
+                  "$ref": "#/components/schemas/UrlImageAsset"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "kind",
+                "mapping": {
+                  "dataUrl": "#/components/schemas/DataUrlImageAsset",
+                  "url": "#/components/schemas/UrlImageAsset"
+                }
+              }
+            },
+            "type": "array",
+            "maxItems": 14,
+            "minItems": 1,
+            "title": "Images"
+          },
+          "options": {
+            "$ref": "#/components/schemas/GeminiImageOptions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "apiFormat",
+          "baseUrl",
+          "modelId",
+          "prompt",
+          "images"
+        ],
+        "title": "GeminiImageEditRequest"
+      },
+      "GeminiImageGenerationRequest": {
+        "properties": {
+          "apiFormat": {
+            "type": "string",
+            "const": "googleGeminiImage",
+            "title": "Apiformat"
+          },
+          "baseUrl": {
+            "type": "string",
+            "maxLength": 2048,
+            "minLength": 8,
+            "title": "Baseurl"
+          },
+          "modelId": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Modelid"
+          },
+          "prompt": {
+            "type": "string",
+            "maxLength": 32000,
+            "minLength": 1,
+            "title": "Prompt"
+          },
+          "options": {
+            "$ref": "#/components/schemas/GeminiImageOptions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "apiFormat",
+          "baseUrl",
+          "modelId",
+          "prompt"
+        ],
+        "title": "GeminiImageGenerationRequest"
+      },
+      "GeminiImageOptions": {
+        "properties": {
+          "aspectRatio": {
+            "type": "string",
+            "title": "Aspectratio",
+            "default": "1:1"
+          },
+          "imageSize": {
+            "type": "string",
+            "enum": [
+              "512",
+              "1K",
+              "2K",
+              "4K"
+            ],
+            "title": "Imagesize",
+            "default": "1K"
+          },
+          "responseModalities": {
+            "type": "string",
+            "enum": [
+              "IMAGE",
+              "TEXT_AND_IMAGE"
+            ],
+            "title": "Responsemodalities",
+            "default": "IMAGE"
+          },
+          "thinkingLevel": {
+            "type": "string",
+            "enum": [
+              "High",
+              "Low",
+              "Off"
+            ],
+            "title": "Thinkinglevel",
+            "default": "High"
+          },
+          "includeThoughts": {
+            "type": "boolean",
+            "title": "Includethoughts",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "GeminiImageOptions"
+      },
+      "GeminiImagePart": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "image",
+            "title": "Kind",
+            "default": "image"
+          },
+          "image": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/DataUrlImageAsset"
+              },
+              {
+                "$ref": "#/components/schemas/UrlImageAsset"
+              }
+            ],
+            "title": "Image",
+            "discriminator": {
+              "propertyName": "kind",
+              "mapping": {
+                "dataUrl": "#/components/schemas/DataUrlImageAsset",
+                "url": "#/components/schemas/UrlImageAsset"
+              }
+            }
+          },
+          "thought": {
+            "type": "boolean",
+            "title": "Thought",
+            "default": false
+          },
+          "thoughtSignature": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thoughtsignature"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "image"
+        ],
+        "title": "GeminiImagePart"
+      },
+      "GeminiImageTurnRequest": {
+        "properties": {
+          "apiFormat": {
+            "type": "string",
+            "const": "googleGeminiImage",
+            "title": "Apiformat"
+          },
+          "baseUrl": {
+            "type": "string",
+            "maxLength": 2048,
+            "minLength": 8,
+            "title": "Baseurl"
+          },
+          "modelId": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Modelid"
+          },
+          "prompt": {
+            "type": "string",
+            "maxLength": 32000,
+            "minLength": 1,
+            "title": "Prompt"
+          },
+          "history": {
+            "items": {
+              "$ref": "#/components/schemas/GeminiConversationContent"
+            },
+            "type": "array",
+            "maxItems": 256,
+            "title": "History"
+          },
+          "images": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/DataUrlImageAsset"
+                },
+                {
+                  "$ref": "#/components/schemas/UrlImageAsset"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "kind",
+                "mapping": {
+                  "dataUrl": "#/components/schemas/DataUrlImageAsset",
+                  "url": "#/components/schemas/UrlImageAsset"
+                }
+              }
+            },
+            "type": "array",
+            "maxItems": 14,
+            "title": "Images"
+          },
+          "options": {
+            "$ref": "#/components/schemas/GeminiImageOptions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "apiFormat",
+          "baseUrl",
+          "modelId",
+          "prompt"
+        ],
+        "title": "GeminiImageTurnRequest"
+      },
+      "GeminiTextPart": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "text",
+            "title": "Kind",
+            "default": "text"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 64000,
+            "minLength": 1,
+            "title": "Text"
+          },
+          "thought": {
+            "type": "boolean",
+            "title": "Thought",
+            "default": false
+          },
+          "thoughtSignature": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thoughtsignature"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "GeminiTextPart"
+      },
+      "GeneratedImageResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "mimeType": {
+            "type": "string",
+            "title": "Mimetype"
+          },
+          "base64Data": {
+            "type": "string",
+            "title": "Base64Data"
+          },
+          "revisedPrompt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revisedprompt"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "mimeType",
+          "base64Data"
+        ],
+        "title": "GeneratedImageResponse"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HealthResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "HealthResponse"
+      },
+      "ImageOperationResponse": {
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "title": "Requestid"
+          },
+          "images": {
+            "items": {
+              "$ref": "#/components/schemas/GeneratedImageResponse"
+            },
+            "type": "array",
+            "title": "Images"
+          },
+          "textOutputs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Textoutputs"
+          },
+          "usage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UsageResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "requestId",
+          "images"
+        ],
+        "title": "ImageOperationResponse"
+      },
+      "MediaKind": {
+        "type": "string",
+        "enum": [
+          "image",
+          "video"
+        ],
+        "title": "MediaKind"
+      },
+      "OpenAIImageEditOptions": {
+        "properties": {
+          "count": {
+            "type": "integer",
+            "maximum": 10.0,
+            "minimum": 1.0,
+            "title": "Count",
+            "default": 1
+          },
+          "size": {
+            "type": "string",
+            "maxLength": 32,
+            "minLength": 3,
+            "title": "Size",
+            "default": "1024x1024"
+          },
+          "quality": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "low",
+              "medium",
+              "high"
+            ],
+            "title": "Quality",
+            "default": "auto"
+          },
+          "outputFormat": {
+            "type": "string",
+            "enum": [
+              "png",
+              "jpeg",
+              "webp"
+            ],
+            "title": "Outputformat",
+            "default": "png"
+          },
+          "outputCompression": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Outputcompression",
+            "default": 100
+          },
+          "background": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "opaque",
+              "transparent"
+            ],
+            "title": "Background",
+            "default": "auto"
+          },
+          "inputFidelity": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "low",
+              "high"
+            ],
+            "title": "Inputfidelity",
+            "default": "auto"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "OpenAIImageEditOptions"
+      },
+      "OpenAIImageEditRequest": {
+        "properties": {
+          "apiFormat": {
+            "type": "string",
+            "const": "openaiImage",
+            "title": "Apiformat"
+          },
+          "baseUrl": {
+            "type": "string",
+            "maxLength": 2048,
+            "minLength": 8,
+            "title": "Baseurl"
+          },
+          "modelId": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Modelid"
+          },
+          "prompt": {
+            "type": "string",
+            "maxLength": 32000,
+            "minLength": 1,
+            "title": "Prompt"
+          },
+          "images": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/DataUrlImageAsset"
+                },
+                {
+                  "$ref": "#/components/schemas/UrlImageAsset"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "kind",
+                "mapping": {
+                  "dataUrl": "#/components/schemas/DataUrlImageAsset",
+                  "url": "#/components/schemas/UrlImageAsset"
+                }
+              }
+            },
+            "type": "array",
+            "maxItems": 16,
+            "minItems": 1,
+            "title": "Images"
+          },
+          "mask": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DataUrlImageAsset"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "options": {
+            "$ref": "#/components/schemas/OpenAIImageEditOptions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "apiFormat",
+          "baseUrl",
+          "modelId",
+          "prompt",
+          "images"
+        ],
+        "title": "OpenAIImageEditRequest"
+      },
+      "OpenAIImageGenerationRequest": {
+        "properties": {
+          "apiFormat": {
+            "type": "string",
+            "const": "openaiImage",
+            "title": "Apiformat"
+          },
+          "baseUrl": {
+            "type": "string",
+            "maxLength": 2048,
+            "minLength": 8,
+            "title": "Baseurl"
+          },
+          "modelId": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Modelid"
+          },
+          "prompt": {
+            "type": "string",
+            "maxLength": 32000,
+            "minLength": 1,
+            "title": "Prompt"
+          },
+          "options": {
+            "$ref": "#/components/schemas/OpenAIImageOptions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "apiFormat",
+          "baseUrl",
+          "modelId",
+          "prompt"
+        ],
+        "title": "OpenAIImageGenerationRequest"
+      },
+      "OpenAIImageOptions": {
+        "properties": {
+          "count": {
+            "type": "integer",
+            "maximum": 10.0,
+            "minimum": 1.0,
+            "title": "Count",
+            "default": 1
+          },
+          "size": {
+            "type": "string",
+            "maxLength": 32,
+            "minLength": 3,
+            "title": "Size",
+            "default": "1024x1024"
+          },
+          "quality": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "low",
+              "medium",
+              "high"
+            ],
+            "title": "Quality",
+            "default": "auto"
+          },
+          "outputFormat": {
+            "type": "string",
+            "enum": [
+              "png",
+              "jpeg",
+              "webp"
+            ],
+            "title": "Outputformat",
+            "default": "png"
+          },
+          "outputCompression": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Outputcompression",
+            "default": 100
+          },
+          "background": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "opaque",
+              "transparent"
+            ],
+            "title": "Background",
+            "default": "auto"
+          },
+          "moderation": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "low"
+            ],
+            "title": "Moderation",
+            "default": "auto"
+          },
+          "partialImages": {
+            "type": "integer",
+            "maximum": 3.0,
+            "minimum": 0.0,
+            "title": "Partialimages",
+            "default": 2
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "OpenAIImageOptions"
+      },
+      "OpenAIImageTurnOptions": {
+        "properties": {
+          "count": {
+            "type": "integer",
+            "maximum": 10.0,
+            "minimum": 1.0,
+            "title": "Count",
+            "default": 1
+          },
+          "size": {
+            "type": "string",
+            "maxLength": 32,
+            "minLength": 3,
+            "title": "Size",
+            "default": "1024x1024"
+          },
+          "quality": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "low",
+              "medium",
+              "high"
+            ],
+            "title": "Quality",
+            "default": "auto"
+          },
+          "outputFormat": {
+            "type": "string",
+            "enum": [
+              "png",
+              "jpeg",
+              "webp"
+            ],
+            "title": "Outputformat",
+            "default": "png"
+          },
+          "outputCompression": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Outputcompression",
+            "default": 100
+          },
+          "background": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "opaque",
+              "transparent"
+            ],
+            "title": "Background",
+            "default": "auto"
+          },
+          "moderation": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "low"
+            ],
+            "title": "Moderation",
+            "default": "auto"
+          },
+          "inputFidelity": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "low",
+              "high"
+            ],
+            "title": "Inputfidelity",
+            "default": "auto"
+          },
+          "partialImages": {
+            "type": "integer",
+            "maximum": 3.0,
+            "minimum": 0.0,
+            "title": "Partialimages",
+            "default": 2
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "OpenAIImageTurnOptions"
+      },
+      "OpenAIImageTurnRequest": {
+        "properties": {
+          "apiFormat": {
+            "type": "string",
+            "const": "openaiImage",
+            "title": "Apiformat"
+          },
+          "baseUrl": {
+            "type": "string",
+            "maxLength": 2048,
+            "minLength": 8,
+            "title": "Baseurl"
+          },
+          "modelId": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Modelid"
+          },
+          "prompt": {
+            "type": "string",
+            "maxLength": 32000,
+            "minLength": 1,
+            "title": "Prompt"
+          },
+          "sourceImages": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/DataUrlImageAsset"
+                },
+                {
+                  "$ref": "#/components/schemas/UrlImageAsset"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "kind",
+                "mapping": {
+                  "dataUrl": "#/components/schemas/DataUrlImageAsset",
+                  "url": "#/components/schemas/UrlImageAsset"
+                }
+              }
+            },
+            "type": "array",
+            "maxItems": 16,
+            "title": "Sourceimages"
+          },
+          "mask": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DataUrlImageAsset"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "options": {
+            "$ref": "#/components/schemas/OpenAIImageTurnOptions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "apiFormat",
+          "baseUrl",
+          "modelId",
+          "prompt"
+        ],
+        "title": "OpenAIImageTurnRequest"
+      },
+      "OpenAIResponsesImageCallHistoryItem": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "imageGenerationCall",
+            "title": "Kind",
+            "default": "imageGenerationCall"
+          },
+          "callId": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Callid"
+          },
+          "status": {
+            "type": "string",
+            "const": "completed",
+            "title": "Status",
+            "default": "completed"
+          },
+          "image": {
+            "$ref": "#/components/schemas/DataUrlImageAsset"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "callId",
+          "image"
+        ],
+        "title": "OpenAIResponsesImageCallHistoryItem"
+      },
+      "OpenAIResponsesImageOptions": {
+        "properties": {
+          "size": {
+            "type": "string",
+            "maxLength": 32,
+            "minLength": 3,
+            "title": "Size",
+            "default": "auto"
+          },
+          "quality": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "low",
+              "medium",
+              "high"
+            ],
+            "title": "Quality",
+            "default": "auto"
+          },
+          "outputFormat": {
+            "type": "string",
+            "enum": [
+              "png",
+              "jpeg",
+              "webp"
+            ],
+            "title": "Outputformat",
+            "default": "png"
+          },
+          "outputCompression": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Outputcompression",
+            "default": 100
+          },
+          "background": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "opaque",
+              "transparent"
+            ],
+            "title": "Background",
+            "default": "auto"
+          },
+          "moderation": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "low"
+            ],
+            "title": "Moderation",
+            "default": "auto"
+          },
+          "inputFidelity": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "low",
+              "high"
+            ],
+            "title": "Inputfidelity",
+            "default": "auto"
+          },
+          "partialImages": {
+            "type": "integer",
+            "maximum": 3.0,
+            "minimum": 0.0,
+            "title": "Partialimages",
+            "default": 2
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "OpenAIResponsesImageOptions"
+      },
+      "OpenAIResponsesImageTurnRequest": {
+        "properties": {
+          "apiFormat": {
+            "type": "string",
+            "const": "openaiResponsesImage",
+            "title": "Apiformat"
+          },
+          "baseUrl": {
+            "type": "string",
+            "maxLength": 2048,
+            "minLength": 8,
+            "title": "Baseurl"
+          },
+          "modelId": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Modelid"
+          },
+          "prompt": {
+            "type": "string",
+            "maxLength": 32000,
+            "minLength": 1,
+            "title": "Prompt"
+          },
+          "history": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/OpenAIResponsesMessageHistoryItem"
+                },
+                {
+                  "$ref": "#/components/schemas/OpenAIResponsesImageCallHistoryItem"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "kind",
+                "mapping": {
+                  "imageGenerationCall": "#/components/schemas/OpenAIResponsesImageCallHistoryItem",
+                  "message": "#/components/schemas/OpenAIResponsesMessageHistoryItem"
+                }
+              }
+            },
+            "type": "array",
+            "maxItems": 256,
+            "title": "History"
+          },
+          "images": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/DataUrlImageAsset"
+                },
+                {
+                  "$ref": "#/components/schemas/UrlImageAsset"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "kind",
+                "mapping": {
+                  "dataUrl": "#/components/schemas/DataUrlImageAsset",
+                  "url": "#/components/schemas/UrlImageAsset"
+                }
+              }
+            },
+            "type": "array",
+            "maxItems": 16,
+            "title": "Images"
+          },
+          "options": {
+            "$ref": "#/components/schemas/OpenAIResponsesImageOptions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "apiFormat",
+          "baseUrl",
+          "modelId",
+          "prompt"
+        ],
+        "title": "OpenAIResponsesImageTurnRequest"
+      },
+      "OpenAIResponsesMessageHistoryItem": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "message",
+            "title": "Kind",
+            "default": "message"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 32000,
+            "minLength": 1,
+            "title": "Text"
+          },
+          "images": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/DataUrlImageAsset"
+                },
+                {
+                  "$ref": "#/components/schemas/UrlImageAsset"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "kind",
+                "mapping": {
+                  "dataUrl": "#/components/schemas/DataUrlImageAsset",
+                  "url": "#/components/schemas/UrlImageAsset"
+                }
+              }
+            },
+            "type": "array",
+            "maxItems": 16,
+            "title": "Images"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "OpenAIResponsesMessageHistoryItem"
+      },
+      "ProviderMetadata": {
+        "properties": {
+          "apiFormat": {
+            "$ref": "#/components/schemas/ApiFormat"
+          },
+          "mediaKind": {
+            "$ref": "#/components/schemas/MediaKind"
+          },
+          "displayName": {
+            "type": "string",
+            "title": "Displayname"
+          },
+          "defaultBaseUrl": {
+            "type": "string",
+            "title": "Defaultbaseurl"
+          },
+          "defaultModelId": {
+            "type": "string",
+            "title": "Defaultmodelid"
+          },
+          "genericCapabilities": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Genericcapabilities"
+          },
+          "knownModels": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "object",
+            "title": "Knownmodels"
+          },
+          "defaultOptions": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Defaultoptions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "apiFormat",
+          "mediaKind",
+          "displayName",
+          "defaultBaseUrl",
+          "defaultModelId",
+          "genericCapabilities",
+          "defaultOptions"
+        ],
+        "title": "ProviderMetadata"
+      },
+      "ProviderMetadataResponse": {
+        "properties": {
+          "schemaVersion": {
+            "type": "integer",
+            "title": "Schemaversion"
+          },
+          "providers": {
+            "items": {
+              "$ref": "#/components/schemas/ProviderMetadata"
+            },
+            "type": "array",
+            "title": "Providers"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "schemaVersion",
+          "providers"
+        ],
+        "title": "ProviderMetadataResponse"
+      },
+      "ReadyResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "status",
+          "version"
+        ],
+        "title": "ReadyResponse"
+      },
+      "TaskOperation": {
+        "type": "string",
+        "enum": [
+          "generation",
+          "extension"
+        ],
+        "title": "TaskOperation"
+      },
+      "TaskStatus": {
+        "type": "string",
+        "enum": [
+          "queued",
+          "processing",
+          "succeeded",
+          "failed",
+          "expired",
+          "cancelled"
+        ],
+        "title": "TaskStatus"
+      },
+      "UrlImageAsset": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "url",
+            "title": "Kind",
+            "default": "url"
+          },
+          "url": {
+            "type": "string",
+            "minLength": 1,
+            "format": "uri",
+            "title": "Url"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "UrlImageAsset"
+      },
+      "UsageResponse": {
+        "properties": {
+          "inputTokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inputtokens"
+          },
+          "outputTokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outputtokens"
+          },
+          "totalTokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Totaltokens"
+          },
+          "costInUsdTicks": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Costinusdticks"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "UsageResponse"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "VideoCreationResponse": {
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "title": "Requestid"
+          },
+          "task": {
+            "$ref": "#/components/schemas/CreatedVideoTaskResponse"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "requestId",
+          "task"
+        ],
+        "title": "VideoCreationResponse"
+      },
+      "VideoOutputResponse": {
+        "properties": {
+          "videoUrl": {
+            "type": "string",
+            "title": "Videourl"
+          },
+          "lastFrameUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastframeurl"
+          },
+          "duration": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration"
+          },
+          "respectModeration": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Respectmoderation"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "videoUrl"
+        ],
+        "title": "VideoOutputResponse"
+      },
+      "VideoTaskErrorResponse": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "VideoTaskErrorResponse"
+      },
+      "VideoTaskResponse": {
+        "properties": {
+          "taskId": {
+            "type": "string",
+            "title": "Taskid"
+          },
+          "apiFormat": {
+            "$ref": "#/components/schemas/ApiFormat"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus"
+          },
+          "progress": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Progress"
+          },
+          "modelId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Modelid"
+          },
+          "output": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VideoOutputResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "usage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UsageResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VideoTaskErrorResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "taskId",
+          "apiFormat",
+          "status"
+        ],
+        "title": "VideoTaskResponse"
+      },
+      "VideoTaskStatusRequest": {
+        "properties": {
+          "apiFormat": {
+            "type": "string",
+            "enum": [
+              "byteDanceVideo",
+              "xaiVideo"
+            ],
+            "title": "Apiformat"
+          },
+          "baseUrl": {
+            "type": "string",
+            "maxLength": 2048,
+            "minLength": 8,
+            "title": "Baseurl"
+          },
+          "taskId": {
+            "type": "string",
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Taskid"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "apiFormat",
+          "baseUrl",
+          "taskId"
+        ],
+        "title": "VideoTaskStatusRequest"
+      },
+      "VideoTaskStatusResponse": {
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "title": "Requestid"
+          },
+          "task": {
+            "$ref": "#/components/schemas/VideoTaskResponse"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "requestId",
+          "task"
+        ],
+        "title": "VideoTaskStatusResponse"
+      },
+      "XAIImageEditRequest": {
+        "properties": {
+          "apiFormat": {
+            "type": "string",
+            "const": "xaiImage",
+            "title": "Apiformat"
+          },
+          "baseUrl": {
+            "type": "string",
+            "maxLength": 2048,
+            "minLength": 8,
+            "title": "Baseurl"
+          },
+          "modelId": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Modelid"
+          },
+          "prompt": {
+            "type": "string",
+            "maxLength": 32000,
+            "minLength": 1,
+            "title": "Prompt"
+          },
+          "images": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/DataUrlImageAsset"
+                },
+                {
+                  "$ref": "#/components/schemas/UrlImageAsset"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "kind",
+                "mapping": {
+                  "dataUrl": "#/components/schemas/DataUrlImageAsset",
+                  "url": "#/components/schemas/UrlImageAsset"
+                }
+              }
+            },
+            "type": "array",
+            "maxItems": 3,
+            "minItems": 1,
+            "title": "Images"
+          },
+          "options": {
+            "$ref": "#/components/schemas/XAIImageOptions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "apiFormat",
+          "baseUrl",
+          "modelId",
+          "prompt",
+          "images"
+        ],
+        "title": "XAIImageEditRequest"
+      },
+      "XAIImageGenerationRequest": {
+        "properties": {
+          "apiFormat": {
+            "type": "string",
+            "const": "xaiImage",
+            "title": "Apiformat"
+          },
+          "baseUrl": {
+            "type": "string",
+            "maxLength": 2048,
+            "minLength": 8,
+            "title": "Baseurl"
+          },
+          "modelId": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Modelid"
+          },
+          "prompt": {
+            "type": "string",
+            "maxLength": 32000,
+            "minLength": 1,
+            "title": "Prompt"
+          },
+          "options": {
+            "$ref": "#/components/schemas/XAIImageOptions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "apiFormat",
+          "baseUrl",
+          "modelId",
+          "prompt"
+        ],
+        "title": "XAIImageGenerationRequest"
+      },
+      "XAIImageOptions": {
+        "properties": {
+          "count": {
+            "type": "integer",
+            "maximum": 10.0,
+            "minimum": 1.0,
+            "title": "Count",
+            "default": 1
+          },
+          "aspectRatio": {
+            "type": "string",
+            "maxLength": 16,
+            "minLength": 3,
+            "title": "Aspectratio",
+            "default": "1:1"
+          },
+          "resolution": {
+            "type": "string",
+            "enum": [
+              "1k",
+              "2k"
+            ],
+            "title": "Resolution",
+            "default": "1k"
+          },
+          "quality": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium"
+            ],
+            "title": "Quality",
+            "default": "medium"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "XAIImageOptions"
+      },
+      "XAIImageTurnRequest": {
+        "properties": {
+          "apiFormat": {
+            "type": "string",
+            "const": "xaiImage",
+            "title": "Apiformat"
+          },
+          "baseUrl": {
+            "type": "string",
+            "maxLength": 2048,
+            "minLength": 8,
+            "title": "Baseurl"
+          },
+          "modelId": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Modelid"
+          },
+          "prompt": {
+            "type": "string",
+            "maxLength": 32000,
+            "minLength": 1,
+            "title": "Prompt"
+          },
+          "sourceImages": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/DataUrlImageAsset"
+                },
+                {
+                  "$ref": "#/components/schemas/UrlImageAsset"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "kind",
+                "mapping": {
+                  "dataUrl": "#/components/schemas/DataUrlImageAsset",
+                  "url": "#/components/schemas/UrlImageAsset"
+                }
+              }
+            },
+            "type": "array",
+            "maxItems": 3,
+            "title": "Sourceimages"
+          },
+          "options": {
+            "$ref": "#/components/schemas/XAIImageOptions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "apiFormat",
+          "baseUrl",
+          "modelId",
+          "prompt"
+        ],
+        "title": "XAIImageTurnRequest"
+      },
+      "XAIVideoExtensionRequest": {
+        "properties": {
+          "apiFormat": {
+            "type": "string",
+            "const": "xaiVideo",
+            "title": "Apiformat"
+          },
+          "baseUrl": {
+            "type": "string",
+            "maxLength": 2048,
+            "minLength": 8,
+            "title": "Baseurl"
+          },
+          "modelId": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Modelid"
+          },
+          "prompt": {
+            "type": "string",
+            "maxLength": 32000,
+            "minLength": 1,
+            "title": "Prompt"
+          },
+          "videoUrl": {
+            "type": "string",
+            "minLength": 1,
+            "format": "uri",
+            "title": "Videourl"
+          },
+          "duration": {
+            "type": "integer",
+            "maximum": 10.0,
+            "minimum": 2.0,
+            "title": "Duration",
+            "default": 6
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "apiFormat",
+          "baseUrl",
+          "modelId",
+          "prompt",
+          "videoUrl"
+        ],
+        "title": "XAIVideoExtensionRequest"
+      },
+      "XAIVideoGenerationRequest": {
+        "properties": {
+          "apiFormat": {
+            "type": "string",
+            "const": "xaiVideo",
+            "title": "Apiformat"
+          },
+          "baseUrl": {
+            "type": "string",
+            "maxLength": 2048,
+            "minLength": 8,
+            "title": "Baseurl"
+          },
+          "modelId": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Modelid"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "textToVideo",
+              "firstFrameToVideo",
+              "referenceToVideo"
+            ],
+            "title": "Mode"
+          },
+          "prompt": {
+            "type": "string",
+            "maxLength": 32000,
+            "title": "Prompt",
+            "default": ""
+          },
+          "inputs": {
+            "$ref": "#/components/schemas/XAIVideoInputs"
+          },
+          "options": {
+            "$ref": "#/components/schemas/XAIVideoOptions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "apiFormat",
+          "baseUrl",
+          "modelId",
+          "mode"
+        ],
+        "title": "XAIVideoGenerationRequest"
+      },
+      "XAIVideoInputs": {
+        "properties": {
+          "firstFrame": {
+            "anyOf": [
+              {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/DataUrlImageAsset"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UrlImageAsset"
+                  }
+                ],
+                "discriminator": {
+                  "propertyName": "kind",
+                  "mapping": {
+                    "dataUrl": "#/components/schemas/DataUrlImageAsset",
+                    "url": "#/components/schemas/UrlImageAsset"
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Firstframe"
+          },
+          "referenceImages": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/DataUrlImageAsset"
+                },
+                {
+                  "$ref": "#/components/schemas/UrlImageAsset"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "kind",
+                "mapping": {
+                  "dataUrl": "#/components/schemas/DataUrlImageAsset",
+                  "url": "#/components/schemas/UrlImageAsset"
+                }
+              }
+            },
+            "type": "array",
+            "maxItems": 8,
+            "title": "Referenceimages"
+          },
+          "voiceIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 3,
+            "title": "Voiceids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "XAIVideoInputs"
+      },
+      "XAIVideoOptions": {
+        "properties": {
+          "duration": {
+            "type": "integer",
+            "maximum": 15.0,
+            "minimum": 1.0,
+            "title": "Duration",
+            "default": 8
+          },
+          "resolution": {
+            "type": "string",
+            "enum": [
+              "480p",
+              "720p",
+              "1080p"
+            ],
+            "title": "Resolution",
+            "default": "720p"
+          },
+          "aspectRatio": {
+            "type": "string",
+            "enum": [
+              "16:9",
+              "9:16",
+              "1:1",
+              "4:3",
+              "3:4",
+              "3:2",
+              "2:3"
+            ],
+            "title": "Aspectratio",
+            "default": "16:9"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "XAIVideoOptions"
+      }
+    },
+    "securitySchemes": {
+      "APIKeyHeader": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Upstream-API-Key"
+      }
+    }
+  }
+}

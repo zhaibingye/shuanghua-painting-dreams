@@ -1,0 +1,18 @@
+{
+  "name": "shuanghua-painting-dreams",
+  "private": true,
+  "version": "0.1.0",
+  "description": "霜华绘梦前后端统一开发与生产启动入口",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "setup": "node scripts/project.mjs setup",
+    "dev": "node scripts/project.mjs dev",
+    "build": "node scripts/project.mjs build",
+    "start": "node scripts/project.mjs start",
+    "check": "node scripts/project.mjs check",
+    "e2e": "npm run e2e --prefix frontend",
+    "e2e:install": "npm run e2e:install --prefix frontend"
+  }
+}
