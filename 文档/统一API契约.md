@@ -30,12 +30,12 @@ type ApiFormat =
 
 | API 格式 | 默认模型 | 默认 Base URL |
 |---|---|---|
-| Google Gemini 图像 | `nano-banana-2` | `https://shapi.vip` |
-| OpenAI Images | `gpt-image-2` | `https://shapi.vip` |
-| OpenAI Responses 图像 | `gpt-5.6-luna` | `https://shapi.vip` |
-| xAI 图像 | `grok-imagine-image-2.0` | `https://shapi.vip` |
-| 字节 Seedance 视频 | `doubao-seedance-2-0-260128` | `https://shapi.vip` |
-| xAI 视频 | `grok-imagine-video-1.5` | `https://shapi.vip` |
+| Google Gemini 图像 | `nano-banana-2` | `https://www.shapi.vip` |
+| OpenAI Images | `gpt-image-2.5-sunburst` | `https://www.shapi.vip` |
+| OpenAI Responses 图像 | `gpt-5.6-luna` | `https://www.shapi.vip` |
+| xAI 图像 | `grok-imagine-image-2.0` | `https://www.shapi.vip` |
+| 字节 Seedance 视频 | `doubao-seedance-2-0-260128` | `https://www.shapi.vip` |
+| xAI 视频 | `grok-imagine-video-1.5` | `https://www.shapi.vip` |
 
 ## 3. 通用连接信息
 
@@ -92,8 +92,8 @@ Content-Type: application/json
 ```json
 {
   "apiFormat": "openaiImage",
-  "baseUrl": "https://shapi.vip",
-  "modelId": "gpt-image-2",
+  "baseUrl": "https://www.shapi.vip",
+  "modelId": "gpt-image-2.5-sunburst",
   "prompt": "把天空改成极光夜空",
   "sourceImages": [
     { "kind": "dataUrl", "dataUrl": "data:image/png;base64,..." }
@@ -130,7 +130,7 @@ Content-Type: application/json
 ```json
 {
   "apiFormat": "openaiResponsesImage",
-  "baseUrl": "https://shapi.vip",
+  "baseUrl": "https://www.shapi.vip",
   "modelId": "gpt-5.6-luna",
   "prompt": "把花瓣改成半透明冰晶",
   "history": [
@@ -181,7 +181,7 @@ Content-Type: application/json
 ```json
 {
   "apiFormat": "googleGeminiImage",
-  "baseUrl": "https://shapi.vip",
+  "baseUrl": "https://www.shapi.vip",
   "modelId": "nano-banana-2",
   "prompt": "把信息图翻译成西班牙语",
   "history": [

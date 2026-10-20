@@ -48,6 +48,7 @@ class OpenAIResponsesImageAdapter:
         completed_count = 0
         text_emitted = False
         final_usage: Usage | None = None
+        response_completed = False
 
         async for event in self._transport.stream_sse(
             method="POST",
@@ -124,6 +125,7 @@ class OpenAIResponsesImageAdapter:
                 continue
 
             if event_type == "response.completed":
+                response_completed = True
                 response = data.get("response")
                 if not isinstance(response, Mapping):
                     response = data
@@ -153,7 +155,13 @@ class OpenAIResponsesImageAdapter:
                             if text:
                                 text_emitted = True
                                 yield ImageStreamChunk(kind="text_delta", text_delta=text)
+                break
 
+        if not response_completed:
+            raise invalid_response_error(
+                self.api_format,
+                "OpenAI Responses 流在完整响应完成前意外结束。",
+            )
         if completed_count == 0:
             raise invalid_response_error(
                 self.api_format,

@@ -219,10 +219,8 @@ async function startDevelopment() {
   const backend = startProcess(
     uvCommand,
     [
-      uvCommand,
-      ['run', '--frozen', '--no-sync', 'python', '-m', 'uvicorn', 'app.main:app', '--host', backendHost, '--port', String(backendPort), '--reload'],
-      backendDirectory,
-      'FastAPI 开发服务',
+      'run', '--frozen', '--no-sync', 'python', '-m', 'uvicorn', 'app.main:app',
+      '--host', backendHost, '--port', String(backendPort), '--reload',
     ],
     {
       cwd: backendDirectory,

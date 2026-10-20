@@ -69,6 +69,7 @@ export function ChatPage({ onOpenSidebar }: { onOpenSidebar: () => void }) {
   const [imagePreparing, setImagePreparing] = useState(false)
   const imagePreparingRef = useRef(false)
   const [videoBusy, setVideoBusy] = useState(false)
+  const videoBusyRef = useRef(false)
   const [maskDataUrl, setMaskDataUrl] = useState<string | null>(null)
   const [maskSource, setMaskSource] = useState<{
     url: string
@@ -87,6 +88,7 @@ export function ChatPage({ onOpenSidebar }: { onOpenSidebar: () => void }) {
 
   useEffect(() => {
     conversationIdRef.current = conversationId
+    return () => { conversationIdRef.current = undefined }
   }, [conversationId])
 
   const currentConversationId = conversation?.id
@@ -187,7 +189,9 @@ export function ChatPage({ onOpenSidebar }: { onOpenSidebar: () => void }) {
       return
     }
 
-    if (imagePreparingRef.current) return
+    if (imagePreparingRef.current || taskForConversation(
+      useImageTaskStore.getState().tasks, currentConversation.id,
+    )) return
     imagePreparingRef.current = true
     setImagePreparing(true)
     const draftImages = images
@@ -274,6 +278,7 @@ export function ChatPage({ onOpenSidebar }: { onOpenSidebar: () => void }) {
   }
 
   const submitVideo = async (currentConversation: typeof conversation, apiKey: string) => {
+    if (videoBusyRef.current) return
     const validation = validateVideoTurn({
       conversation: currentConversation,
       prompt,
@@ -288,108 +293,111 @@ export function ChatPage({ onOpenSidebar }: { onOpenSidebar: () => void }) {
     const userMessageId = `msg_${crypto.randomUUID()}`
     const assistantMessageId = `msg_${crypto.randomUUID()}`
     const taskId = `video_${crypto.randomUUID()}`
-    const inputAssets = images.map((draft) =>
-      draftToStoredAsset({ draft, conversationId: currentConversation.id, messageId: userMessageId }),
-    )
-    const request =
-      videoDraft.operation === 'extension'
-        ? buildVideoExtensionRequest({
-            conversation: currentConversation,
-            prompt,
-            draft: videoDraft,
-            turnOptions,
-          })
-        : buildVideoGenerationRequest({
-            conversation: currentConversation,
-            prompt,
-            draft: videoDraft,
-            images,
-            turnOptions,
-          })
-    const userMessage: StoredMessage = {
-      id: userMessageId,
-      conversationId: currentConversation.id,
-      mediaKind: 'video',
-      role: 'user',
-      status: 'succeeded',
-      text: prompt.trim(),
-      attachmentAssetIds: inputAssets.map((asset) => asset.id),
-      outputAssetIds: [],
-      providerState: null,
-      optionsSnapshot: turnOptions,
-      taskId: null,
-      error: null,
-      createdAt: now,
-      updatedAt: now,
-    }
-    const assistantMessage: StoredMessage = {
-      id: assistantMessageId,
-      conversationId: currentConversation.id,
-      mediaKind: 'video',
-      role: 'assistant',
-      status: 'pending',
-      text: '',
-      attachmentAssetIds: [],
-      outputAssetIds: [],
-      providerState: null,
-      optionsSnapshot: turnOptions,
-      taskId,
-      error: null,
-      createdAt: new Date(Date.now() + 1).toISOString(),
-      updatedAt: now,
-    }
-    const task: StoredVideoTask = {
-      id: taskId,
-      conversationId: currentConversation.id,
-      userMessageId,
-      assistantMessageId,
-      apiFormat: currentConversation.apiFormat as StoredVideoTask['apiFormat'],
-      operation:
-        videoDraft.operation === 'extension'
-          ? 'extension'
-          : videoDraft.parentTaskId && currentConversation.apiFormat === 'byteDanceVideo'
-            ? 'byteDanceContinuation'
-            : 'generation',
-      upstreamTaskId: null,
-      parentTaskId: videoDraft.parentTaskId,
-      baseUrl: currentConversation.baseUrl,
-      modelId: currentConversation.modelId,
-      prompt: prompt.trim(),
-      requestSnapshot: {
-        operation: videoDraft.operation,
-        prompt: prompt.trim(),
-        options: turnOptions,
-        videoDraft,
-        inputAssetIds: inputAssets.map((asset) => asset.id),
-      },
-      status: 'submitting',
-      previousStatus: null,
-      progress: null,
-      videoUrl: null,
-      lastFrameUrl: null,
-      duration: null,
-      error: null,
-      pollFailures: 0,
-      createdAt: now,
-      updatedAt: now,
-      lastPolledAt: null,
-    }
-    await createTurn({
-      conversation: {
-        ...currentConversation,
-        title: messages.length === 0 ? titleFromPrompt(prompt || '视频任务') : currentConversation.title,
-        updatedAt: now,
-      },
-      userMessage,
-      assistantMessage,
-      inputAssets,
-      videoTask: task,
-    })
+    videoBusyRef.current = true
     setVideoBusy(true)
-    setPrompt('')
-    revokeDraftImages(images)
-    setImages([])
     try {
+      const inputAssets = images.map((draft) =>
+        draftToStoredAsset({ draft, conversationId: currentConversation.id, messageId: userMessageId }),
+      )
+      const request =
+        videoDraft.operation === 'extension'
+          ? buildVideoExtensionRequest({
+              conversation: currentConversation,
+              prompt,
+              draft: videoDraft,
+              turnOptions,
+            })
+          : buildVideoGenerationRequest({
+              conversation: currentConversation,
+              prompt,
+              draft: videoDraft,
+              images,
+              turnOptions,
+            })
+      const userMessage: StoredMessage = {
+        id: userMessageId,
+        conversationId: currentConversation.id,
+        mediaKind: 'video',
+        role: 'user',
+        status: 'succeeded',
+        text: prompt.trim(),
+        attachmentAssetIds: inputAssets.map((asset) => asset.id),
+        outputAssetIds: [],
+        providerState: null,
+        optionsSnapshot: turnOptions,
+        taskId: null,
+        error: null,
+        createdAt: now,
+        updatedAt: now,
+      }
+      const assistantMessage: StoredMessage = {
+        id: assistantMessageId,
+        conversationId: currentConversation.id,
+        mediaKind: 'video',
+        role: 'assistant',
+        status: 'pending',
+        text: '',
+        attachmentAssetIds: [],
+        outputAssetIds: [],
+        providerState: null,
+        optionsSnapshot: turnOptions,
+        taskId,
+        error: null,
+        createdAt: new Date(Date.now() + 1).toISOString(),
+        updatedAt: now,
+      }
+      const task: StoredVideoTask = {
+        id: taskId,
+        conversationId: currentConversation.id,
+        userMessageId,
+        assistantMessageId,
+        apiFormat: currentConversation.apiFormat as StoredVideoTask['apiFormat'],
+        operation:
+          videoDraft.operation === 'extension'
+            ? 'extension'
+            : videoDraft.parentTaskId && currentConversation.apiFormat === 'byteDanceVideo'
+              ? 'byteDanceContinuation'
+              : 'generation',
+        upstreamTaskId: null,
+        parentTaskId: videoDraft.parentTaskId,
+        baseUrl: currentConversation.baseUrl,
+        modelId: currentConversation.modelId,
+        prompt: prompt.trim(),
+        requestSnapshot: {
+          operation: videoDraft.operation,
+          prompt: prompt.trim(),
+          options: turnOptions,
+          videoDraft,
+          inputAssetIds: inputAssets.map((asset) => asset.id),
+        },
+        status: 'submitting',
+        previousStatus: null,
+        progress: null,
+        videoUrl: null,
+        lastFrameUrl: null,
+        duration: null,
+        error: null,
+        pollFailures: 0,
+        createdAt: now,
+        updatedAt: now,
+        lastPolledAt: null,
+      }
+      await createTurn({
+        conversation: {
+          ...currentConversation,
+          title: messages.length === 0 ? titleFromPrompt(prompt || '视频任务') : currentConversation.title,
+          updatedAt: now,
+        },
+        userMessage,
+        assistantMessage,
+        inputAssets,
+        videoTask: task,
+      })
+      revokeDraftImages(images)
+      if (conversationIdRef.current === currentConversation.id) {
+        setPrompt('')
+        setImages([])
+      }
       const response =
         videoDraft.operation === 'extension'
           ? await extendVideo(request as ReturnType<typeof buildVideoExtensionRequest>, apiKey)
@@ -403,7 +411,9 @@ export function ChatPage({ onOpenSidebar }: { onOpenSidebar: () => void }) {
       for (const voiceId of videoDraft.voiceIds.split(',').map((item) => item.trim()).filter(Boolean)) {
         addRecentVoiceId(voiceId)
       }
-      setVideoDraft({ ...defaultVideoDraft })
+      if (conversationIdRef.current === currentConversation.id) {
+        setVideoDraft({ ...defaultVideoDraft })
+      }
       toast.success('视频任务已提交')
     } catch (error) {
       const message = error instanceof Error ? error.message : '视频任务提交失败'
@@ -412,6 +422,7 @@ export function ChatPage({ onOpenSidebar }: { onOpenSidebar: () => void }) {
       await updateMessage(assistantMessageId, { status: 'failed', error: { code, message } })
       toast.error(message)
     } finally {
+      videoBusyRef.current = false
       setVideoBusy(false)
     }
   }

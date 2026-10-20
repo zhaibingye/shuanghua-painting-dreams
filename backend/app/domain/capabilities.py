@@ -8,7 +8,7 @@ from app.schemas.images import OpenAIImageEditRequest, OpenAIImageGenerationRequ
 from app.schemas.metadata import ProviderMetadata, ProviderMetadataResponse
 from app.schemas.videos import ByteDanceVideoGenerationRequest, XAIVideoGenerationRequest
 
-_DEFAULT_BASE_URL = "https://shapi.vip"
+_DEFAULT_BASE_URL = "https://www.shapi.vip"
 
 _PROVIDER_DATA: tuple[ProviderMetadata, ...] = (
     ProviderMetadata(
@@ -44,7 +44,7 @@ _PROVIDER_DATA: tuple[ProviderMetadata, ...] = (
         media_kind=MediaKind.IMAGE,
         display_name="OpenAI Images",
         default_base_url=_DEFAULT_BASE_URL,
-        default_model_id="gpt-image-2",
+        default_model_id="gpt-image-2.5-sunburst",
         generic_capabilities={
             "textToImage": True,
             "imageEditing": True,

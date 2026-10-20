@@ -28,8 +28,10 @@ export function MaskEditor({
 }: MaskEditorProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const currentStroke = useRef<Stroke | null>(null)
-  const [actions, setActions] = useState<MaskAction[]>([])
-  const [redoActions, setRedoActions] = useState<MaskAction[]>([])
+  const [history, setHistory] = useState<{ actions: MaskAction[]; redoActions: MaskAction[] }>({
+    actions: [], redoActions: [],
+  })
+  const { actions, redoActions } = history
   const [mode, setMode] = useState<'paint' | 'erase'>('paint')
   const [brushSize, setBrushSize] = useState(Math.max(8, Math.round(Math.min(width, height) / 30)))
 
@@ -49,8 +51,8 @@ export function MaskEditor({
   useEffect(() => render(), [render])
   useEffect(() => {
     if (!open) return
-    setActions([])
-    setRedoActions([])
+    setHistory({ actions: [], redoActions: [] })
+    currentStroke.current = null
   }, [open, imageUrl])
 
   const pointFromEvent = (event: React.PointerEvent<HTMLCanvasElement>): Point => {
@@ -82,25 +84,30 @@ export function MaskEditor({
     const stroke = currentStroke.current
     if (!stroke) return
     currentStroke.current = null
-    setActions((value) => [...value, stroke])
-    setRedoActions([])
+    commitAction(stroke)
+  }
+
+  const commitAction = (action: MaskAction) => {
+    setHistory((current) => ({ actions: [...current.actions, action], redoActions: [] }))
   }
 
   const undo = () => {
-    setActions((value) => {
-      const last = value.at(-1)
-      if (!last) return value
-      setRedoActions((redo) => [...redo, last])
-      return value.slice(0, -1)
+    setHistory((current) => {
+      const last = current.actions.at(-1)
+      return last ? {
+        actions: current.actions.slice(0, -1),
+        redoActions: [...current.redoActions, last],
+      } : current
     })
   }
 
   const redo = () => {
-    setRedoActions((value) => {
-      const last = value.at(-1)
-      if (!last) return value
-      setActions((current) => [...current, last])
-      return value.slice(0, -1)
+    setHistory((current) => {
+      const last = current.redoActions.at(-1)
+      return last ? {
+        actions: [...current.actions, last],
+        redoActions: current.redoActions.slice(0, -1),
+      } : current
     })
   }
 
@@ -173,15 +180,12 @@ export function MaskEditor({
                 value={brushSize}
                 onChange={(event) => setBrushSize(Math.max(1, Number(event.target.value)))}
               />
-              <Button size="sm" variant="ghost" onClick={undo} disabled={!actions.length} icon={<Undo2 className="size-4" />} />
-              <Button size="sm" variant="ghost" onClick={redo} disabled={!redoActions.length} icon={<Redo2 className="size-4" />} />
+              <Button size="sm" variant="ghost" aria-label="撤销" onClick={undo} disabled={!actions.length} icon={<Undo2 className="size-4" />} />
+              <Button size="sm" variant="ghost" aria-label="重做" onClick={redo} disabled={!redoActions.length} icon={<Redo2 className="size-4" />} />
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() => {
-                  setActions((value) => [...value, { kind: 'invert' }])
-                  setRedoActions([])
-                }}
+                onClick={() => commitAction({ kind: 'invert' })}
                 icon={<RotateCcw className="size-4" />}
               >
                 反转
@@ -189,10 +193,7 @@ export function MaskEditor({
               <Button
                 size="sm"
                 variant="danger"
-                onClick={() => {
-                  setActions((value) => [...value, { kind: 'clear' }])
-                  setRedoActions([])
-                }}
+                onClick={() => commitAction({ kind: 'clear' })}
                 icon={<Trash2 className="size-4" />}
               >
                 清空

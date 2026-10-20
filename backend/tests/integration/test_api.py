@@ -25,6 +25,8 @@ async def test_health_and_metadata() -> None:
     openai_images = next(
         provider for provider in payload["providers"] if provider["apiFormat"] == "openaiImage"
     )
+    assert all(p["defaultBaseUrl"] == "https://www.shapi.vip" for p in payload["providers"])
+    assert openai_images["defaultModelId"] == "gpt-image-2.5-sunburst"
     assert openai_images["genericCapabilities"] == {
         "textToImage": True,
         "imageEditing": True,

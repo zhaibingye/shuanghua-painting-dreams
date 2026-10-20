@@ -1,5 +1,6 @@
 import pytest
 from app.domain.enums import TaskStatus
+from app.domain.errors import ApplicationError
 from app.infrastructure.config import Settings
 from app.infrastructure.safe_http import UpstreamResponse
 from app.providers.bytedance_video import ByteDanceVideoAdapter
@@ -131,3 +132,29 @@ async def test_xai_moderated_done_task_becomes_failed(settings: Settings) -> Non
     assert status.status == TaskStatus.FAILED
     assert status.error is not None
     assert status.error.code == "moderationBlocked"
+
+
+@pytest.mark.parametrize("content", [None, [], {}, {"video_url": ""}])
+async def test_byte_success_without_video_is_not_terminal(
+    settings: Settings, content: object
+) -> None:
+    transport = FakeTransport(
+        [UpstreamResponse(status=200, data={"status": "succeeded", "content": content}, headers={})]
+    )
+    adapter = ByteDanceVideoAdapter(transport, settings)
+    with pytest.raises(ApplicationError) as error:
+        await adapter.get_status("https://www.shapi.vip", "task-1", "key")
+    assert error.value.code == "invalidUpstreamResponse"
+
+
+@pytest.mark.parametrize("video", [None, [], {}, {"url": ""}])
+async def test_xai_success_without_video_is_not_misreported_as_success_or_moderation(
+    settings: Settings, video: object
+) -> None:
+    transport = FakeTransport(
+        [UpstreamResponse(status=200, data={"status": "done", "video": video}, headers={})]
+    )
+    adapter = XAIVideoAdapter(transport, settings)
+    with pytest.raises(ApplicationError) as error:
+        await adapter.get_status("https://www.shapi.vip", "task-1", "key")
+    assert error.value.code == "invalidUpstreamResponse"

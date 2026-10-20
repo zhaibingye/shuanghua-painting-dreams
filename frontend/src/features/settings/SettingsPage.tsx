@@ -1,6 +1,6 @@
 import * as Dialog from '@radix-ui/react-dialog'
 import { Database, KeyRound, RotateCcw, Settings, Trash2, X } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
 import { Badge } from '../../components/ui/Badge'
@@ -28,16 +28,20 @@ export function SettingsDialog({
   const updateFormat = useSettingsStore((state) => state.updateFormat)
   const setTheme = useSettingsStore((state) => state.setTheme)
   const resetSettings = useSettingsStore((state) => state.resetSettings)
-  const [format, setFormat] = useState<ApiFormat>('openaiResponsesImage')
+  const [format, setFormat] = useState<ApiFormat>(settings.activeImageFormat)
   const [overrideEnabled, setOverrideEnabled] = useState(
     settings.formats[format].keyOverride !== null,
   )
+  const [overrideDraft, setOverrideDraft] = useState(settings.formats[format].keyOverride ?? '')
+  const overrideDirty = useRef(false)
   const [storage, setStorage] = useState<{ usage: number; quota: number } | null>(null)
   const selected = settings.formats[format]
   const inherited = effectiveKey(settings, format)
 
   useEffect(() => {
     setOverrideEnabled(settings.formats[format].keyOverride !== null)
+    setOverrideDraft(settings.formats[format].keyOverride ?? '')
+    overrideDirty.current = false
   }, [format, settings.formats])
 
   useEffect(() => {
@@ -52,6 +56,12 @@ export function SettingsDialog({
     return `${formatBytes(storage.usage)} / ${formatBytes(storage.quota)}`
   }, [storage])
 
+  const commitOverride = () => {
+    if (!overrideDirty.current) return
+    overrideDirty.current = false
+    setFormatKeyOverride(format, overrideDraft)
+  }
+
   const clearAll = async () => {
     if (!window.confirm('确定清空全部对话、图片和视频任务吗？')) return
     await clearWorkspace()
@@ -61,7 +71,10 @@ export function SettingsDialog({
   }
 
   return (
-    <Dialog.Root open={open} onOpenChange={onOpenChange}>
+    <Dialog.Root open={open} onOpenChange={(nextOpen) => {
+      if (!nextOpen) commitOverride()
+      onOpenChange(nextOpen)
+    }}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-[70] bg-[var(--ds-bg-overlay)] backdrop-blur-[2px]" />
         <Dialog.Content className="fixed left-1/2 top-1/2 z-[70] flex max-h-[min(88vh,52rem)] w-[min(94vw,48rem)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-layer-1)] shadow-[var(--ds-shadow-popup)]">
@@ -85,7 +98,7 @@ export function SettingsDialog({
                 </div>
               </div>
               <FieldShell label="全局 Key">
-                <Input aria-label="全局 Key" autoComplete="off" type="password" value={settings.globalApiKey} onChange={(event) => setGlobalApiKey(event.target.value)} placeholder="填写从 shapi.vip 获取的 Key" />
+                <Input aria-label="全局 Key" autoComplete="off" type="password" value={settings.globalApiKey} onChange={(event) => setGlobalApiKey(event.target.value)} placeholder="填写从 www.shapi.vip 获取的 Key" />
               </FieldShell>
             </section>
 
@@ -97,7 +110,7 @@ export function SettingsDialog({
                   <h2 className="font-semibold">API 格式配置</h2>
                   <p className="mt-1 text-xs text-[var(--ds-text-secondary)]">新对话会读取这里的连接信息和模型。</p>
                 </div>
-                <Select className="w-auto min-w-52" value={format} onChange={(event) => setFormat(event.target.value as ApiFormat)}>
+                <Select aria-label="API 格式配置" className="w-auto min-w-52" value={format} onChange={(event) => setFormat(event.target.value as ApiFormat)}>
                   {apiFormats.map((item) => <option key={item} value={item}>{apiFormatLabels[item]}</option>)}
                 </Select>
               </div>
@@ -128,7 +141,7 @@ export function SettingsDialog({
                   />
                 </label>
                 {overrideEnabled ? (
-                  <Input className="mt-4" autoComplete="off" type="password" value={selected.keyOverride ?? ''} onChange={(event) => setFormatKeyOverride(format, event.target.value)} placeholder="填写该格式独立 Key" />
+                  <Input className="mt-4" autoComplete="off" type="password" aria-label="独立 Key" value={overrideDraft} onChange={(event) => { overrideDirty.current = true; setOverrideDraft(event.target.value) }} onBlur={commitOverride} placeholder="填写该格式独立 Key" />
                 ) : (
                   <div className="mt-4"><Badge tone={inherited ? 'success' : 'warning'}>{inherited ? '正在使用全局 Key' : '当前没有可用 Key'}</Badge></div>
                 )}

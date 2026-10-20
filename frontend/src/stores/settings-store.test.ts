@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import { defaultSettings } from '../storage/settings'
+import { defaultSettings, loadSettings } from '../storage/settings'
 import { useSettingsStore } from './settings-store'
 
 beforeEach(() => {
@@ -20,5 +20,21 @@ describe('settings store key inheritance', () => {
     useSettingsStore.getState().setGlobalApiKey('global')
     useSettingsStore.getState().setFormatKeyOverride('openaiImage', 'openai')
     expect(useSettingsStore.getState().settings.formats.openaiImage.keyOverride).toBe('openai')
+  })
+})
+
+
+describe('restoring default settings', () => {
+  it('updates the live store and persisted settings', () => {
+    const store = useSettingsStore.getState()
+    store.setGlobalApiKey('old-key')
+    store.setTheme('dark')
+    store.setActiveImageFormat('openaiResponsesImage')
+    store.updateFormat('openaiImage', { baseUrl: 'https://custom.example', modelId: 'custom' })
+
+    store.resetSettings()
+
+    expect(useSettingsStore.getState().settings).toEqual(defaultSettings)
+    expect(loadSettings()).toEqual(defaultSettings)
   })
 })

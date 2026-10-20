@@ -21,8 +21,13 @@ test('Key 引导、对话创建和设置持久化', async ({ page }) => {
   await page.getByLabel('API Key').fill('browser-test-key')
   await page.getByRole('button', { name: '保存 Key 并进入' }).click()
 
-  await createConversation(page, 'image', 'openaiResponsesImage')
-  await expect(page.getByText('OpenAI Responses 图像 · gpt-5.6-luna').last()).toBeVisible()
+  await page.getByRole('button', { name: /图片对话/ }).first().click()
+  const dialog = page.getByRole('dialog')
+  await expect(dialog.getByLabel('API 格式')).toHaveValue('openaiImage')
+  await expect(dialog.getByLabel('模型 ID')).toHaveValue('gpt-image-2.5-sunburst')
+  await expect(dialog.getByText('https://www.shapi.vip', { exact: true })).toBeVisible()
+  await dialog.getByRole('button', { name: '创建对话' }).click()
+  await expect(page.getByText('OpenAI Images · gpt-image-2.5-sunburst').last()).toBeVisible()
   await expect(page.getByText('Key 已就绪')).toBeVisible()
 
   await openSettings(page)
@@ -183,3 +188,21 @@ async function openSettings(page: Page): Promise<void> {
   await openSidebarIfNeeded(page)
   await page.locator('aside').getByRole('button', { name: '设置', exact: true }).click()
 }
+
+
+test('恢复默认设置会更新配置并在刷新后保留', async ({ page }) => {
+  await ignoreKeyGate(page)
+  await openSettings(page)
+  await page.getByLabel('Base URL').fill('https://custom.example')
+  await page.getByLabel('默认模型 ID').fill('custom-model')
+  await page.getByLabel('主题').selectOption('dark')
+  await page.getByRole('button', { name: '恢复默认设置' }).click()
+  await expect(page.getByLabel('Base URL')).toHaveValue('https://www.shapi.vip')
+  await expect(page.getByLabel('默认模型 ID')).toHaveValue('gpt-image-2.5-sunburst')
+  await expect(page.getByLabel('主题')).toHaveValue('system')
+  await page.getByRole('button', { name: '关闭设置' }).click()
+  await page.reload()
+  await openSettings(page)
+  await expect(page.getByLabel('Base URL')).toHaveValue('https://www.shapi.vip')
+  await expect(page.getByLabel('默认模型 ID')).toHaveValue('gpt-image-2.5-sunburst')
+})

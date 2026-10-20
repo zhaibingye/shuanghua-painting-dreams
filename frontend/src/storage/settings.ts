@@ -45,12 +45,12 @@ export const defaultSettings: StoredSettings = {
   schemaVersion: 2,
   appearance: { theme: 'system' },
   globalApiKey: '',
-  activeImageFormat: 'openaiResponsesImage',
+  activeImageFormat: 'openaiImage',
   activeVideoFormat: 'byteDanceVideo',
   recentVoiceIds: [],
   formats: {
     googleGeminiImage: {
-      baseUrl: 'https://shapi.vip',
+      baseUrl: 'https://www.shapi.vip',
       modelId: 'nano-banana-2',
       keyOverride: null,
       defaults: {
@@ -62,8 +62,8 @@ export const defaultSettings: StoredSettings = {
       },
     },
     openaiImage: {
-      baseUrl: 'https://shapi.vip',
-      modelId: 'gpt-image-2',
+      baseUrl: 'https://www.shapi.vip',
+      modelId: 'gpt-image-2.5-sunburst',
       keyOverride: null,
       defaults: {
         count: 1,
@@ -78,7 +78,7 @@ export const defaultSettings: StoredSettings = {
       },
     },
     openaiResponsesImage: {
-      baseUrl: 'https://shapi.vip',
+      baseUrl: 'https://www.shapi.vip',
       modelId: 'gpt-5.6-luna',
       keyOverride: null,
       defaults: {
@@ -93,7 +93,7 @@ export const defaultSettings: StoredSettings = {
       },
     },
     xaiImage: {
-      baseUrl: 'https://shapi.vip',
+      baseUrl: 'https://www.shapi.vip',
       modelId: 'grok-imagine-image-2.0',
       keyOverride: null,
       defaults: {
@@ -104,7 +104,7 @@ export const defaultSettings: StoredSettings = {
       },
     },
     byteDanceVideo: {
-      baseUrl: 'https://shapi.vip',
+      baseUrl: 'https://www.shapi.vip',
       modelId: 'doubao-seedance-2-0-260128',
       keyOverride: null,
       defaults: {
@@ -121,7 +121,7 @@ export const defaultSettings: StoredSettings = {
       },
     },
     xaiVideo: {
-      baseUrl: 'https://shapi.vip',
+      baseUrl: 'https://www.shapi.vip',
       modelId: 'grok-imagine-video-1.5',
       keyOverride: null,
       defaults: {

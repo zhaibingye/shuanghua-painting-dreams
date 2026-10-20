@@ -1,5 +1,6 @@
 import pytest
 from app.application.image_service import ImageService
+from app.domain.errors import ApplicationError
 from app.infrastructure.config import Settings
 from app.infrastructure.safe_http import DownloadedContent, UpstreamResponse, UpstreamSseEvent
 from app.providers.google_gemini_image import GoogleGeminiImageAdapter
@@ -19,7 +20,8 @@ from tests.conftest import FakeTransport
 
 
 @pytest.mark.asyncio
-async def test_openai_generation_payload_and_response(settings: Settings) -> None:
+@pytest.mark.parametrize("model_id", ["gpt-image-2", "gpt-image-2.5-sunburst"])
+async def test_openai_generation_payload_and_response(settings: Settings, model_id: str) -> None:
     transport = FakeTransport(
         [
             UpstreamResponse(
@@ -38,7 +40,7 @@ async def test_openai_generation_payload_and_response(settings: Settings) -> Non
         {
             "apiFormat": "openaiImage",
             "baseUrl": "https://shapi.vip/proxy",
-            "modelId": "gpt-image-2",
+            "modelId": model_id,
             "prompt": "snow flower",
             "options": {"count": 2, "quality": "high"},
         }
@@ -50,6 +52,7 @@ async def test_openai_generation_payload_and_response(settings: Settings) -> Non
     assert str(call.url) == "https://shapi.vip/proxy/v1/images/generations"
     assert call.headers["Authorization"] == "Bearer secret"
     assert call.payload is not None
+    assert call.payload["model"] == model_id
     assert call.payload["response_format"] == "b64_json"
     assert call.payload["n"] == 2
     assert result.images[0].base64_data == "aW1hZ2U="
@@ -417,3 +420,35 @@ async def test_openai_responses_is_stateless_and_replays_image_calls(
         "responseId": "resp_new",
         "store": False,
     }
+
+
+async def test_responses_rejects_truncated_stream_after_image_call(settings: Settings) -> None:
+    transport = FakeTransport(
+        stream_events=[
+            UpstreamSseEvent(
+                event="response.output_item.done",
+                data={
+                    "output_index": 0,
+                    "item": {
+                        "id": "ig_partial_response",
+                        "type": "image_generation_call",
+                        "result": "aW1hZ2U=",
+                    },
+                },
+            )
+        ]
+    )
+    adapter = OpenAIResponsesImageAdapter(transport, settings)
+    request = OpenAIResponsesImageTurnRequest.model_validate(
+        {
+            "apiFormat": "openaiResponsesImage",
+            "baseUrl": "https://www.shapi.vip",
+            "modelId": "gpt-5.6-luna",
+            "prompt": "snow",
+        }
+    )
+    chunks = []
+    with pytest.raises(ApplicationError, match="完整响应完成前"):
+        async for chunk in adapter.stream_turn(request, "key"):
+            chunks.append(chunk)
+    assert [chunk.kind for chunk in chunks] == ["completed"]

@@ -177,40 +177,49 @@ export async function streamImageConversationTurn(options: {
   const reader = response.body.getReader()
   const decoder = new TextDecoder()
   let buffer = ''
-  let streamDone = false
-  let terminalEventReceived = false
-  while (!streamDone) {
-    const { done, value } = await reader.read()
-    streamDone = done
-    buffer += decoder.decode(value, { stream: !done })
-    let match = /\r?\n\r?\n/.exec(buffer)
-    while (match) {
-      const block = buffer.slice(0, match.index)
-      buffer = buffer.slice(match.index + match[0].length)
-      const event = parseSseBlock(block)
-      if (event) {
-        if (event.type === 'turn.failed') {
-          throw new ApiClientError({
-            message: event.error.message,
-            code: event.error.code,
-            retryable: event.error.retryable,
-            requestId: event.error.requestId,
-            status: 200,
-          })
-        }
-        if (event.type === 'turn.completed') terminalEventReceived = true
-        await options.onEvent(event)
-      }
-      match = /\r?\n\r?\n/.exec(buffer)
+  const dispatch = async (block: string): Promise<boolean> => {
+    options.signal.throwIfAborted()
+    const event = parseSseBlock(block)
+    if (!event) return false
+    if (event.type === 'turn.failed') {
+      throw new ApiClientError({
+        message: event.error.message,
+        code: event.error.code,
+        retryable: event.error.retryable,
+        requestId: event.error.requestId,
+        status: 200,
+      })
     }
+    await options.onEvent(event)
+    return event.type === 'turn.completed'
   }
-  if (!terminalEventReceived) {
-    throw new ApiClientError({
-      message: '图片流在收到完成事件前意外结束。',
-      code: 'incompleteImageStream',
-      retryable: true,
-      status: 502,
-    })
+
+  try {
+    for (;;) {
+      options.signal.throwIfAborted()
+      const { done, value } = await reader.read()
+      buffer += decoder.decode(value, { stream: !done })
+      let match = /\r?\n\r?\n/.exec(buffer)
+      while (match) {
+        const block = buffer.slice(0, match.index)
+        buffer = buffer.slice(match.index + match[0].length)
+        if (await dispatch(block)) return
+        match = /\r?\n\r?\n/.exec(buffer)
+      }
+      if (done) {
+        if (buffer.trim() && await dispatch(buffer)) return
+        throw new ApiClientError({
+          message: '图片流在收到完成事件前意外结束。',
+          code: 'incompleteImageStream',
+          retryable: true,
+          status: 502,
+        })
+      }
+    }
+  } finally {
+    // 完成、失败或回调异常后都释放连接，不再等待上游关闭 SSE。
+    await reader.cancel().catch(() => undefined)
+    reader.releaseLock()
   }
 }
 

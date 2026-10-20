@@ -6,8 +6,10 @@
 
 ### 图片
 
+默认生图协议为 OpenAI Images（Image API，`openaiImage`），所有协议的默认 Base URL 为 `https://www.shapi.vip`。已有的自定义设置和历史对话保留原值；点击「恢复默认设置」可应用新默认值。
+
 - Google Gemini：默认 `nano-banana-2`，原生完整多轮 `contents` 与 `thought_signature` 回传。
-- OpenAI Images：默认 `gpt-image-2`；无参考图的生成使用上游 SSE 与 0～3 张渐进预览，参考图/遮罩编辑使用上游非流式 multipart，并统一转换为本站完成事件。
+- OpenAI Images：默认 `gpt-image-2.5-sunburst`；无参考图的生成使用上游 SSE 与 0～3 张渐进预览，参考图/遮罩编辑使用上游非流式 multipart，并统一转换为本站完成事件。
 - OpenAI Responses：默认主体模型 `gpt-5.6-luna`，`store: false`，通过显式回传本地历史实现无状态多轮生成/编辑，支持 SSE 与渐进预览。
 - xAI Image：默认 `grok-imagine-image-2.0`，采用与 OpenAI Images 相同的“最新图片继续编辑”逻辑。
 

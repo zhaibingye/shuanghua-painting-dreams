@@ -67,7 +67,7 @@ export function KeyGate({ children }: { children: ReactNode }) {
             </form>
 
             <div className="mt-4 grid grid-cols-2 gap-3">
-              <Button variant="secondary" className="rounded-full" onClick={() => window.open('https://shapi.vip', '_blank', 'noopener,noreferrer')} icon={<ArrowUpRight className="size-4" />}>前往注册</Button>
+              <Button variant="secondary" className="rounded-full" onClick={() => window.open('https://www.shapi.vip', '_blank', 'noopener,noreferrer')} icon={<ArrowUpRight className="size-4" />}>前往注册</Button>
               <Button variant="ghost" className="rounded-full" onClick={ignore}>暂时忽略</Button>
             </div>
           </Dialog.Content>

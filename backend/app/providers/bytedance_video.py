@@ -152,7 +152,9 @@ class ByteDanceVideoAdapter:
 
         output = None
         content = data.get("content")
-        if status == TaskStatus.SUCCEEDED and isinstance(content, Mapping):
+        if status == TaskStatus.SUCCEEDED:
+            if not isinstance(content, Mapping):
+                raise invalid_response_error(self.api_format, "成功任务缺少 content 视频结果。")
             video_url = content.get("video_url")
             if not isinstance(video_url, str) or not video_url:
                 raise invalid_response_error(self.api_format, "成功任务缺少 video_url。")

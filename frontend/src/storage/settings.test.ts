@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import {
+  apiFormats,
   defaultSettings,
   effectiveKey,
   hasAnyKey,
@@ -40,4 +41,27 @@ describe('settings storage', () => {
     localStorage.setItem('shuanghua.settings.v2', '{broken')
     expect(loadSettings().globalApiKey).toBe('')
   })
+})
+
+
+it('defaults to Image API with the configured model and canonical URL for every provider', () => {
+  const settings = loadSettings()
+  expect(settings.activeImageFormat).toBe('openaiImage')
+  expect(settings.formats.openaiImage.modelId).toBe('gpt-image-2.5-sunburst')
+  for (const format of apiFormats) {
+    expect(settings.formats[format].baseUrl).toBe('https://www.shapi.vip')
+  }
+})
+
+it('preserves saved custom connections and protocol choices', () => {
+  const settings = structuredClone(defaultSettings)
+  settings.activeImageFormat = 'openaiResponsesImage'
+  settings.formats.openaiImage = {
+    ...settings.formats.openaiImage,
+    baseUrl: 'https://custom.example/proxy',
+    modelId: 'custom-model',
+    keyOverride: 'custom-key',
+  }
+  saveSettings(settings)
+  expect(loadSettings()).toEqual(settings)
 })
