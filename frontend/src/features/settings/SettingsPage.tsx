@@ -77,18 +77,19 @@ export function SettingsDialog({
     }}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-[70] bg-[var(--ds-bg-overlay)] backdrop-blur-[2px]" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 z-[70] flex max-h-[min(88vh,52rem)] w-[min(94vw,48rem)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-layer-1)] shadow-[var(--ds-shadow-popup)]">
+        <Dialog.Content className="ds-modal ds-settings-dialog z-[70]">
           <header className="flex h-16 shrink-0 items-center justify-between border-b border-[var(--ds-border-light)] px-6">
             <div className="flex items-center gap-2">
               <Settings className="size-5 text-[var(--ds-brand-text)]" />
               <Dialog.Title className="text-lg font-semibold">设置</Dialog.Title>
+              <Dialog.Description className="sr-only">管理 API 连接、模型、外观和本地数据。</Dialog.Description>
             </div>
             <Dialog.Close asChild>
               <Button size="icon" variant="ghost" icon={<X className="size-4" />} aria-label="关闭设置" />
             </Dialog.Close>
           </header>
 
-          <div className="ds-scroll overflow-y-auto p-6">
+          <div className="settings-body ds-scroll">
             <section className="grid gap-4">
               <div className="flex items-center gap-3">
                 <KeyRound className="size-5 text-[var(--ds-brand-text)]" />
@@ -110,7 +111,7 @@ export function SettingsDialog({
                   <h2 className="font-semibold">API 格式配置</h2>
                   <p className="mt-1 text-xs text-[var(--ds-text-secondary)]">新对话会读取这里的连接信息和模型。</p>
                 </div>
-                <Select aria-label="API 格式配置" className="w-auto min-w-52" value={format} onChange={(event) => setFormat(event.target.value as ApiFormat)}>
+                <Select aria-label="API 格式配置" className="w-full sm:w-auto sm:min-w-52" value={format} onChange={(event) => setFormat(event.target.value as ApiFormat)}>
                   {apiFormats.map((item) => <option key={item} value={item}>{apiFormatLabels[item]}</option>)}
                 </Select>
               </div>

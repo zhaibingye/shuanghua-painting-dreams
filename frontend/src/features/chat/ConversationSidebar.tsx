@@ -1,159 +1,293 @@
-import { Image, Menu, MessageSquarePlus, MoreHorizontal, Search, Settings, Snowflake, Trash2, Video, X } from 'lucide-react'
-import { useMemo, useState } from 'react'
-import { NavLink, useNavigate, useParams } from 'react-router-dom'
+import * as Dialog from '@radix-ui/react-dialog'
+import {
+  Image,
+  Menu,
+  MessageSquarePlus,
+  MoreHorizontal,
+  Pencil,
+  Search,
+  Settings,
+  Snowflake,
+  Trash2,
+  Video,
+  X,
+} from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { NavLink, useMatch, useNavigate } from 'react-router-dom'
 
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Field'
+import { Spinner } from '../../components/ui/Spinner'
+import { useConversations } from '../../hooks/use-history'
+import { useMediaQuery } from '../../hooks/use-media-query'
 import { cn } from '../../lib/cn'
 import { deleteConversation, updateConversation } from '../../storage/db'
 import { apiFormatLabels, type MediaKind } from '../../storage/settings'
-import { useConversations } from '../../hooks/use-history'
 import { cancelConversationImageTasks } from '../image-tasks/image-task-manager'
+
+type SidebarProps = {
+  mobileOpen: boolean
+  onMobileOpenChange: (open: boolean) => void
+  onNew: () => void
+  onSettings: () => void
+}
 
 export function ConversationSidebar({
   mobileOpen,
   onMobileOpenChange,
   onNew,
   onSettings,
-}: {
-  mobileOpen: boolean
-  onMobileOpenChange: (open: boolean) => void
-  onNew: () => void
-  onSettings: () => void
-}) {
-  const { conversations } = useConversations()
+}: SidebarProps) {
+  const desktop = useMediaQuery('(min-width: 1024px)')
+  useEffect(() => {
+    if (desktop && mobileOpen) onMobileOpenChange(false)
+  }, [desktop, mobileOpen, onMobileOpenChange])
+  const { conversations, loading } = useConversations()
   const navigate = useNavigate()
-  const params = useParams<{ conversationId: string }>()
+  const activeRoute = useMatch('/chat/:conversationId')
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<'all' | MediaKind>('all')
   const [menuId, setMenuId] = useState<string | null>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
 
-  const groups = useMemo(() => {
-    const filtered = conversations.filter((conversation) => {
-      const matchesKind = filter === 'all' || conversation.mediaKind === filter
-      const normalized = query.trim().toLocaleLowerCase('zh-CN')
-      const matchesQuery =
-        !normalized ||
-        conversation.title.toLocaleLowerCase('zh-CN').includes(normalized) ||
-        conversation.modelId.toLocaleLowerCase('zh-CN').includes(normalized)
-      return matchesKind && matchesQuery
-    })
-    return groupConversations(filtered)
-  }, [conversations, filter, query])
+  useEffect(() => {
+    if (!menuId) return
+    const dismiss = (event: PointerEvent) => {
+      if (event.target instanceof Node && !menuRef.current?.contains(event.target)) setMenuId(null)
+    }
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMenuId(null)
+    }
+    document.addEventListener('pointerdown', dismiss)
+    document.addEventListener('keydown', escape)
+    return () => {
+      document.removeEventListener('pointerdown', dismiss)
+      document.removeEventListener('keydown', escape)
+    }
+  }, [menuId])
+
+  const groups = useMemo(
+    () =>
+      groupConversations(
+        conversations.filter((conversation) => {
+          const normalized = query.trim().toLocaleLowerCase('zh-CN')
+          return (
+            (filter === 'all' || conversation.mediaKind === filter) &&
+            (!normalized ||
+              conversation.title.toLocaleLowerCase('zh-CN').includes(normalized) ||
+              conversation.modelId.toLocaleLowerCase('zh-CN').includes(normalized))
+          )
+        }),
+      ),
+    [conversations, filter, query],
+  )
 
   const remove = async (id: string) => {
     if (!window.confirm('确定删除这个对话及其本地媒体结果吗？运行中的图片任务也会停止。')) return
     cancelConversationImageTasks(id)
     await deleteConversation(id)
-    if (params.conversationId === id) void navigate('/')
+    setMenuId(null)
+    if (activeRoute?.params.conversationId === id) {
+      onMobileOpenChange(false)
+      void navigate('/')
+    }
   }
-
   const rename = async (id: string, current: string) => {
     const title = window.prompt('重命名对话', current)?.trim()
     if (title) await updateConversation(id, { title })
     setMenuId(null)
   }
 
-  return (
+  const content = (
     <>
-      {mobileOpen ? (
-        <button
-          type="button"
+      <div className="sidebar-brand">
+        <NavLink
+          to="/"
+          className="flex min-w-0 items-center gap-2.5 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-[var(--ds-brand-primary)]"
+          onClick={() => onMobileOpenChange(false)}
+          aria-label="霜华绘梦首页"
+        >
+          <span className="brand-mark">
+            <Snowflake className="size-5" />
+          </span>
+          <span>
+            <span className="block font-semibold tracking-wide">霜华绘梦</span>
+            <span className="block text-[10px] tracking-[0.14em] text-[var(--ds-text-tertiary)]">
+              PAINTING DREAMS
+            </span>
+          </span>
+        </NavLink>
+        <Button
+          size="icon"
+          variant="ghost"
+          className="lg:hidden"
+          icon={<X className="size-4" />}
           aria-label="关闭侧边栏"
-          className="fixed inset-0 z-40 bg-[var(--ds-bg-overlay)] lg:hidden"
           onClick={() => onMobileOpenChange(false)}
         />
-      ) : null}
-      <aside
-        data-open={mobileOpen ? 'true' : 'false'}
-        className="conversation-sidebar fixed inset-y-0 left-0 z-50 flex w-[var(--ds-sider-width)] flex-col border-r border-[var(--ds-border-light)] bg-[var(--ds-bg-sidebar)] transition-transform duration-300"
-      >
-        <div className="flex h-16 items-center justify-between px-4">
-          <div className="flex items-center gap-2.5">
-            <span className="grid size-9 place-items-center rounded-xl bg-[var(--ds-brand-primary)] text-white">
-              <Snowflake className="size-5" />
-            </span>
-            <div>
-              <p className="font-semibold tracking-wide">霜华绘梦</p>
-              <p className="text-[10px] uppercase tracking-[0.18em] text-[var(--ds-text-caption)]">Painting Dreams</p>
-            </div>
-          </div>
-          <Button size="icon" variant="ghost" className="lg:hidden" icon={<X className="size-4" />} aria-label="关闭侧边栏" onClick={() => onMobileOpenChange(false)} />
+      </div>
+      <div className="px-4">
+        <Button
+          className="w-full rounded-xl shadow-sm"
+          size="lg"
+          icon={<MessageSquarePlus className="size-4" />}
+          onClick={() => {
+            onMobileOpenChange(false)
+            onNew()
+          }}
+        >
+          开启新对话
+        </Button>
+        <div className="relative mt-4">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[var(--ds-text-tertiary)]" />
+          <Input
+            aria-label="搜索对话"
+            className="h-10 border-transparent bg-[var(--ds-bg-hover)] pl-9"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="搜索对话或模型"
+          />
         </div>
-
-        <div className="px-3">
-          <Button className="w-full rounded-full" size="lg" icon={<MessageSquarePlus className="size-4" />} onClick={onNew}>开启新对话</Button>
-          <div className="relative mt-3">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[var(--ds-text-caption)]" />
-            <Input className="h-9 rounded-full pl-9" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索对话" />
-          </div>
-          <div className="mt-2 grid grid-cols-3 rounded-full bg-[var(--ds-bg-hover)] p-1">
-            {([
+        <div className="sidebar-filters" aria-label="筛选对话">
+          {(
+            [
               ['all', '全部', Menu],
               ['image', '图片', Image],
               ['video', '视频', Video],
-            ] as const).map(([value, label, Icon]) => (
-              <button
-                key={value}
-                type="button"
-                className={cn(
-                  'flex h-8 items-center justify-center gap-1 rounded-full text-xs text-[var(--ds-text-secondary)] transition',
-                  filter === value && 'bg-[var(--ds-bg-layer-1)] text-[var(--ds-brand-text)] shadow-sm',
-                )}
-                onClick={() => setFilter(value)}
-              >
-                <Icon className="size-3.5" />
-                {label}
-              </button>
-            ))}
-          </div>
+            ] as const
+          ).map(([value, label, Icon]) => (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={filter === value}
+              className={cn('sidebar-filter', filter === value && 'is-selected')}
+              onClick={() => setFilter(value)}
+            >
+              <Icon className="size-3.5" />
+              {label}
+            </button>
+          ))}
         </div>
-
-        <nav className="ds-scroll mt-3 min-h-0 flex-1 overflow-y-auto px-2 pb-3">
-          {groups.map((group) => (
-            <section key={group.label} className="mb-4">
-              <h2 className="px-2 py-1 text-[11px] font-medium text-[var(--ds-text-caption)]">{group.label}</h2>
-              <div className="grid gap-0.5">
+      </div>
+      <nav className="sidebar-history ds-scroll" aria-label="历史对话">
+        {loading ? (
+          <div className="grid place-items-center py-10">
+            <Spinner label="正在读取对话" />
+          </div>
+        ) : (
+          groups.map((group) => (
+            <section key={group.label} className="mb-5">
+              <h2 className="mb-2 px-3 text-[11px] font-medium tracking-wide text-[var(--ds-text-tertiary)]">
+                {group.label}
+              </h2>
+              <div className="grid gap-1">
                 {group.items.map((conversation) => (
-                  <div key={conversation.id} className="group relative">
+                  <div
+                    key={conversation.id}
+                    className="conversation-row group"
+                    ref={menuId === conversation.id ? menuRef : undefined}
+                  >
                     <NavLink
                       to={`/chat/${conversation.id}`}
                       onClick={() => onMobileOpenChange(false)}
-                      className={({ isActive }) => cn(
-                        'block rounded-xl px-3 py-2.5 pr-9 transition hover:bg-[var(--ds-bg-hover)]',
-                        isActive && 'bg-[var(--ds-bg-active)]',
-                      )}
+                      className={({ isActive }) => cn('conversation-link', isActive && 'is-active')}
                     >
-                      <p className="truncate text-sm text-[var(--ds-text-primary)]">{conversation.title}</p>
-                      <p className="mt-0.5 truncate text-[11px] text-[var(--ds-text-caption)]">{apiFormatLabels[conversation.apiFormat]} · {conversation.modelId}</p>
+                      <span className="block truncate text-sm font-medium">
+                        {conversation.title}
+                      </span>
+                      <span className="mt-1 block truncate text-[11px] text-[var(--ds-text-tertiary)]">
+                        {apiFormatLabels[conversation.apiFormat]} · {conversation.modelId}
+                      </span>
                     </NavLink>
                     <button
                       type="button"
-                      aria-label="对话操作"
-                      className="absolute right-2 top-2 grid size-7 place-items-center rounded-lg text-[var(--ds-text-tertiary)] opacity-0 hover:bg-[var(--ds-bg-active)] group-hover:opacity-100 focus:opacity-100"
-                      onClick={() => setMenuId((value) => value === conversation.id ? null : conversation.id)}
+                      aria-label={`对话操作：${conversation.title}`}
+                      aria-expanded={menuId === conversation.id}
+                      aria-controls={`actions-${conversation.id}`}
+                      className="conversation-options"
+                      onClick={() =>
+                        setMenuId((value) => (value === conversation.id ? null : conversation.id))
+                      }
                     >
                       <MoreHorizontal className="size-4" />
                     </button>
                     {menuId === conversation.id ? (
-                      <div className="absolute right-2 top-10 z-20 min-w-28 rounded-xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-layer-2)] p-1 shadow-[var(--ds-shadow-popup)]">
-                        <button type="button" className="w-full rounded-lg px-3 py-2 text-left text-xs hover:bg-[var(--ds-bg-hover)]" onClick={() => void rename(conversation.id, conversation.title)}>重命名</button>
-                        <button type="button" className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs text-[var(--ds-error)] hover:bg-[var(--ds-error-subtle)]" onClick={() => void remove(conversation.id)}><Trash2 className="size-3.5" />删除</button>
+                      <div
+                        id={`actions-${conversation.id}`}
+                        className="conversation-actions"
+                        aria-label="对话操作"
+                      >
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          icon={<Pencil className="size-3.5" />}
+                          onClick={() => void rename(conversation.id, conversation.title)}
+                        >
+                          重命名
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="danger"
+                          icon={<Trash2 className="size-3.5" />}
+                          onClick={() => void remove(conversation.id)}
+                        >
+                          删除
+                        </Button>
                       </div>
                     ) : null}
                   </div>
                 ))}
               </div>
             </section>
-          ))}
-          {groups.length === 0 ? <p className="px-3 py-8 text-center text-xs text-[var(--ds-text-caption)]">还没有匹配的对话</p> : null}
-        </nav>
-
-        <div className="border-t border-[var(--ds-border-light)] p-3">
-          <Button className="w-full justify-start rounded-xl" variant="ghost" icon={<Settings className="size-4" />} onClick={onSettings}>设置</Button>
-        </div>
-      </aside>
+          ))
+        )}
+        {!loading && groups.length === 0 ? (
+          <div className="sidebar-empty">
+            <MessageSquarePlus className="size-7" />
+            <p>{query || filter !== 'all' ? '没有匹配的对话' : '还没有创作记录'}</p>
+            <span>
+              {query || filter !== 'all' ? '试试其他关键词或分类' : '开启一段对话，留住你的灵感'}
+            </span>
+          </div>
+        ) : null}
+      </nav>
+      <div className="sidebar-footer">
+        <Button
+          className="w-full justify-start rounded-xl"
+          variant="ghost"
+          icon={<Settings className="size-4" />}
+          onClick={onSettings}
+        >
+          设置<span className="ml-auto text-[10px] text-[var(--ds-text-tertiary)]">偏好与连接</span>
+        </Button>
+      </div>
     </>
+  )
+  if (desktop)
+    return (
+      <aside className="conversation-sidebar sidebar-panel" aria-label="对话导航" data-open="true">
+        {content}
+      </aside>
+    )
+  return (
+    <Dialog.Root open={mobileOpen} onOpenChange={onMobileOpenChange}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="sidebar-overlay" />
+        <Dialog.Content
+          asChild
+          aria-describedby={undefined}
+          onCloseAutoFocus={(event) => {
+            event.preventDefault()
+            document.querySelector<HTMLButtonElement>('button[aria-label="打开侧边栏"]')?.focus()
+          }}
+        >
+          <aside className="conversation-sidebar sidebar-panel mobile-sidebar" data-open="true">
+            <Dialog.Title className="sr-only">对话导航</Dialog.Title>
+            {content}
+          </aside>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   )
 }
 
@@ -161,7 +295,6 @@ type ConversationGroup = {
   label: string
   items: ReturnType<typeof useConversations>['conversations']
 }
-
 function groupConversations(
   conversations: ReturnType<typeof useConversations>['conversations'],
 ): ConversationGroup[] {

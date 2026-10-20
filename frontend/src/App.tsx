@@ -10,11 +10,13 @@ import { SettingsDialog } from './features/settings/SettingsPage'
 import { VideoTaskPoller } from './features/video-workbench/VideoTaskPoller'
 import { useProviderMetadata } from './hooks/use-provider-metadata'
 import { useTheme } from './hooks/use-theme'
+import { useViewport } from './hooks/use-viewport'
 import { markInterruptedImageMessages } from './storage/db'
 import type { MediaKind } from './storage/settings'
 
 export default function App() {
   useTheme()
+  useViewport()
   useProviderMetadata()
   useEffect(() => {
     void markInterruptedImageMessages()
@@ -38,12 +40,14 @@ function AppShell() {
   const [settingsOpen, setSettingsOpen] = useState(false)
 
   const openCreate = (kind: MediaKind) => {
+    setSidebarOpen(false)
     setNewKind(kind)
     setCreateOpen(true)
   }
 
   return (
-    <div className="h-screen overflow-hidden bg-[var(--ds-bg-base)] text-[var(--ds-text-primary)]">
+    <div className="app-shell">
+      <a className="skip-link" href="#main-content">跳到创作区域</a>
       <ConversationSidebar
         mobileOpen={sidebarOpen}
         onMobileOpenChange={setSidebarOpen}
@@ -53,7 +57,7 @@ function AppShell() {
           setSettingsOpen(true)
         }}
       />
-      <main className="h-full min-w-0 lg:ml-[var(--ds-sider-width)]">
+      <main id="main-content" className="app-main" tabIndex={-1}>
         <Routes>
           <Route
             path="/"

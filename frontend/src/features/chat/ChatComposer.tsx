@@ -1,7 +1,8 @@
 import { CircleStop, Paintbrush, Send, SlidersHorizontal } from 'lucide-react'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { Button } from '../../components/ui/Button'
+import { Spinner } from '../../components/ui/Spinner'
 import type { StoredConversation } from '../../storage/db'
 import { AttachmentTray } from './AttachmentTray'
 import type { DraftImage } from './image-turn'
@@ -13,6 +14,7 @@ export function ChatComposer({
   images,
   videoDraft,
   busy,
+  canStop,
   maskReady,
   canOpenMask,
   onPrompt,
@@ -27,6 +29,7 @@ export function ChatComposer({
   images: DraftImage[]
   videoDraft: VideoDraft
   busy: boolean
+  canStop: boolean
   maskReady: boolean
   canOpenMask: boolean
   onPrompt: (value: string) => void
@@ -37,53 +40,122 @@ export function ChatComposer({
   onOpenMask: () => void
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const [attachmentsProcessing, setAttachmentsProcessing] = useState(false)
   const maxImages = imageLimit(conversation, videoDraft)
 
   useEffect(() => {
     const textarea = textareaRef.current
     if (!textarea) return
     textarea.style.height = 'auto'
-    textarea.style.height = `${Math.min(textarea.scrollHeight, 240)}px`
+    textarea.style.height = `${textarea.scrollHeight}px`
   }, [prompt])
 
+  useEffect(() => {
+    const textarea = textareaRef.current
+    if (!textarea || typeof ResizeObserver === 'undefined') return
+    let width = textarea.clientWidth
+    const observer = new ResizeObserver(() => {
+      if (width === textarea.clientWidth) return
+      width = textarea.clientWidth
+      textarea.style.height = 'auto'
+      textarea.style.height = `${textarea.scrollHeight}px`
+    })
+    observer.observe(textarea)
+    return () => observer.disconnect()
+  }, [])
+  const submit = () => {
+    if (!busy && !attachmentsProcessing) onSubmit()
+  }
+
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-[var(--ds-bg-base)] via-[var(--ds-bg-base)] via-75% to-transparent px-3 pb-5 pt-12 sm:px-6">
-      <div className="pointer-events-auto mx-auto max-w-[var(--ds-chat-max-width)]">
-        <div className="rounded-[var(--ds-radius-card)] border border-[var(--ds-border-default)] bg-[var(--ds-bg-input)] p-2 shadow-[var(--ds-shadow-card)]">
-          {maxImages > 0 ? (
-            <div className="px-2 pt-1">
-              <AttachmentTray images={images} maxImages={maxImages} disabled={busy} onChange={onImages} />
-            </div>
-          ) : null}
-          <textarea
-            ref={textareaRef}
-            aria-label="消息"
-            className="block max-h-60 min-h-[54px] w-full resize-none overflow-y-auto border-0 bg-transparent px-3 py-3 text-base leading-[25px] text-[var(--ds-text-primary)] outline-none placeholder:text-[var(--ds-text-tertiary)]"
-            value={prompt}
-            disabled={busy}
-            placeholder={placeholder(conversation, videoDraft)}
-            onChange={(event) => onPrompt(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
-                event.preventDefault()
-                if (!busy) onSubmit()
-              }
-            }}
-          />
-          <div className="flex items-center gap-1 px-1 pb-1">
-            <Button size="sm" variant="ghost" className="rounded-full" icon={<SlidersHorizontal className="size-4" />} onClick={onParameters}>本轮参数</Button>
-            {conversation.apiFormat === 'openaiImage' ? (
-              <Button size="sm" variant={maskReady ? 'secondary' : 'ghost'} className="rounded-full" icon={<Paintbrush className="size-4" />} disabled={!canOpenMask || busy} onClick={onOpenMask}>{maskReady ? '遮罩已就绪' : '绘制遮罩'}</Button>
+    <div className="chat-composer" aria-label="消息编辑区">
+      <div className="composer-inner">
+        <div className="composer-card">
+          <div className="composer-content ds-scroll">
+            {maxImages > 0 ? (
+              <div className="px-2 pt-1">
+                <AttachmentTray
+                  images={images}
+                  maxImages={maxImages}
+                  disabled={busy}
+                  onChange={onImages}
+                  onProcessingChange={setAttachmentsProcessing}
+                />
+              </div>
             ) : null}
-            <span className="ml-auto hidden text-xs text-[var(--ds-text-caption)] sm:inline">Enter 发送 · Shift+Enter 换行</span>
-            {busy ? (
-              <Button size="icon" variant="danger" className="ml-2" icon={<CircleStop className="size-4" />} aria-label="停止生成" onClick={onStop} />
-            ) : (
-              <Button size="icon" className="ml-2" icon={<Send className="size-4" />} aria-label="发送消息" onClick={onSubmit} />
-            )}
+            <textarea
+              ref={textareaRef}
+              aria-label="消息"
+              className="message-input ds-scroll"
+              value={prompt}
+              disabled={busy}
+              placeholder={placeholder(conversation, videoDraft)}
+              onChange={(event) => onPrompt(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
+                  event.preventDefault()
+                  submit()
+                }
+              }}
+            />
+          </div>
+          <div className="composer-toolbar">
+            <Button
+              size="sm"
+              variant="ghost"
+              className="rounded-full"
+              icon={<SlidersHorizontal className="size-4" />}
+              onClick={onParameters}
+            >
+              本轮参数
+            </Button>
+            {conversation.apiFormat === 'openaiImage' ? (
+              <Button
+                size="sm"
+                variant={maskReady ? 'secondary' : 'ghost'}
+                className="rounded-full"
+                icon={<Paintbrush className="size-4" />}
+                disabled={!canOpenMask || busy}
+                onClick={onOpenMask}
+              >
+                {maskReady ? '遮罩已就绪' : '绘制遮罩'}
+              </Button>
+            ) : null}
+            <span className="ml-auto hidden text-xs text-[var(--ds-text-caption)] sm:inline">
+              Enter 发送 · Shift+Enter 换行
+            </span>
+            <span className="ml-auto shrink-0">
+              {busy && canStop ? (
+                <Button
+                  size="icon"
+                  variant="danger"
+                  className="ml-2"
+                  icon={<CircleStop className="size-4" />}
+                  aria-label="停止生成"
+                  onClick={onStop}
+                />
+              ) : busy ? (
+                <Button size="sm" variant="secondary" disabled>
+                  <Spinner
+                    label={conversation.mediaKind === 'video' ? '正在提交视频' : '正在准备图片'}
+                  />
+                </Button>
+              ) : (
+                <Button
+                  size="icon"
+                  className="send-button"
+                  disabled={
+                    attachmentsProcessing || (conversation.mediaKind === 'image' && !prompt.trim())
+                  }
+                  icon={<Send className="size-4" />}
+                  aria-label="发送消息"
+                  onClick={submit}
+                />
+              )}
+            </span>
           </div>
         </div>
-        <p className="mt-2 text-center text-[11px] text-[var(--ds-text-caption)]">生成内容由第三方模型提供，请核对重要信息。</p>
+        <p className="composer-note">生成内容由第三方模型提供，请核对重要信息。</p>
       </div>
     </div>
   )
@@ -105,7 +177,10 @@ function imageLimit(conversation: StoredConversation, draft: VideoDraft): number
 
 function placeholder(conversation: StoredConversation, draft: VideoDraft): string {
   if (conversation.mediaKind === 'image') {
-    if (conversation.activeImageAssetId && ['openaiImage', 'xaiImage'].includes(conversation.apiFormat)) {
+    if (
+      conversation.activeImageAssetId &&
+      ['openaiImage', 'xaiImage'].includes(conversation.apiFormat)
+    ) {
       return '描述如何修改最新图片…'
     }
     return '描述你想生成或编辑的画面…'

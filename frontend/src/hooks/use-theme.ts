@@ -11,6 +11,7 @@ export function useTheme(): void {
       const resolved = theme === 'system' ? (media.matches ? 'dark' : 'light') : theme
       document.documentElement.dataset.theme = resolved
       document.documentElement.style.colorScheme = resolved
+      document.querySelector('meta[name="theme-color"]')?.setAttribute('content', resolved === 'dark' ? '#151517' : '#f6f8fc')
     }
     apply()
     media.addEventListener('change', apply)

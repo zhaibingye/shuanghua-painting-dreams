@@ -19,7 +19,7 @@ export function Button({
   return (
     <button
       className={cn(
-        'relative inline-flex shrink-0 items-center justify-center gap-2 rounded-[var(--ds-radius-input)] font-medium transition-[background,color,border-color,opacity,transform] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ds-brand-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ds-bg-base)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45 disabled:active:scale-100',
+        'ds-button relative inline-flex shrink-0 items-center justify-center gap-2 rounded-[var(--ds-radius-input)] font-medium transition-[background,color,border-color,opacity,transform] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ds-brand-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ds-bg-base)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45 disabled:active:scale-100',
         variant === 'primary' &&
           'border border-transparent bg-[var(--ds-brand-primary)] text-white hover:bg-[var(--ds-brand-hover)]',
         variant === 'secondary' &&

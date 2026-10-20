@@ -1,4 +1,4 @@
-import { Menu, SlidersHorizontal } from 'lucide-react'
+import { ArrowDown, Menu, SlidersHorizontal } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -11,6 +11,7 @@ import {
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { Spinner } from '../../components/ui/Spinner'
+import { useChatScroll } from '../../hooks/use-chat-scroll'
 import { useConversation, useMessages } from '../../hooks/use-history'
 import { useProviderMetadata } from '../../hooks/use-provider-metadata'
 import {
@@ -77,7 +78,6 @@ export function ChatPage({ onOpenSidebar }: { onOpenSidebar: () => void }) {
     height: number
     ownedUrl: boolean
   } | null>(null)
-  const scrollRef = useRef<HTMLDivElement>(null)
   const activeImageTask = useImageTaskStore((state) =>
     taskForConversation(state.tasks, conversationId ?? ''),
   )
@@ -128,11 +128,12 @@ export function ChatPage({ onOpenSidebar }: { onOpenSidebar: () => void }) {
     [maskSource],
   )
 
-  useEffect(() => {
-    const element = scrollRef.current
-    if (!element) return
-    element.scrollTo({ top: element.scrollHeight, behavior: 'smooth' })
-  }, [activeImageTask?.partials, activeImageTask?.text, messages.length])
+  const scrollRevision = useMemo(() => ({
+    messages, partials: activeImageTask?.partials, text: activeImageTask?.text,
+  }), [messages, activeImageTask?.partials, activeImageTask?.text])
+  const { scrollRef, contentRef, atBottom, scrollToBottom } = useChatScroll(
+    conversationId, scrollRevision, !loading && Boolean(conversation),
+  )
 
   const capabilities = useMemo(
     () =>
@@ -170,6 +171,7 @@ export function ChatPage({ onOpenSidebar }: { onOpenSidebar: () => void }) {
       toast.error('当前 API 格式没有可用的 Key，请先在设置中填写。')
       return
     }
+    scrollToBottom()
     if (conversation.mediaKind === 'image') void submitImage(conversation, messages, key)
     else void submitVideo(conversation, key)
   }
@@ -492,18 +494,20 @@ export function ChatPage({ onOpenSidebar }: { onOpenSidebar: () => void }) {
     (Boolean(conversation.activeImageAssetId) || images.length > 0 || Boolean(maskDataUrl))
 
   return (
-    <div className="relative flex h-full min-w-0 flex-col bg-[var(--ds-bg-base)]">
-      <header className="flex h-16 shrink-0 items-center gap-3 border-b border-[var(--ds-border-light)] px-3 sm:px-5">
+    <div className="chat-workspace">
+      <header className="workspace-header">
         <Button size="icon" variant="ghost" className="lg:hidden" icon={<Menu className="size-5" />} aria-label="打开侧边栏" onClick={onOpenSidebar} />
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-sm font-semibold">{conversation.title}</h1>
           <p className="truncate text-xs text-[var(--ds-text-caption)]">{apiFormatLabels[conversation.apiFormat]} · {conversation.modelId}</p>
         </div>
-        <Badge tone={key ? 'success' : 'warning'}>{key ? 'Key 已就绪' : '缺少 Key'}</Badge>
+        <span className="key-status"><Badge tone={key ? 'success' : 'warning'}>{key ? 'Key 已就绪' : '缺少 Key'}</Badge></span>
         <Button size="sm" variant="ghost" icon={<SlidersHorizontal className="size-4" />} onClick={() => setParametersOpen(true)}>参数</Button>
       </header>
 
-      <div ref={scrollRef} className="ds-scroll min-h-0 flex-1 overflow-y-auto">
+      <div className="message-region">
+      <div ref={scrollRef} className="message-scroll ds-scroll" aria-label="对话消息">
+        <div ref={contentRef}>
         <MessageList
           conversation={conversation}
           messages={messages}
@@ -511,9 +515,14 @@ export function ChatPage({ onOpenSidebar }: { onOpenSidebar: () => void }) {
           onMaskImage={openMaskForAsset}
           onContinueVideo={continueVideo}
         />
+        </div>
+      </div>
+      {!atBottom ? <Button className="jump-to-latest" variant="secondary" size="sm" icon={<ArrowDown className="size-4" />} onClick={scrollToBottom}>回到最新消息</Button> : null}
       </div>
 
       <ChatComposer
+        key={conversation.id}
+        canStop={Boolean(activeImageTask)}
         conversation={conversation}
         prompt={prompt}
         images={images}

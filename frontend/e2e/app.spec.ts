@@ -28,7 +28,7 @@ test('Key 引导、对话创建和设置持久化', async ({ page }) => {
   await expect(dialog.getByText('https://www.shapi.vip', { exact: true })).toBeVisible()
   await dialog.getByRole('button', { name: '创建对话' }).click()
   await expect(page.getByText('OpenAI Images · gpt-image-2.5-sunburst').last()).toBeVisible()
-  await expect(page.getByText('Key 已就绪')).toBeVisible()
+  await expect(page.locator('.key-status')).toContainText('Key 已就绪')
 
   await openSettings(page)
   await expect(page.getByLabel('全局 Key', { exact: true })).toHaveValue('browser-test-key')
@@ -164,7 +164,7 @@ async function createConversation(
 
 async function openSidebarIfNeeded(page: Page): Promise<void> {
   const sidebar = page.locator('aside')
-  if ((await sidebar.getAttribute('data-open')) === 'true') return
+  if (await sidebar.isVisible()) return
   const openSidebar = page.getByRole('button', { name: '打开侧边栏' })
   if (await openSidebar.isVisible()) {
     await openSidebar.click()
@@ -174,7 +174,7 @@ async function openSidebarIfNeeded(page: Page): Promise<void> {
 
 async function closeSidebarIfOpen(page: Page): Promise<void> {
   const sidebar = page.locator('aside')
-  if ((await sidebar.getAttribute('data-open')) !== 'true') return
+  if (!await sidebar.isVisible() || await page.getByRole('button', { name: '打开侧边栏' }).isHidden()) return
   await sidebar.getByRole('button', { name: '关闭侧边栏' }).click()
   await page.waitForTimeout(350)
 }
@@ -205,4 +205,61 @@ test('恢复默认设置会更新配置并在刷新后保留', async ({ page }) 
   await openSettings(page)
   await expect(page.getByLabel('Base URL')).toHaveValue('https://www.shapi.vip')
   await expect(page.getByLabel('默认模型 ID')).toHaveValue('gpt-image-2.5-sunburst')
+})
+
+
+for (const viewport of [
+  { width: 320, height: 568 }, { width: 390, height: 844 },
+  { width: 768, height: 1024 }, { width: 1024, height: 768 },
+  { width: 1440, height: 900 }, { width: 1920, height: 1080 },
+  { width: 844, height: 390 },
+]) {
+  test(`屏幕适配 ${viewport.width}×${viewport.height}`, async ({ page }) => {
+    await page.setViewportSize(viewport)
+    await expect(page.locator('.app-shell')).toHaveCSS('height', `${viewport.height}px`)
+    await assertInViewport(page.getByRole('dialog'), viewport)
+    await ignoreKeyGate(page)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+    await createConversation(page, 'image', 'openaiImage')
+    await page.getByRole('textbox', { name: '消息', exact: true }).fill(Array.from({ length: 20 }, () => '一段很长的创作描述').join('\n'))
+    await assertInViewport(page.locator('.composer-card'), viewport)
+    const messages = await page.locator('.message-scroll').boundingBox()
+    const composer = await page.locator('.chat-composer').boundingBox()
+    expect(messages).not.toBeNull()
+    expect(composer).not.toBeNull()
+    expect((messages?.y ?? 0) + (messages?.height ?? 0)).toBeLessThanOrEqual((composer?.y ?? 0) + 1)
+    await expect(page.getByRole('button', { name: '发送消息' })).toBeInViewport()
+    await page.getByRole('button', { name: '参数', exact: true }).click()
+    await assertInViewport(page.getByRole('dialog'), viewport)
+    await page.getByRole('button', { name: '关闭参数面板' }).click()
+    await openSettings(page)
+    await assertInViewport(page.getByRole('dialog'), viewport)
+    await page.getByLabel('主题').selectOption('dark')
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+  })
+}
+
+async function assertInViewport(
+  locator: ReturnType<Page['locator']>, viewport: { width: number; height: number },
+): Promise<void> {
+  await expect(locator).toBeVisible()
+  const box = await locator.boundingBox()
+  expect(box).not.toBeNull()
+  if (!box) throw new Error('Missing layout box')
+  expect(box.x).toBeGreaterThanOrEqual(-1)
+  expect(box.y).toBeGreaterThanOrEqual(-1)
+  expect(box.x + box.width).toBeLessThanOrEqual(viewport.width + 1)
+  expect(box.y + box.height).toBeLessThanOrEqual(viewport.height + 1)
+}
+
+test('窗口缩小后输入区仍可见，抽屉支持 Escape', async ({ page }) => {
+  await ignoreKeyGate(page)
+  await createConversation(page, 'image', 'openaiImage')
+  await page.setViewportSize({ width: 390, height: 360 })
+  await expect(page.getByRole('textbox', { name: '消息', exact: true })).toBeInViewport()
+  await openSidebarIfNeeded(page)
+  await expect(page.getByRole('dialog', { name: '对话导航' })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('dialog', { name: '对话导航' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: '打开侧边栏' })).toBeFocused()
 })

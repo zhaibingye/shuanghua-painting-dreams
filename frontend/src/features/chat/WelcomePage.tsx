@@ -1,4 +1,4 @@
-import { Image, Menu, MessageSquarePlus, Sparkles, Video } from 'lucide-react'
+import { ArrowUpRight, Image, Layers3, Menu, Sparkles, Video } from 'lucide-react'
 
 import { Button } from '../../components/ui/Button'
 
@@ -12,29 +12,90 @@ export function WelcomePage({
   onNewVideo: () => void
 }) {
   return (
-    <div className="relative grid h-full place-items-center overflow-y-auto px-6 py-16">
-      <Button size="icon" variant="ghost" className="absolute left-3 top-3 lg:hidden" icon={<Menu className="size-5" />} aria-label="打开侧边栏" onClick={onOpenSidebar} />
-      <div className="w-full max-w-2xl text-center">
-        <span className="mx-auto grid size-16 place-items-center rounded-[22px] bg-[var(--ds-brand-primary)] text-white shadow-[var(--ds-shadow-card)]">
-          <Sparkles className="size-7" />
+    <div className="welcome-page ds-scroll">
+      <header className="welcome-header">
+        <Button
+          size="icon"
+          variant="ghost"
+          className="lg:hidden"
+          icon={<Menu className="size-5" />}
+          aria-label="打开侧边栏"
+          onClick={onOpenSidebar}
+        />
+        <span className="text-xs font-medium tracking-widest text-[var(--ds-text-tertiary)]">
+          灵感，从这里开始
         </span>
-        <h1 className="mt-6 text-3xl font-semibold tracking-tight">今天想创造什么？</h1>
-        <p className="mx-auto mt-3 max-w-lg text-base leading-7 text-[var(--ds-text-secondary)]">
-          在独立对话中连续生成和编辑图片，或将多轮视频任务整理成清晰的创作记录。
+        <span className="welcome-status">
+          <span /> 你的创作空间
+        </span>
+      </header>
+      <div className="welcome-content">
+        <div className="welcome-eyebrow">
+          <Sparkles className="size-4" /> 霜华绘梦 · 创作工作台
+        </div>
+        <h1>
+          让每一份灵感，
+          <br />
+          <span>都有自己的画面。</span>
+        </h1>
+        <p className="welcome-description">
+          从一句描述到一张图片、一段影像。
+          <br className="hidden sm:block" />
+          用对话打磨细节，让想象慢慢成形。
         </p>
-        <div className="mt-8 grid gap-3 sm:grid-cols-2">
-          <button type="button" className="group rounded-2xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-layer-1)] p-5 text-left shadow-[var(--ds-shadow-card)] transition hover:border-[var(--ds-brand-border)] hover:bg-[var(--ds-brand-subtle)]" onClick={onNewImage}>
-            <span className="grid size-10 place-items-center rounded-xl bg-[var(--ds-brand-subtle)] text-[var(--ds-brand-text)] group-hover:bg-[var(--ds-bg-layer-1)]"><Image className="size-5" /></span>
-            <h2 className="mt-4 font-semibold">图片对话</h2>
-            <p className="mt-1 text-sm leading-6 text-[var(--ds-text-secondary)]">OpenAI、Gemini 与 xAI 的连续生成和编辑。</p>
+        <div className="creation-grid">
+          <button type="button" className="creation-card image-creation" onClick={onNewImage}>
+            <div className="creation-art landscape-art" aria-hidden="true">
+              <span className="art-sun" />
+              <span className="art-hill art-hill-back" />
+              <span className="art-hill art-hill-front" />
+              <span className="art-caption">
+                <Image className="size-3.5" /> 从想象到画面
+              </span>
+            </div>
+            <div className="creation-card-copy">
+              <div className="flex items-center justify-between gap-3">
+                <h2>图片对话</h2>
+                <span className="creation-arrow">
+                  <ArrowUpRight className="size-4" />
+                </span>
+              </div>
+              <p>生成、参考、局部重绘，在对话中雕琢每个细节。</p>
+              <span className="creation-meta">OpenAI · Gemini · xAI</span>
+            </div>
           </button>
-          <button type="button" className="group rounded-2xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-layer-1)] p-5 text-left shadow-[var(--ds-shadow-card)] transition hover:border-[var(--ds-brand-border)] hover:bg-[var(--ds-brand-subtle)]" onClick={onNewVideo}>
-            <span className="grid size-10 place-items-center rounded-xl bg-[var(--ds-brand-subtle)] text-[var(--ds-brand-text)] group-hover:bg-[var(--ds-bg-layer-1)]"><Video className="size-5" /></span>
-            <h2 className="mt-4 font-semibold">视频对话</h2>
-            <p className="mt-1 text-sm leading-6 text-[var(--ds-text-secondary)]">字节 Seedance 与 xAI 视频任务，每轮相互独立。</p>
+          <button type="button" className="creation-card video-creation" onClick={onNewVideo}>
+            <div className="creation-art film-art" aria-hidden="true">
+              <span className="film-frame frame-back" />
+              <span className="film-frame frame-front">
+                <Video className="size-7" />
+              </span>
+              <span className="film-timeline">
+                <i />
+                <i />
+                <i />
+                <i />
+                <i />
+              </span>
+              <span className="art-caption">
+                <Video className="size-3.5" /> 让故事流动起来
+              </span>
+            </div>
+            <div className="creation-card-copy">
+              <div className="flex items-center justify-between gap-3">
+                <h2>视频对话</h2>
+                <span className="creation-arrow">
+                  <ArrowUpRight className="size-4" />
+                </span>
+              </div>
+              <p>描述镜头与动作，把静止的灵感延展成故事。</p>
+              <span className="creation-meta">Seedance · xAI</span>
+            </div>
           </button>
         </div>
-        <Button className="mt-6 rounded-full" size="lg" icon={<MessageSquarePlus className="size-4" />} onClick={onNewImage}>开启新对话</Button>
+        <p className="welcome-note">
+          <Layers3 className="size-4 shrink-0" /> 每段对话独立记录，让创作井然有序。
+        </p>
       </div>
     </div>
   )

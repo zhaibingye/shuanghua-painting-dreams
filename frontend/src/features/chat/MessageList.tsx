@@ -37,7 +37,7 @@ export function MessageList({
 }) {
   if (messages.length === 0) {
     return (
-      <div className="mx-auto grid min-h-[54vh] w-full max-w-[var(--ds-chat-max-width)] place-items-center px-6 text-center">
+      <div className="mx-auto grid min-h-[min(50dvh,28rem)] w-full max-w-[var(--ds-chat-max-width)] place-items-center px-6 text-center">
         <div>
           <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-[var(--ds-brand-subtle)] text-[var(--ds-brand-text)]">
             {conversation.mediaKind === 'image' ? <ImageIcon className="size-6" /> : <Sparkles className="size-6" />}
@@ -54,7 +54,7 @@ export function MessageList({
   }
 
   return (
-    <div className="mx-auto grid w-full max-w-[var(--ds-chat-max-width)] gap-8 px-4 pb-52 pt-8 sm:px-9 lg:px-11">
+    <div className="mx-auto grid w-full max-w-[var(--ds-chat-max-width)] message-list gap-7 px-4 py-6 sm:px-7 sm:py-8">
       {messages.map((message) =>
         message.role === 'user' ? (
           <UserMessage key={message.id} message={message} />
@@ -83,7 +83,7 @@ function UserMessage({ message }: { message: StoredMessage }) {
           {assets.map((asset) => <AssetThumbnail key={asset.id} asset={asset} />)}
         </div>
       ) : null}
-      <div className="rounded-[18px] rounded-br-md bg-[var(--ds-bg-bubble)] px-4 py-2.5 text-[15px] leading-6 text-[var(--ds-text-primary)]">
+      <div className="rounded-[18px] rounded-br-md bg-[var(--ds-bg-bubble)] px-4 py-2.5 whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-[15px] leading-6 text-[var(--ds-text-primary)]">
         {message.text || <span className="text-[var(--ds-text-tertiary)]">仅提供素材</span>}
       </div>
     </article>
@@ -214,7 +214,7 @@ function ImageResultCard({
     <div className="group overflow-hidden rounded-xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-layer-1)]">
       <div className="relative bg-[var(--ds-bg-hover)]">
         {url ? <img src={url} alt={`生成结果 ${index + 1}`} className="max-h-[38rem] w-full object-contain" /> : null}
-        {active ? <Badge tone="info"><span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-[var(--ds-bg-layer-1)] px-2.5 py-1 shadow"><Check className="size-3" />后续编辑基图</span></Badge> : null}
+        {active ? <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full border border-[var(--ds-brand-border)] bg-[var(--ds-bg-layer-1)] px-2.5 py-1 text-xs text-[var(--ds-brand-text)] shadow"><Check className="size-3" />后续编辑基图</span> : null}
       </div>
       <div className="flex flex-wrap items-center gap-1 border-t border-[var(--ds-border-light)] p-2">
         <Button size="sm" variant="ghost" icon={<Download className="size-3.5" />} onClick={() => asset.blob && downloadBlob(asset.blob, imageFilename(provider, asset.mimeType ?? 'image/png', index))}>下载</Button>
@@ -237,7 +237,7 @@ function VideoAssistantMessage({ message, onContinue }: { message: StoredMessage
       <div className="overflow-hidden rounded-xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-layer-1)]">
         {task.videoUrl ? <video className="max-h-[34rem] w-full bg-black" src={task.videoUrl} controls preload="metadata" /> : <div className="grid min-h-52 place-items-center bg-[var(--ds-bg-hover)]">{running ? <div className="text-center"><Spinner label={task.status === 'pollingError' ? '查询暂时失败，正在重试' : '视频生成中'} /><div className="mx-auto mt-4 h-1.5 w-56 overflow-hidden rounded-full bg-[var(--ds-bg-active)]"><div className="h-full rounded-full bg-[var(--ds-brand-primary)] transition-all" style={{ width: `${task.progress ?? (task.status === 'queued' ? 10 : 38)}%` }} /></div></div> : <span className="text-sm text-[var(--ds-text-tertiary)]">没有可播放的视频结果</span>}</div>}
         <div className="grid gap-3 p-4">
-          <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--ds-text-secondary)]"><span>{task.modelId}</span><span>·</span><span>任务 {task.upstreamTaskId ?? '提交中'}</span></div>
+          <div className="flex min-w-0 flex-wrap items-center gap-2 break-all text-xs text-[var(--ds-text-secondary)]"><span>{task.modelId}</span><span>·</span><span>任务 {task.upstreamTaskId ?? '提交中'}</span></div>
           {task.error ? <p className="rounded-xl bg-[var(--ds-error-subtle)] px-3 py-2 text-sm text-[var(--ds-error)]">{task.error.message}</p> : null}
           {task.videoUrl ? <div className="flex flex-wrap gap-1"><Button size="sm" variant="ghost" icon={<Copy className="size-3.5" />} onClick={() => void copyText(task.videoUrl ?? '').then(() => toast.success('视频 URL 已复制'))}>复制 URL</Button><Button size="sm" variant="ghost" icon={<ArrowUpRight className="size-3.5" />} onClick={() => window.open(task.videoUrl ?? '', '_blank', 'noopener,noreferrer')}>打开</Button>{(task.lastFrameUrl || (task.apiFormat === 'xaiVideo' && task.modelId === 'grok-imagine-video')) ? <Button size="sm" variant="ghost" icon={<GitBranchPlus className="size-3.5" />} onClick={() => onContinue(task)}>续写</Button> : null}</div> : null}
         </div>

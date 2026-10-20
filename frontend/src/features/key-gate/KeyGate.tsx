@@ -36,7 +36,7 @@ export function KeyGate({ children }: { children: ReactNode }) {
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 z-[100] bg-[var(--ds-bg-overlay)] backdrop-blur-[2px]" />
           <Dialog.Content
-            className="fixed left-1/2 top-1/2 z-[100] w-[min(92vw,32rem)] -translate-x-1/2 -translate-y-1/2 rounded-3xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-layer-1)] p-7 shadow-[var(--ds-shadow-popup)]"
+            className="ds-modal ds-key-dialog z-[100]"
             onEscapeKeyDown={(event) => event.preventDefault()}
             onPointerDownOutside={(event) => event.preventDefault()}
           >
@@ -56,7 +56,7 @@ export function KeyGate({ children }: { children: ReactNode }) {
               <Input
                 aria-label="API Key"
                 autoComplete="off"
-                placeholder="填写从 shapi.vip 获取的 Key"
+                placeholder="填写从 www.shapi.vip 获取的 Key"
                 type="password"
                 value={key}
                 onChange={(event) => setKey(event.target.value)}

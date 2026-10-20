@@ -31,17 +31,18 @@ export function ParametersDialog({
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-[var(--ds-bg-overlay)] backdrop-blur-[2px]" />
-        <Dialog.Content className="fixed bottom-0 right-0 top-0 z-50 w-[min(92vw,28rem)] overflow-hidden border-l border-[var(--ds-border-default)] bg-[var(--ds-bg-layer-1)] shadow-[var(--ds-shadow-popup)]">
+        <Dialog.Content className="ds-parameters">
           <header className="flex h-16 items-center justify-between border-b border-[var(--ds-border-light)] px-5">
             <div className="flex items-center gap-2">
               <SlidersHorizontal className="size-4 text-[var(--ds-brand-text)]" />
               <Dialog.Title className="font-semibold">本轮参数</Dialog.Title>
+              <Dialog.Description className="sr-only">调整当前创作的生成参数和参考素材。</Dialog.Description>
             </div>
             <Dialog.Close asChild>
               <Button size="icon" variant="ghost" icon={<X className="size-4" />} aria-label="关闭参数面板" />
             </Dialog.Close>
           </header>
-          <div className="ds-scroll h-[calc(100vh-4rem)] overflow-y-auto p-5">
+          <div className="parameters-body ds-scroll">
             <div className="mb-5 rounded-xl bg-[var(--ds-bg-hover)] p-3 text-xs text-[var(--ds-text-secondary)]">
               <p className="font-medium text-[var(--ds-text-primary)]">{conversation.modelId}</p>
               <p className="mt-1 break-all">{conversation.baseUrl}</p>

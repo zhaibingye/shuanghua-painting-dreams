@@ -146,15 +146,15 @@ export function MaskEditor({
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-[80] bg-[var(--ds-bg-overlay)] backdrop-blur-[2px]" />
-        <Dialog.Content className="fixed inset-2 z-[80] grid grid-rows-[auto_1fr_auto] overflow-hidden rounded-2xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-layer-1)] shadow-[var(--ds-shadow-popup)] md:inset-8">
-          <header className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--ds-border-light)] px-4 py-3">
+        <Dialog.Content className="ds-mask-editor">
+          <header className="mask-header">
             <div>
               <Dialog.Title className="font-semibold text-[var(--ds-text-primary)]">OpenAI 遮罩编辑器</Dialog.Title>
               <Dialog.Description className="text-xs text-[var(--ds-text-secondary)]">
                 涂抹需要模型重新绘制的区域。
               </Dialog.Description>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="mask-controls ds-scroll">
               <Button
                 size="sm"
                 variant={mode === 'paint' ? 'primary' : 'secondary'}
@@ -204,12 +204,12 @@ export function MaskEditor({
             </div>
           </header>
 
-          <div className="grid place-items-center overflow-auto bg-[var(--ds-bg-hover)] p-4">
-            <div className="relative max-h-full max-w-full overflow-hidden rounded-lg shadow-2xl">
+          <div className="mask-stage ds-scroll">
+            <div className="mask-frame rounded-lg shadow-xl">
               <img
                 src={imageUrl}
                 alt="待编辑原图"
-                className="block max-h-[70vh] max-w-full select-none object-contain"
+                className="mask-image"
                 draggable={false}
               />
               <canvas
@@ -225,7 +225,7 @@ export function MaskEditor({
             </div>
           </div>
 
-          <footer className="flex items-center justify-between gap-3 border-t border-[var(--ds-border-light)] px-4 py-3">
+          <footer className="mask-footer">
             <span className="text-xs text-[var(--ds-text-secondary)]">
               输出尺寸 {width} × {height}，透明区域为编辑区域。
             </span>

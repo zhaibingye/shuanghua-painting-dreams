@@ -1,6 +1,8 @@
 import * as Dialog from '@radix-ui/react-dialog'
 import { Image, MessageSquarePlus, Video, X } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+
+import { toast } from 'sonner'
 
 import { Button } from '../../components/ui/Button'
 import { FieldShell, Input, Select } from '../../components/ui/Field'
@@ -31,6 +33,8 @@ export function CreateConversationDialog({
   const [kind, setKind] = useState<MediaKind>(initialKind)
   const [format, setFormat] = useState<ApiFormat>(settings.activeImageFormat)
   const selectedSettings = settings.formats[format]
+  const [creating, setCreating] = useState(false)
+  const creatingRef = useRef(false)
   const [modelId, setModelId] = useState(selectedSettings.modelId)
 
   useEffect(() => {
@@ -56,24 +60,34 @@ export function CreateConversationDialog({
   }
 
   const create = async () => {
-    const now = new Date().toISOString()
-    const connection = settings.formats[format]
-    const conversation: StoredConversation = {
-      id: `conv_${crypto.randomUUID()}`,
-      title: kind === 'image' ? '新图片对话' : '新视频对话',
-      mediaKind: kind,
-      apiFormat: format,
-      baseUrl: connection.baseUrl,
-      modelId: modelId.trim() || connection.modelId,
-      activeImageAssetId: null,
-      createdAt: now,
-      updatedAt: now,
+    if (creatingRef.current) return
+    creatingRef.current = true
+    setCreating(true)
+    try {
+      const now = new Date().toISOString()
+      const connection = settings.formats[format]
+      const conversation: StoredConversation = {
+        id: `conv_${crypto.randomUUID()}`,
+        title: kind === 'image' ? '新图片对话' : '新视频对话',
+        mediaKind: kind,
+        apiFormat: format,
+        baseUrl: connection.baseUrl,
+        modelId: modelId.trim() || connection.modelId,
+        activeImageAssetId: null,
+        createdAt: now,
+        updatedAt: now,
+      }
+      await putConversation(conversation)
+      if (kind === 'image') setActiveImageFormat(format as (typeof imageApiFormats)[number])
+      else setActiveVideoFormat(format as (typeof videoApiFormats)[number])
+      onOpenChange(false)
+      onCreated(conversation)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '对话创建失败，请检查浏览器存储空间。')
+    } finally {
+      creatingRef.current = false
+      setCreating(false)
     }
-    await putConversation(conversation)
-    if (kind === 'image') setActiveImageFormat(format as (typeof imageApiFormats)[number])
-    else setActiveVideoFormat(format as (typeof videoApiFormats)[number])
-    onOpenChange(false)
-    onCreated(conversation)
   }
 
   const formats = kind === 'image' ? imageApiFormats : videoApiFormats
@@ -82,7 +96,7 @@ export function CreateConversationDialog({
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-[var(--ds-bg-overlay)] backdrop-blur-[2px]" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(92vw,30rem)] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-layer-1)] p-6 shadow-[var(--ds-shadow-popup)]">
+        <Dialog.Content className="ds-modal ds-create-dialog z-50">
           <div className="flex items-start justify-between gap-4">
             <div>
               <Dialog.Title className="flex items-center gap-2 text-lg font-semibold">
@@ -94,31 +108,63 @@ export function CreateConversationDialog({
               </Dialog.Description>
             </div>
             <Dialog.Close asChild>
-              <Button size="icon" variant="ghost" icon={<X className="size-4" />} aria-label="关闭" />
+              <Button
+                size="icon"
+                variant="ghost"
+                icon={<X className="size-4" />}
+                aria-label="关闭"
+              />
             </Dialog.Close>
           </div>
 
-          <div className="mt-6 grid grid-cols-2 gap-2 rounded-full border border-[var(--ds-border-default)] bg-[var(--ds-bg-hover)] p-1">
-            <Button variant={kind === 'image' ? 'primary' : 'ghost'} className="rounded-full" icon={<Image className="size-4" />} onClick={() => changeKind('image')}>图片对话</Button>
-            <Button variant={kind === 'video' ? 'primary' : 'ghost'} className="rounded-full" icon={<Video className="size-4" />} onClick={() => changeKind('video')}>视频对话</Button>
-          </div>
+          <div className="dialog-body ds-scroll">
+            <div className="grid grid-cols-2 gap-2 rounded-full border border-[var(--ds-border-default)] bg-[var(--ds-bg-hover)] p-1">
+              <Button
+                variant={kind === 'image' ? 'primary' : 'ghost'}
+                className="rounded-full"
+                icon={<Image className="size-4" />}
+                onClick={() => changeKind('image')}
+              >
+                图片对话
+              </Button>
+              <Button
+                variant={kind === 'video' ? 'primary' : 'ghost'}
+                className="rounded-full"
+                icon={<Video className="size-4" />}
+                onClick={() => changeKind('video')}
+              >
+                视频对话
+              </Button>
+            </div>
 
-          <div className="mt-5 grid gap-4">
-            <FieldShell label="API 格式">
-              <Select value={format} onChange={(event) => changeFormat(event.target.value as ApiFormat)}>
-                {formats.map((item) => <option key={item} value={item}>{apiFormatLabels[item]}</option>)}
-              </Select>
-            </FieldShell>
-            <FieldShell label="模型 ID">
-              <Input value={modelId} onChange={(event) => setModelId(event.target.value)} />
-            </FieldShell>
-            <div className="rounded-xl bg-[var(--ds-bg-hover)] p-3 text-xs text-[var(--ds-text-secondary)]">
-              Base URL：<span className="break-all">{selectedSettings.baseUrl}</span>
+            <div className="mt-5 grid gap-4">
+              <FieldShell label="API 格式">
+                <Select
+                  value={format}
+                  onChange={(event) => changeFormat(event.target.value as ApiFormat)}
+                >
+                  {formats.map((item) => (
+                    <option key={item} value={item}>
+                      {apiFormatLabels[item]}
+                    </option>
+                  ))}
+                </Select>
+              </FieldShell>
+              <FieldShell label="模型 ID">
+                <Input value={modelId} onChange={(event) => setModelId(event.target.value)} />
+              </FieldShell>
+              <div className="rounded-xl bg-[var(--ds-bg-hover)] p-3 text-xs text-[var(--ds-text-secondary)]">
+                Base URL：<span className="break-all">{selectedSettings.baseUrl}</span>
+              </div>
             </div>
           </div>
-
-          <Button className="mt-6 w-full rounded-full" size="lg" onClick={() => void create()}>
-            创建对话
+          <Button
+            className="mt-5 w-full shrink-0 rounded-xl"
+            size="lg"
+            disabled={creating}
+            onClick={() => void create()}
+          >
+            {creating ? '正在创建…' : '创建对话'}
           </Button>
         </Dialog.Content>
       </Dialog.Portal>
