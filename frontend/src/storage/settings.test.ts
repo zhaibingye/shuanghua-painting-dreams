@@ -46,6 +46,10 @@ describe('settings storage', () => {
 
 it('defaults to Image API with the configured model and canonical URL for every provider', () => {
   const settings = loadSettings()
+  expect(settings.formats.byteDanceVideo).toMatchObject({
+    modelId: 'doubao-seedance-2-5-260628',
+    defaults: { duration: -1, resolution: '720p', generateAudio: true, aspectRatio: 'adaptive' },
+  })
   expect(settings.activeImageFormat).toBe('openaiImage')
   expect(settings.formats.openaiImage.modelId).toBe('gpt-image-2.5-sunburst')
   for (const format of apiFormats) {

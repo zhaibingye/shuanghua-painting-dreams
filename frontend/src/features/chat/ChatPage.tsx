@@ -42,7 +42,7 @@ import {
   type DraftImage,
 } from './image-turn'
 import { MessageList } from './MessageList'
-import { clampByteDanceResolution, resolveModelCapabilities } from './model-capabilities'
+import { normalizeByteDanceOptions, resolveModelCapabilities } from './model-capabilities'
 import { ParametersDialog } from './ParametersDialog'
 import {
   buildVideoExtensionRequest,
@@ -97,11 +97,11 @@ export function ChatPage({ onOpenSidebar }: { onOpenSidebar: () => void }) {
 
   useEffect(() => {
     if (!currentApiFormat) return
-    const defaults = {
+    let defaults = {
       ...useSettingsStore.getState().settings.formats[currentApiFormat].defaults,
     }
     if (currentApiFormat === 'byteDanceVideo' && currentModelId) {
-      defaults.resolution = clampByteDanceResolution(defaults.resolution, currentModelId)
+      defaults = normalizeByteDanceOptions(defaults, currentModelId)
     }
     setTurnOptions(defaults)
     setPrompt('')

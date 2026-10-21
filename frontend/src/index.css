@@ -389,17 +389,21 @@ button:disabled {
   box-shadow: 0 1px 4px #00000008;
 }
 .sidebar-history {
+  min-width: 0;
   flex: 1;
   min-height: 0;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   overscroll-behavior: contain;
   padding: 24px 10px 12px;
 }
 .conversation-row {
+  min-width: 0;
   position: relative;
   border-radius: 12px;
 }
 .conversation-link {
+  max-width: 100%;
   display: block;
   min-width: 0;
   padding: 12px 42px 12px 12px;

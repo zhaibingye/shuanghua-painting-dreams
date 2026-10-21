@@ -1,8 +1,11 @@
-from copy import deepcopy
-from typing import Any
-
 from app.domain.enums import ApiFormat, ErrorCategory, MediaKind
 from app.domain.errors import ApplicationError
+from app.domain.seedance import (
+    DEFAULT_BYTE_DANCE_MODEL_ID,
+)
+from app.domain.seedance import (
+    byte_dance_model_capabilities as byte_dance_model_capabilities,
+)
 from app.schemas.image_turns import OpenAIImageTurnRequest
 from app.schemas.images import OpenAIImageEditRequest, OpenAIImageGenerationRequest
 from app.schemas.metadata import ProviderMetadata, ProviderMetadataResponse
@@ -145,7 +148,7 @@ _PROVIDER_DATA: tuple[ProviderMetadata, ...] = (
         media_kind=MediaKind.VIDEO,
         display_name="字节 Seedance 视频",
         default_base_url=_DEFAULT_BASE_URL,
-        default_model_id="doubao-seedance-2-0-260128",
+        default_model_id=DEFAULT_BYTE_DANCE_MODEL_ID,
         generic_capabilities={
             "textToVideo": True,
             "firstFrameToVideo": True,
@@ -155,25 +158,19 @@ _PROVIDER_DATA: tuple[ProviderMetadata, ...] = (
             "tailFrameContinuation": True,
         },
         known_models={
-            "doubao-seedance-2-0-260128": {
-                "durationMin": 4,
-                "durationMax": 15,
-                "automaticDuration": True,
-                "resolutions": ["480p", "720p", "1080p", "4k"],
-                "aspectRatios": ["16:9", "4:3", "1:1", "3:4", "9:16", "21:9", "adaptive"],
-                "generateAudio": True,
-                "cameraFixed": False,
-                "serviceTiers": ["default"],
-                "serviceTierParameter": False,
-                "webSearch": True,
-                "returnLastFrame": True,
-            }
+            model_id: byte_dance_model_capabilities(model_id)
+            for model_id in (
+                DEFAULT_BYTE_DANCE_MODEL_ID,
+                "doubao-seedance-2-0-260128",
+                "doubao-seedance-2-0-fast-260128",
+                "doubao-seedance-2-0-mini-260615",
+            )
         },
         default_options={
-            "duration": 5,
+            "duration": -1,
             "resolution": "720p",
             "aspectRatio": "adaptive",
-            "generateAudio": False,
+            "generateAudio": True,
             "watermark": False,
             "seed": -1,
             "returnLastFrame": False,
@@ -248,94 +245,6 @@ def validate_openai_image_request(
         raise _capability_error("gpt-image-2 当前不支持透明背景。", request.api_format)
 
 
-_SEEDANCE_2_0_MODEL_ID = "doubao-seedance-2-0-260128"
-_SEEDANCE_SPECIAL_EDITION_SUFFIX = "-se"
-_RESOLUTION_1080P = "1080p"
-
-
-def byte_dance_model_capabilities(model_id: str) -> dict[str, Any]:
-    capabilities = _byte_dance_family_capabilities(model_id)
-    if model_id.endswith(_SEEDANCE_SPECIAL_EDITION_SUFFIX):
-        _ensure_resolution(capabilities, _RESOLUTION_1080P)
-    return capabilities
-
-
-def _byte_dance_family_capabilities(model_id: str) -> dict[str, Any]:
-    if model_id.startswith("doubao-seedance-2-0-fast-"):
-        return {
-            "durationMin": 4,
-            "durationMax": 15,
-            "automaticDuration": True,
-            "resolutions": ["480p", "720p"],
-            "generateAudio": True,
-            "cameraFixed": False,
-            "serviceTiers": ["default"],
-            "serviceTierParameter": False,
-            "webSearch": True,
-        }
-    if model_id.startswith("doubao-seedance-2-0-"):
-        provider = next(
-            item for item in _PROVIDER_DATA if item.api_format == ApiFormat.BYTE_DANCE_VIDEO
-        )
-        return deepcopy(provider.known_models[_SEEDANCE_2_0_MODEL_ID])
-    if model_id.startswith("doubao-seedance-1-5-pro-"):
-        return {
-            "durationMin": 4,
-            "durationMax": 12,
-            "automaticDuration": True,
-            "resolutions": ["480p", "720p", "1080p"],
-            "generateAudio": True,
-            "cameraFixed": True,
-            "serviceTiers": ["default", "flex"],
-            "serviceTierParameter": True,
-            "webSearch": False,
-        }
-    if model_id.startswith("doubao-seedance-1-0-lite-"):
-        return {
-            "durationMin": 2,
-            "durationMax": 12,
-            "automaticDuration": False,
-            "resolutions": ["480p", "720p"],
-            "generateAudio": False,
-            "cameraFixed": True,
-            "serviceTiers": ["default", "flex"],
-            "serviceTierParameter": True,
-            "webSearch": False,
-        }
-    if model_id.startswith("doubao-seedance-1-0-"):
-        return {
-            "durationMin": 2,
-            "durationMax": 12,
-            "automaticDuration": False,
-            "resolutions": ["480p", "720p", "1080p"],
-            "generateAudio": False,
-            "cameraFixed": True,
-            "serviceTiers": ["default", "flex"],
-            "serviceTierParameter": True,
-            "webSearch": False,
-        }
-    return {
-        "durationMin": 2,
-        "durationMax": 15,
-        "automaticDuration": False,
-        "resolutions": ["480p", "720p"],
-        "generateAudio": False,
-        "cameraFixed": False,
-        "serviceTiers": ["default"],
-        "serviceTierParameter": False,
-        "webSearch": False,
-    }
-
-
-def _ensure_resolution(capabilities: dict[str, Any], resolution: str) -> None:
-    resolutions = capabilities["resolutions"]
-    if not isinstance(resolutions, list):
-        capabilities["resolutions"] = [resolution]
-        return
-    if resolution not in resolutions:
-        capabilities["resolutions"] = [*resolutions, resolution]
-
-
 def validate_byte_dance_video_request(request: ByteDanceVideoGenerationRequest) -> None:
     capabilities = byte_dance_model_capabilities(request.model_id)
     duration = request.options.duration
@@ -350,6 +259,13 @@ def validate_byte_dance_video_request(request: ByteDanceVideoGenerationRequest) 
         )
     if request.options.resolution not in capabilities["resolutions"]:
         raise _capability_error("当前模型不支持所选分辨率。", request.api_format)
+    if request.mode in {"firstFrameToVideo", "firstLastFrameToVideo"} and (
+        "frameAspectRatios" in capabilities
+        and request.options.aspect_ratio not in capabilities["frameAspectRatios"]
+    ):
+        raise _capability_error(
+            "当前模型的首帧/首尾帧生视频仅支持 adaptive 比例。", request.api_format
+        )
     if request.options.generate_audio and not capabilities["generateAudio"]:
         raise _capability_error("当前模型不支持音频生成。", request.api_format)
     if request.options.camera_fixed and not capabilities["cameraFixed"]:

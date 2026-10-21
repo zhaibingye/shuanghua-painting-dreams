@@ -15,7 +15,7 @@ npm run check
 
 ```bash
 uv sync
-uv run uvicorn app.main:app --host 127.0.0.1 --port 3001 --reload
+uv run uvicorn app.main:app --host 127.0.0.1 --port 3002 --reload
 ```
 
 ## 单独启动后端生产服务
@@ -23,12 +23,12 @@ uv run uvicorn app.main:app --host 127.0.0.1 --port 3001 --reload
 前端必须已经构建到 `frontend/dist`：
 
 ```bash
-PORT=3001 WEB_CONCURRENCY=2 uv run python -m app.server
+PORT=3002 WEB_CONCURRENCY=2 uv run python -m app.server
 ```
 
 生产服务入口会读取：
 
-- `PORT`，兼容 `SHUANGHUA_PORT`，默认 `3001`
+- `PORT`，兼容 `SHUANGHUA_PORT`，默认 `3002`
 - `WEB_CONCURRENCY`，兼容 `SHUANGHUA_WORKERS`，默认 `2`
 - `SHUANGHUA_HOST`，默认 `127.0.0.1`
 - `SHUANGHUA_FORWARDED_ALLOW_IPS`，默认 `127.0.0.1`

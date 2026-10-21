@@ -158,3 +158,45 @@ async def test_xai_success_without_video_is_not_misreported_as_success_or_modera
     with pytest.raises(ApplicationError) as error:
         await adapter.get_status("https://www.shapi.vip", "task-1", "key")
     assert error.value.code == "invalidUpstreamResponse"
+
+
+@pytest.mark.asyncio
+async def test_seedance_2_5_defaults_and_explicit_options(settings: Settings) -> None:
+    transport = FakeTransport(
+        [
+            UpstreamResponse(status=200, data={"id": "cgt-default"}, headers={}),
+            UpstreamResponse(status=200, data={"id": "cgt-explicit"}, headers={}),
+        ]
+    )
+    adapter = ByteDanceVideoAdapter(transport, settings)
+    payload = {
+        "apiFormat": "byteDanceVideo",
+        "baseUrl": "https://shapi.vip",
+        "modelId": "doubao-seedance-2-5-260628",
+        "mode": "textToVideo",
+        "prompt": "snow",
+    }
+    await adapter.create(ByteDanceVideoGenerationRequest.model_validate(payload), "key")
+    await adapter.create(
+        ByteDanceVideoGenerationRequest.model_validate(
+            {
+                **payload,
+                "options": {"duration": 30, "resolution": "1080p", "generateAudio": False},
+            }
+        ),
+        "key",
+    )
+    default_payload = transport.calls[0].payload
+    assert default_payload is not None
+    assert default_payload["duration"] == -1
+    assert default_payload["resolution"] == "720p"
+    assert default_payload["ratio"] == "adaptive"
+    assert default_payload["generate_audio"] is True
+    assert default_payload["watermark"] is False
+    assert "service_tier" not in default_payload
+    assert "seed" not in default_payload
+    explicit_payload = transport.calls[1].payload
+    assert explicit_payload is not None
+    assert explicit_payload["duration"] == 30
+    assert explicit_payload["resolution"] == "1080p"
+    assert explicit_payload["generate_audio"] is False
