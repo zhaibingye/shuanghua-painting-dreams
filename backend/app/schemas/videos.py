@@ -3,6 +3,7 @@ from typing import Annotated, Literal
 from pydantic import Field, field_validator, model_validator
 
 from app.domain.enums import ApiFormat, TaskOperation, TaskStatus
+from app.domain.seedance import byte_dance_model_capabilities
 from app.schemas.common import ApiModel, ImageAsset, PublicHttpUrl, UpstreamRequest, UsageResponse
 
 ByteDanceVideoMode = Literal[
@@ -25,10 +26,10 @@ class ByteDanceVideoInputs(ApiModel):
 
 
 class ByteDanceVideoOptions(ApiModel):
-    duration: int = Field(default=5, ge=-1, le=15)
+    duration: int = Field(default=-1, ge=-1, le=30)
     resolution: ByteDanceVideoResolution = "720p"
     aspect_ratio: Literal["16:9", "4:3", "1:1", "3:4", "9:16", "21:9", "adaptive"] = "adaptive"
-    generate_audio: bool = False
+    generate_audio: bool = True
     watermark: bool = False
     seed: int = Field(default=-1, ge=-1, le=4294967295)
     return_last_frame: bool = False
@@ -53,6 +54,20 @@ class ByteDanceVideoGenerationRequest(UpstreamRequest):
 
     @model_validator(mode="after")
     def validate_mode(self) -> "ByteDanceVideoGenerationRequest":
+        capabilities = byte_dance_model_capabilities(self.model_id)
+        defaults = {
+            "duration": capabilities["defaultDuration"],
+            "resolution": capabilities["defaultResolution"],
+            "generate_audio": capabilities["defaultGenerateAudio"],
+            "aspect_ratio": (
+                "16:9"
+                if self.model_id.startswith("doubao-seedance-1-0-") and self.mode == "textToVideo"
+                else "adaptive"
+            ),
+        }
+        for field, value in defaults.items():
+            if field not in self.options.model_fields_set:
+                setattr(self.options, field, value)
         inputs = self.inputs
         if self.mode == "textToVideo" and not self.prompt:
             raise ValueError("文生视频必须填写提示词")

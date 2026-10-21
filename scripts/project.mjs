@@ -60,7 +60,7 @@ function resolveDevelopmentPort() {
   if (process.env.SHUANGHUA_PORT !== undefined) {
     return parsePort(process.env.SHUANGHUA_PORT, 'SHUANGHUA_PORT')
   }
-  return 3001
+  return 3002
 }
 
 function commandText(command, args) {
@@ -190,7 +190,7 @@ async function buildFrontend() {
 
 async function startProduction() {
   await buildFrontend()
-  log('启动生产服务；默认地址为 http://127.0.0.1:3001，可通过 PORT 覆盖。')
+  log('启动生产服务；默认地址为 http://127.0.0.1:3002，可通过 PORT 覆盖。')
   await runProcess(
     uvCommand,
     ['run', '--frozen', '--no-sync', 'python', '-m', 'app.server'],

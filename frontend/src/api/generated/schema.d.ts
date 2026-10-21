@@ -207,7 +207,7 @@ export interface components {
         ByteDanceVideoOptions: {
             /**
              * Duration
-             * @default 5
+             * @default -1
              */
             duration: number;
             /**
@@ -224,7 +224,7 @@ export interface components {
             aspectRatio: "16:9" | "4:3" | "1:1" | "3:4" | "9:16" | "21:9" | "adaptive";
             /**
              * Generateaudio
-             * @default false
+             * @default true
              */
             generateAudio: boolean;
             /**

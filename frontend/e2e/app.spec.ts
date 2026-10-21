@@ -119,7 +119,7 @@ test('OpenAI Images 对话可读取本地文件并打开遮罩编辑器', async 
 
 test('Seedance 2.0 隐藏并省略不支持的 service_tier 参数', async ({ page }) => {
   await ignoreKeyGate(page)
-  await createConversation(page, 'video', 'byteDanceVideo')
+  await createConversation(page, 'video', 'byteDanceVideo', 'doubao-seedance-2-0-260128')
   await page.getByRole('button', { name: '参数', exact: true }).click()
 
   await expect(page.getByText('自动决定时长')).toBeVisible()
@@ -131,16 +131,64 @@ test('Seedance 2.0 隐藏并省略不支持的 service_tier 参数', async ({ pa
   await expect(page.getByLabel('分辨率').locator('option[value="1080p"]')).toHaveCount(1)
 })
 
-test('Seedance 2.0 fast-se 可选择 1080p 但不能选择 4k', async ({ page }) => {
+test('Seedance 2.0 fast-se 保持官方的 720p 上限', async ({ page }) => {
   await ignoreKeyGate(page)
   await createConversation(page, 'video', 'byteDanceVideo', 'doubao-seedance-2-0-fast-260128-se')
   await page.getByRole('button', { name: '参数', exact: true }).click()
 
   const resolution = page.getByLabel('分辨率')
-  await expect(resolution.locator('option[value="1080p"]')).toHaveCount(1)
+  await expect(resolution.locator('option[value="1080p"]')).toHaveCount(0)
   await expect(resolution.locator('option[value="4k"]')).toHaveCount(0)
-  await resolution.selectOption('1080p')
-  await expect(resolution).toHaveValue('1080p')
+  await expect(resolution).toHaveValue('720p')
+})
+
+test('Seedance 2.5 默认模型、清晰度、自动时长和同步音频', async ({ page }) => {
+  await ignoreKeyGate(page)
+  await createConversation(page, 'video', 'byteDanceVideo')
+  await page.getByRole('button', { name: '参数', exact: true }).click()
+  await expect(page.getByText('doubao-seedance-2-5-260628', { exact: true })).toBeVisible()
+  await expect(page.getByLabel('分辨率')).toHaveValue('720p')
+  await expect(page.getByLabel('分辨率').locator('option')).toHaveText(['480p', '720p', '1080p'])
+  await expect(page.getByLabel('自动决定时长')).toBeChecked()
+  await expect(page.getByLabel('生成同步音频')).toBeChecked()
+  await page.getByLabel('自动决定时长').uncheck()
+  await expect(page.getByLabel('时长（秒）')).toHaveAttribute('max', '30')
+  await page.getByLabel('时长（秒）').fill('30')
+  await page.getByLabel('生成模式').selectOption('firstFrameToVideo')
+  await expect(page.getByLabel('画面比例').locator('option')).toHaveText(['adaptive'])
+})
+
+test('侧边栏省略超长标题和模型且保持操作按钮可见', async ({ page }) => {
+  await ignoreKeyGate(page)
+  const modelId = 'long-model-'.repeat(20)
+  const title = '超长对话标题'.repeat(40)
+  await createConversation(page, 'video', 'byteDanceVideo', modelId)
+  await openSidebarIfNeeded(page)
+  const sidebar = page.locator('aside:visible')
+  const initialWidth = await sidebar.evaluate((element) => element.getBoundingClientRect().width)
+  await sidebar.getByRole('button', { name: /^对话操作：/ }).click()
+  page.once('dialog', (dialog) => void dialog.accept(title))
+  await sidebar.getByRole('button', { name: '重命名', exact: true }).click()
+  const link = sidebar.locator('.conversation-link')
+  await expect(link.locator('span').first()).toHaveText(title)
+  for (const span of await link.locator('span').all()) {
+    const metrics = await span.evaluate((element) => ({
+      client: element.clientWidth, scroll: element.scrollWidth,
+      ellipsis: getComputedStyle(element).textOverflow,
+    }))
+    expect(metrics.scroll).toBeGreaterThan(metrics.client)
+    expect(metrics.ellipsis).toBe('ellipsis')
+  }
+  const bounds = await sidebar.evaluate((element) => ({
+    width: element.getBoundingClientRect().width,
+    client: element.clientWidth, scroll: element.scrollWidth,
+  }))
+  expect(bounds.width).toBe(initialWidth)
+  expect(bounds.scroll).toBeLessThanOrEqual(bounds.client)
+  const actions = sidebar.getByRole('button', { name: `对话操作：${title}` })
+  await expect(actions).toBeInViewport()
+  await actions.click()
+  await expect(sidebar.getByRole('button', { name: '删除', exact: true })).toBeVisible()
 })
 
 async function ignoreKeyGate(page: Page): Promise<void> {

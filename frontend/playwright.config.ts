@@ -23,9 +23,9 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: 'uv run uvicorn app.main:app --host 127.0.0.1 --port 3001',
+      command: 'uv run uvicorn app.main:app --host 127.0.0.1 --port 3002',
       cwd: '../backend',
-      url: 'http://127.0.0.1:3001/api/v1/health/ready',
+      url: 'http://127.0.0.1:3002/api/v1/health/ready',
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
     },

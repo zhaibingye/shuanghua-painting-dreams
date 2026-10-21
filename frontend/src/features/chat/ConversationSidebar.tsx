@@ -180,7 +180,7 @@ export function ConversationSidebar({
               <h2 className="mb-2 px-3 text-[11px] font-medium tracking-wide text-[var(--ds-text-tertiary)]">
                 {group.label}
               </h2>
-              <div className="grid gap-1">
+              <div className="grid grid-cols-[minmax(0,1fr)] gap-1">
                 {group.items.map((conversation) => (
                   <div
                     key={conversation.id}
@@ -192,10 +192,10 @@ export function ConversationSidebar({
                       onClick={() => onMobileOpenChange(false)}
                       className={({ isActive }) => cn('conversation-link', isActive && 'is-active')}
                     >
-                      <span className="block truncate text-sm font-medium">
+                      <span title={conversation.title} className="block truncate text-sm font-medium">
                         {conversation.title}
                       </span>
-                      <span className="mt-1 block truncate text-[11px] text-[var(--ds-text-tertiary)]">
+                      <span title={`${apiFormatLabels[conversation.apiFormat]} · ${conversation.modelId}`} className="mt-1 block truncate text-[11px] text-[var(--ds-text-tertiary)]">
                         {apiFormatLabels[conversation.apiFormat]} · {conversation.modelId}
                       </span>
                     </NavLink>

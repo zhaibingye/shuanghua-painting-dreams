@@ -527,10 +527,10 @@
         "properties": {
           "duration": {
             "type": "integer",
-            "maximum": 15.0,
+            "maximum": 30.0,
             "minimum": -1.0,
             "title": "Duration",
-            "default": 5
+            "default": -1
           },
           "resolution": {
             "type": "string",
@@ -560,7 +560,7 @@
           "generateAudio": {
             "type": "boolean",
             "title": "Generateaudio",
-            "default": false
+            "default": true
           },
           "watermark": {
             "type": "boolean",

@@ -9,7 +9,7 @@ def test_settings_reads_prefixed_environment_variable(monkeypatch: pytest.Monkey
 
 def test_runtime_defaults_match_unified_server() -> None:
     settings = Settings(_env_file=None)
-    assert settings.port == 3001
+    assert settings.port == 3002
     assert settings.workers == 2
 
 

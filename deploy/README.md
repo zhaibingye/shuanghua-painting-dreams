@@ -9,7 +9,7 @@
   ↓ HTTPS
 Nginx / 宝塔反向代理
   ↓ HTTP，整个域名全部转发
-127.0.0.1:3001
+127.0.0.1:3002
   ↓
 FastAPI API + frontend/dist
 ```
@@ -34,7 +34,7 @@ npm install -g pm2
 pm2 --version
 ```
 
-建议仅向公网开放 SSH、HTTP 80 和 HTTPS 443。统一应用端口只监听 `127.0.0.1`，不要向公网开放 3001。
+建议仅向公网开放 SSH、HTTP 80 和 HTTPS 443。统一应用端口只监听 `127.0.0.1`，不要向公网开放 3002。
 
 ## 2. 放置项目
 
@@ -73,7 +73,7 @@ ln -sfn /etc/shuanghua/shuanghua.env /opt/shuanghua/backend/.env
 ```dotenv
 SHUANGHUA_ENV=production
 SHUANGHUA_HOST=127.0.0.1
-PORT=3001
+PORT=3002
 WEB_CONCURRENCY=2
 SHUANGHUA_FORWARDED_ALLOW_IPS=127.0.0.1
 SHUANGHUA_LOG_LEVEL=INFO
@@ -81,7 +81,7 @@ SHUANGHUA_LOG_LEVEL=INFO
 
 说明：
 
-- `PORT` 默认 `3001`，也可以在启动命令或 PM2 环境中覆盖；
+- `PORT` 默认 `3002`，也可以在启动命令或 PM2 环境中覆盖；
 - 兼容旧变量 `SHUANGHUA_PORT`，但新部署建议只使用 `PORT`；
 - `WEB_CONCURRENCY` 默认 `2`，可根据 CPU 和内存调整；
 - 兼容 `SHUANGHUA_WORKERS`，但新部署建议只使用 `WEB_CONCURRENCY`；
@@ -93,7 +93,7 @@ SHUANGHUA_LOG_LEVEL=INFO
 端口优先级：
 
 ```text
-PORT → SHUANGHUA_PORT → 3001
+PORT → SHUANGHUA_PORT → 3002
 ```
 
 worker 优先级：
@@ -139,9 +139,9 @@ npm start
 另开终端检查：
 
 ```bash
-curl -i http://127.0.0.1:3001/
-curl -i http://127.0.0.1:3001/create/image
-curl -i http://127.0.0.1:3001/api/v1/health/ready
+curl -i http://127.0.0.1:3002/
+curl -i http://127.0.0.1:3002/create/image
+curl -i http://127.0.0.1:3002/api/v1/health/ready
 ```
 
 三个请求都应返回 HTTP 200，其中前两个返回前端 HTML，第三个返回健康检查 JSON。
@@ -186,7 +186,7 @@ pm2 logs shuanghua --lines 100
 验证：
 
 ```bash
-curl -i http://127.0.0.1:3001/api/v1/health/ready
+curl -i http://127.0.0.1:3002/api/v1/health/ready
 ```
 
 PM2 只启动一个受守护的启动器实例，Uvicorn 默认在其下创建两个 worker。不要再使用 PM2 `instances` 扩容，否则会与 `WEB_CONCURRENCY` 叠加。
@@ -204,7 +204,7 @@ pm2 save
 
 ```bash
 pm2 status
-curl -i http://127.0.0.1:3001/api/v1/health/ready
+curl -i http://127.0.0.1:3002/api/v1/health/ready
 ```
 
 ### 修改环境变量
@@ -222,7 +222,7 @@ pm2 restart shuanghua --update-env
 将域名的整个路径 `/` 代理到：
 
 ```text
-http://127.0.0.1:3001
+http://127.0.0.1:3002
 ```
 
 不要只代理 `/api/`，也不要再将网站根目录设置为 `frontend/dist`。前端页面和 API 现在都由统一端口提供。
@@ -233,7 +233,7 @@ http://127.0.0.1:3001
 | --- | --- |
 | 代理名称 | `shuanghua` |
 | 代理目录 | `/` |
-| 目标 URL | `http://127.0.0.1:3001` |
+| 目标 URL | `http://127.0.0.1:3002` |
 | 发送域名 | `$host` |
 | 内容替换 | 留空 |
 | 缓存 | 关闭 |
@@ -273,7 +273,7 @@ proxy_set_header X-Request-ID $request_id;
 proxy_set_header Upgrade $http_upgrade;
 proxy_set_header Connection $connection_upgrade;
 
-proxy_pass http://127.0.0.1:3001;
+proxy_pass http://127.0.0.1:3002;
 ```
 
 宝塔通常会自动生成其中大部分配置，已有项不要重复添加。`$connection_upgrade` 可能由宝塔自动定义；若纯手写 Nginx，需要在 `http` 块中配置相应的 `map`，或者按实际需求移除 WebSocket 两行。
@@ -282,7 +282,7 @@ proxy_pass http://127.0.0.1:3001;
 
 ```nginx
 location = /api/v1/images/conversation-turns/stream {
-    proxy_pass http://127.0.0.1:3001;
+    proxy_pass http://127.0.0.1:3002;
     proxy_http_version 1.1;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
@@ -310,7 +310,7 @@ location = /api/v1/images/conversation-turns/stream {
 在宝塔或 Nginx 中为域名配置证书，并将 HTTP 强制跳转到 HTTPS。应用内部仍使用本地 HTTP：
 
 ```text
-公网 HTTPS → Nginx → http://127.0.0.1:3001
+公网 HTTPS → Nginx → http://127.0.0.1:3002
 ```
 
 确认 Nginx 传递 `X-Forwarded-Proto`，Uvicorn 会信任来自 `127.0.0.1` 的代理头。
@@ -325,7 +325,7 @@ npm run setup
 npm run check
 pm2 restart shuanghua --update-env
 pm2 save
-curl -i http://127.0.0.1:3001/api/v1/health/ready
+curl -i http://127.0.0.1:3002/api/v1/health/ready
 ```
 
 如果 lock 文件没有变化，可以省略 `npm run setup`。`pm2 restart` 会触发生产启动器重新构建前端。
@@ -371,7 +371,7 @@ pm2 logs shuanghua --lines 200
 - Python 是否为 3.12；
 - `uv` 是否可被 PM2 运行用户从 `PATH` 找到；
 - `npm run setup` 是否执行成功；
-- 3001 是否被其他进程占用；
+- 3002 是否被其他进程占用；
 - 前端 TypeScript 或 Vite 构建是否失败；
 - `/opt/shuanghua/backend/.env` 软链接是否有效。
 
@@ -380,10 +380,10 @@ pm2 logs shuanghua --lines 200
 先测试本地应用：
 
 ```bash
-curl -i http://127.0.0.1:3001/api/v1/health/ready
+curl -i http://127.0.0.1:3002/api/v1/health/ready
 ```
 
-若本地失败，检查 PM2；若本地成功，检查宝塔/Nginx 的目标是否为 `http://127.0.0.1:3001`。
+若本地失败，检查 PM2；若本地成功，检查宝塔/Nginx 的目标是否为 `http://127.0.0.1:3002`。
 
 ### 前端子路由刷新返回 404
 

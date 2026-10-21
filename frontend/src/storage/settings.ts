@@ -105,13 +105,13 @@ export const defaultSettings: StoredSettings = {
     },
     byteDanceVideo: {
       baseUrl: 'https://www.shapi.vip',
-      modelId: 'doubao-seedance-2-0-260128',
+      modelId: 'doubao-seedance-2-5-260628',
       keyOverride: null,
       defaults: {
-        duration: 5,
+        duration: -1,
         resolution: '720p',
         aspectRatio: 'adaptive',
-        generateAudio: false,
+        generateAudio: true,
         watermark: false,
         seed: -1,
         returnLastFrame: false,

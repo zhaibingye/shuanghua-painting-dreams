@@ -62,27 +62,83 @@ def test_seedance_2_fast_rejects_unsupported_resolutions(resolution: str) -> Non
 @pytest.mark.parametrize(
     ("model_id", "expected"),
     [
-        ("doubao-seedance-2-0-fast-260128-se", ["480p", "720p", "1080p"]),
-        ("doubao-seedance-1-0-lite-250128-se", ["480p", "720p", "1080p"]),
-        ("custom-seedance-endpoint-se", ["480p", "720p", "1080p"]),
+        ("doubao-seedance-2-5-260628", ["480p", "720p", "1080p"]),
+        ("doubao-seedance-2-0-mini-260615", ["480p", "720p"]),
+        ("doubao-seedance-2-0-fast-260128-se", ["480p", "720p"]),
+        ("doubao-seedance-1-0-lite-250128-se", ["480p", "720p"]),
+        ("custom-seedance-endpoint-se", ["480p", "720p"]),
         ("doubao-seedance-2-0-260128-se", ["480p", "720p", "1080p", "4k"]),
     ],
 )
-def test_seedance_special_edition_unlocks_1080p(model_id: str, expected: list[str]) -> None:
+def test_seedance_model_resolution_limits(model_id: str, expected: list[str]) -> None:
     assert byte_dance_model_capabilities(model_id)["resolutions"] == expected
+    for resolution in expected:
+        validate_byte_dance_video_request(
+            _byte_dance_request(model_id, options={"resolution": resolution})
+        )
+
+
+@pytest.mark.parametrize(
+    ("model_id", "duration", "resolution", "generate_audio"),
+    [
+        ("doubao-seedance-2-5-260628", -1, "720p", True),
+        ("doubao-seedance-2-0-260128", 5, "720p", True),
+        ("doubao-seedance-2-0-mini-260615", 5, "720p", True),
+        ("doubao-seedance-1-0-pro-250528", 5, "1080p", False),
+        ("doubao-seedance-1-0-pro-fast-251015", 5, "1080p", False),
+    ],
+)
+def test_seedance_model_defaults(
+    model_id: str, duration: int, resolution: str, generate_audio: bool
+) -> None:
+    request = _byte_dance_request(model_id)
+    validate_byte_dance_video_request(request)
+    assert request.options.duration == duration
+    assert request.options.resolution == resolution
+    assert request.options.generate_audio is generate_audio
+
+
+@pytest.mark.parametrize("duration", [-1, 4, 30])
+def test_seedance_2_5_duration(duration: int) -> None:
     validate_byte_dance_video_request(
-        _byte_dance_request(model_id, options={"resolution": "1080p"})
+        _byte_dance_request("doubao-seedance-2-5-260628", {"duration": duration})
     )
 
 
-def test_seedance_special_edition_does_not_unlock_4k() -> None:
-    with pytest.raises(ApplicationError, match="分辨率"):
-        validate_byte_dance_video_request(
-            _byte_dance_request(
-                "doubao-seedance-2-0-fast-260128-se",
-                options={"resolution": "4k"},
-            )
-        )
+@pytest.mark.parametrize(
+    ("model_id", "options", "message"),
+    [
+        ("doubao-seedance-2-5-260628", {"resolution": "4k"}, "分辨率"),
+        ("doubao-seedance-2-0-mini-260615", {"resolution": "1080p"}, "分辨率"),
+        ("doubao-seedance-2-0-fast-260128-se", {"resolution": "1080p"}, "分辨率"),
+        ("doubao-seedance-2-0-260128", {"duration": 30}, "4~15"),
+        ("doubao-seedance-2-5-260628", {"duration": 3}, "4~30"),
+    ],
+)
+def test_seedance_rejects_invalid_model_options(
+    model_id: str, options: dict[str, object], message: str
+) -> None:
+    with pytest.raises(ApplicationError, match=message):
+        validate_byte_dance_video_request(_byte_dance_request(model_id, options))
+
+
+@pytest.mark.parametrize("mode", ["firstFrameToVideo", "firstLastFrameToVideo"])
+def test_seedance_2_5_frames_require_adaptive_ratio(mode: str) -> None:
+    request = ByteDanceVideoGenerationRequest.model_validate(
+        {
+            "apiFormat": "byteDanceVideo",
+            "baseUrl": "https://shapi.vip",
+            "modelId": "doubao-seedance-2-5-260628",
+            "mode": mode,
+            "inputs": {
+                "firstFrameUrl": "https://example.com/first.png",
+                "lastFrameUrl": "https://example.com/last.png",
+            },
+            "options": {"aspectRatio": "16:9"},
+        }
+    )
+    with pytest.raises(ApplicationError, match="adaptive"):
+        validate_byte_dance_video_request(request)
 
 
 def test_xai_reference_video_rejects_1080p() -> None:
