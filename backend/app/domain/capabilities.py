@@ -1,12 +1,17 @@
 from app.domain.enums import ApiFormat, ErrorCategory, MediaKind
 from app.domain.errors import ApplicationError
+from app.domain.openai_images import (
+    IMAGE_MODELS,
+    STANDARD_SIZES,
+    openai_image_capabilities,
+)
 from app.domain.seedance import (
     DEFAULT_BYTE_DANCE_MODEL_ID,
 )
 from app.domain.seedance import (
     byte_dance_model_capabilities as byte_dance_model_capabilities,
 )
-from app.schemas.image_turns import OpenAIImageTurnRequest
+from app.schemas.image_turns import OpenAIImageTurnRequest, OpenAIResponsesImageTurnRequest
 from app.schemas.images import OpenAIImageEditRequest, OpenAIImageGenerationRequest
 from app.schemas.metadata import ProviderMetadata, ProviderMetadataResponse
 from app.schemas.videos import ByteDanceVideoGenerationRequest, XAIVideoGenerationRequest
@@ -61,12 +66,7 @@ _PROVIDER_DATA: tuple[ProviderMetadata, ...] = (
             "editPartialImages": False,
         },
         known_models={
-            "gpt-image-2": {
-                "maskEditing": True,
-                "transparentBackground": False,
-                "customImageSize": True,
-                "maxReferenceImages": 16,
-            }
+            model_id: dict(openai_image_capabilities(model_id)) for model_id in IMAGE_MODELS
         },
         default_options={
             "count": 1,
@@ -104,6 +104,7 @@ _PROVIDER_DATA: tuple[ProviderMetadata, ...] = (
             }
         },
         default_options={
+            "imageModel": "gpt-image-2.5-sunburst",
             "size": "auto",
             "quality": "auto",
             "outputFormat": "png",
@@ -239,10 +240,34 @@ def _capability_error(message: str, api_format: ApiFormat) -> ApplicationError:
 
 
 def validate_openai_image_request(
-    request: OpenAIImageGenerationRequest | OpenAIImageEditRequest | OpenAIImageTurnRequest,
+    request: OpenAIImageGenerationRequest
+    | OpenAIImageEditRequest
+    | OpenAIImageTurnRequest
+    | OpenAIResponsesImageTurnRequest,
 ) -> None:
-    if request.model_id == "gpt-image-2" and request.options.background == "transparent":
-        raise _capability_error("gpt-image-2 当前不支持透明背景。", request.api_format)
+    model_id = (
+        request.options.image_model
+        if isinstance(request, OpenAIResponsesImageTurnRequest)
+        else request.model_id
+    )
+    capabilities = openai_image_capabilities(model_id)
+    if request.options.quality not in capabilities["qualities"]:
+        raise _capability_error(
+            "当前图像模型不支持所选质量；xhigh、max 仅支持 GPT Image 2.5。", request.api_format
+        )
+    if not capabilities["customImageSize"] and request.options.size not in STANDARD_SIZES:
+        raise _capability_error("当前图像模型仅支持 auto 和三种标准尺寸。", request.api_format)
+    # auto is an application-level sentinel: omit input_fidelity on the wire.
+    if (
+        isinstance(
+            request,
+            (OpenAIImageEditRequest, OpenAIImageTurnRequest, OpenAIResponsesImageTurnRequest),
+        )
+        and request.options.input_fidelity not in capabilities["inputFidelities"]
+    ):
+        raise _capability_error(
+            "当前图像模型不支持调整输入保真度，请选择 auto。", request.api_format
+        )
 
 
 def validate_byte_dance_video_request(request: ByteDanceVideoGenerationRequest) -> None:

@@ -7,6 +7,7 @@ import {
   type StoredMediaAsset,
   type StoredMessage,
 } from '../../storage/db'
+import { OPENAI_IMAGE_QUALITIES, OPENAI_IMAGE_MODELS } from './openai-image-options'
 import { fileToDataUrl } from '../../workers/image-worker-client'
 
 export type DraftImage =
@@ -251,9 +252,10 @@ function openAIImageOptions(
   options: Record<string, unknown>,
 ): components['schemas']['OpenAIImageTurnOptions'] {
   return {
+    safetyIdentifier: textOption(options, 'safetyIdentifier', '') || null,
     count: numberOption(options, 'count', 1),
     size: textOption(options, 'size', '1024x1024'),
-    quality: enumOption(options, 'quality', ['auto', 'low', 'medium', 'high'], 'auto'),
+    quality: enumOption(options, 'quality', OPENAI_IMAGE_QUALITIES, 'auto'),
     outputFormat: enumOption(options, 'outputFormat', ['png', 'jpeg', 'webp'], 'png'),
     outputCompression: numberOption(options, 'outputCompression', 100),
     background: enumOption(
@@ -272,8 +274,10 @@ function openAIResponsesOptions(
   options: Record<string, unknown>,
 ): components['schemas']['OpenAIResponsesImageOptions'] {
   return {
+    imageModel: textOption(options, 'imageModel', OPENAI_IMAGE_MODELS[0]),
+    safetyIdentifier: textOption(options, 'safetyIdentifier', '') || null,
     size: textOption(options, 'size', 'auto'),
-    quality: enumOption(options, 'quality', ['auto', 'low', 'medium', 'high'], 'auto'),
+    quality: enumOption(options, 'quality', OPENAI_IMAGE_QUALITIES, 'auto'),
     outputFormat: enumOption(options, 'outputFormat', ['png', 'jpeg', 'webp'], 'png'),
     outputCompression: numberOption(options, 'outputCompression', 100),
     background: enumOption(

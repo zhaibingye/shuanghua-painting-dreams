@@ -5,6 +5,8 @@ import { Button } from '../../components/ui/Button'
 import { FieldShell, Input, Select, Textarea } from '../../components/ui/Field'
 import type { StoredConversation } from '../../storage/db'
 import type { VideoDraft } from './video-turn'
+import { OpenAIImageSizeField } from './OpenAIImageSizeField'
+import { OPENAI_IMAGE_MODELS, openAIImageCapabilities } from './openai-image-options'
 
 export function ParametersDialog({
   open,
@@ -51,6 +53,7 @@ export function ParametersDialog({
             {conversation.mediaKind === 'image' ? (
               <ImageParameters
                 format={conversation.apiFormat}
+                modelId={conversation.modelId}
                 options={options}
                 openAIImageEditing={openAIImageEditing}
                 onOption={onOption}
@@ -74,11 +77,13 @@ export function ParametersDialog({
 
 function ImageParameters({
   format,
+  modelId,
   options,
   openAIImageEditing,
   onOption,
 }: {
   format: StoredConversation['apiFormat']
+  modelId: string
   options: Record<string, unknown>
   openAIImageEditing: boolean
   onOption: (key: string, value: unknown) => void
@@ -107,18 +112,23 @@ function ImageParameters({
   }
 
   const responses = format === 'openaiResponsesImage'
+  const imageModel = responses ? text(options, 'imageModel', OPENAI_IMAGE_MODELS[0]) : modelId
+  const capabilities = openAIImageCapabilities(imageModel)
+  const outputFormat = text(options, 'outputFormat', 'png')
   return (
     <ParameterGrid>
       {!responses ? <NumberField label="生成数量" value={num(options, 'count', 1)} min={1} max={10} onChange={(value) => onOption('count', value)} /> : null}
-      <FieldShell label="尺寸" hint="支持 WIDTHxHEIGHT">
-        <Input value={text(options, 'size', responses ? 'auto' : '1024x1024')} onChange={(event) => onOption('size', event.target.value)} />
-      </FieldShell>
-      <SelectField label="质量" value={text(options, 'quality', 'auto')} values={['auto', 'low', 'medium', 'high']} onChange={(value) => onOption('quality', value)} />
+      {responses ? <SelectField label="图像模型" value={imageModel} values={[...OPENAI_IMAGE_MODELS]} onChange={(value) => onOption('imageModel', value)} /> : null}
+      <OpenAIImageSizeField size={text(options, 'size', responses ? 'auto' : '1024x1024')} modelId={imageModel} onChange={(value) => onOption('size', value)} />
+      <SelectField label="质量" value={text(options, 'quality', 'auto')} values={capabilities.qualities} onChange={(value) => onOption('quality', value)} />
       <SelectField label="输出格式" value={text(options, 'outputFormat', 'png')} values={['png', 'jpeg', 'webp']} onChange={(value) => onOption('outputFormat', value)} />
-      <NumberField label="输出压缩" value={num(options, 'outputCompression', 100)} min={0} max={100} onChange={(value) => onOption('outputCompression', value)} />
-      <SelectField label="背景" value={text(options, 'background', 'auto')} values={responses ? ['auto', 'opaque', 'transparent'] : ['auto', 'opaque']} onChange={(value) => onOption('background', value)} />
-      {responses || !openAIImageEditing ? <SelectField label="Moderation" value={text(options, 'moderation', 'auto')} values={['auto', 'low']} onChange={(value) => onOption('moderation', value)} /> : null}
-      {responses || openAIImageEditing ? <SelectField label="输入保真度" value={text(options, 'inputFidelity', 'auto')} values={['auto', 'low', 'high']} onChange={(value) => onOption('inputFidelity', value)} /> : null}
+      {outputFormat === 'jpeg' || outputFormat === 'webp' ? <NumberField label="输出压缩" value={num(options, 'outputCompression', 100)} min={0} max={100} onChange={(value) => onOption('outputCompression', value)} /> : null}
+      <SelectField label="背景" value={text(options, 'background', 'auto')} values={['auto', 'opaque', 'transparent']} onChange={(value) => onOption('background', value)} />
+      <SelectField label="Moderation" value={text(options, 'moderation', 'auto')} values={['auto', 'low']} onChange={(value) => onOption('moderation', value)} />
+      {(responses || openAIImageEditing) && capabilities.inputFidelities.length > 1 ? <SelectField label="输入保真度" value={text(options, 'inputFidelity', 'auto')} values={capabilities.inputFidelities} onChange={(value) => onOption('inputFidelity', value)} /> : null}
+      <FieldShell label="安全标识（可选）" hint="最多 128 字符；请使用用户标识的哈希值">
+        <Input value={text(options, 'safetyIdentifier', '')} maxLength={128} onChange={(event) => onOption('safetyIdentifier', event.target.value)} />
+      </FieldShell>
       {!responses && openAIImageEditing ? (
         <div className="rounded-xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-hover)] px-3 py-3 text-xs leading-5 text-[var(--ds-text-secondary)]">
           参考图与遮罩编辑使用非流式上游请求，完成后一次性返回最终图片；渐进预览数量仅用于无参考图的文生图。

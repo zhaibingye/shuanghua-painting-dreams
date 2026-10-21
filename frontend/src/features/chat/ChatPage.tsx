@@ -43,6 +43,11 @@ import {
 } from './image-turn'
 import { MessageList } from './MessageList'
 import { normalizeByteDanceOptions, resolveModelCapabilities } from './model-capabilities'
+import {
+  normalizeOpenAIImageOptions,
+  openAIResponsesImageModel,
+  openAIImageSizeError,
+} from './openai-image-options'
 import { ParametersDialog } from './ParametersDialog'
 import {
   buildVideoExtensionRequest,
@@ -103,6 +108,12 @@ export function ChatPage({ onOpenSidebar }: { onOpenSidebar: () => void }) {
     if (currentApiFormat === 'byteDanceVideo' && currentModelId) {
       defaults = normalizeByteDanceOptions(defaults, currentModelId)
     }
+    if (currentApiFormat === 'openaiImage' && currentModelId) {
+      defaults = normalizeOpenAIImageOptions(defaults, currentModelId)
+    }
+    if (currentApiFormat === 'openaiResponsesImage') {
+      defaults = normalizeOpenAIImageOptions(defaults, openAIResponsesImageModel(defaults))
+    }
     setTurnOptions(defaults)
     setPrompt('')
     setVideoDraft({ ...defaultVideoDraft })
@@ -160,7 +171,11 @@ export function ChatPage({ onOpenSidebar }: { onOpenSidebar: () => void }) {
       ? imagePreparing || activeImageTask !== null
       : videoBusy
   const setOption = (name: string, value: unknown) => {
-    const next = { ...turnOptions, [name]: value }
+    let next = { ...turnOptions, [name]: value }
+    if (conversation.apiFormat === 'openaiImage' || conversation.apiFormat === 'openaiResponsesImage') {
+      const imageModel = conversation.apiFormat === 'openaiImage' ? conversation.modelId : openAIResponsesImageModel(next)
+      next = normalizeOpenAIImageOptions(next, imageModel)
+    }
     setTurnOptions(next)
     updateFormat(conversation.apiFormat, { defaults: next })
   }
@@ -170,6 +185,15 @@ export function ChatPage({ onOpenSidebar }: { onOpenSidebar: () => void }) {
     if (!key) {
       toast.error('当前 API 格式没有可用的 Key，请先在设置中填写。')
       return
+    }
+    if (conversation.apiFormat === 'openaiImage' || conversation.apiFormat === 'openaiResponsesImage') {
+      const imageModel = conversation.apiFormat === 'openaiImage' ? conversation.modelId : openAIResponsesImageModel(turnOptions)
+      const error = openAIImageSizeError(typeof turnOptions.size === 'string' ? turnOptions.size : 'auto', imageModel)
+      if (error) {
+        toast.error(error)
+        setParametersOpen(true)
+        return
+      }
     }
     scrollToBottom()
     if (conversation.mediaKind === 'image') void submitImage(conversation, messages, key)

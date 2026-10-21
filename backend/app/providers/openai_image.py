@@ -50,7 +50,6 @@ class OpenAIImageAdapter:
         payload: dict[str, Any] = {
             "model": request.model_id,
             "prompt": request.prompt,
-            "response_format": "b64_json",
             "moderation": request.options.moderation,
             **self._generation_options(request.options),
         }
@@ -92,7 +91,6 @@ class OpenAIImageAdapter:
         payload: dict[str, Any] = {
             "model": request.model_id,
             "prompt": request.prompt,
-            "response_format": "b64_json",
             "stream": True,
             "partial_images": request.options.partial_images,
             "moderation": request.options.moderation,
@@ -185,14 +183,18 @@ class OpenAIImageAdapter:
 
     @staticmethod
     def _generation_options(options: OpenAIImageBaseOptions) -> dict[str, Any]:
-        return {
+        payload: dict[str, Any] = {
             "n": options.count,
             "size": options.size,
             "quality": options.quality,
             "output_format": options.output_format,
-            "output_compression": options.output_compression,
             "background": options.background,
         }
+        if options.output_format in {"jpeg", "webp"}:
+            payload["output_compression"] = options.output_compression
+        if options.safety_identifier:
+            payload["safety_identifier"] = options.safety_identifier
+        return payload
 
     async def _edit_form(
         self,
@@ -234,10 +236,13 @@ class OpenAIImageAdapter:
             ("size", options.size),
             ("quality", options.quality),
             ("output_format", options.output_format),
-            ("output_compression", str(options.output_compression)),
             ("background", options.background),
-            ("response_format", "b64_json"),
+            ("moderation", options.moderation),
         ]
+        if options.output_format in {"jpeg", "webp"}:
+            fields.append(("output_compression", str(options.output_compression)))
+        if options.safety_identifier:
+            fields.append(("safety_identifier", options.safety_identifier))
         if options.input_fidelity != "auto":
             fields.append(("input_fidelity", options.input_fidelity))
         return MultipartForm(fields=tuple(fields), files=tuple(files))

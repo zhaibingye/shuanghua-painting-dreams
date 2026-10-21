@@ -3,6 +3,7 @@ from typing import Annotated, Literal, Self
 from pydantic import Field, field_validator, model_validator
 
 from app.domain.enums import ApiFormat
+from app.domain.openai_images import validate_image_size
 from app.schemas.common import (
     ApiModel,
     DataUrlImageAsset,
@@ -20,23 +21,19 @@ class GeminiImageOptions(ApiModel):
     include_thoughts: bool = False
 
 
-class OpenAIImageBaseOptions(ApiModel):
-    count: int = Field(default=1, ge=1, le=10)
+class OpenAIImageOutputOptions(ApiModel):
     size: str = Field(default="1024x1024", min_length=3, max_length=32)
-    quality: Literal["auto", "low", "medium", "high"] = "auto"
+    quality: Literal["auto", "low", "medium", "high", "xhigh", "max"] = "auto"
     output_format: Literal["png", "jpeg", "webp"] = "png"
     output_compression: int = Field(default=100, ge=0, le=100)
     background: Literal["auto", "opaque", "transparent"] = "auto"
 
+    safety_identifier: str | None = Field(default=None, max_length=128)
+
     @field_validator("size")
     @classmethod
     def validate_size(cls, value: str) -> str:
-        if value == "auto":
-            return value
-        parts = value.lower().split("x", maxsplit=1)
-        if len(parts) != 2 or not all(part.isdigit() for part in parts):
-            raise ValueError("图片尺寸必须是 auto 或 WIDTHxHEIGHT")
-        return value.lower()
+        return validate_image_size(value)
 
     @model_validator(mode="after")
     def validate_output_options(self) -> Self:
@@ -45,8 +42,12 @@ class OpenAIImageBaseOptions(ApiModel):
         return self
 
 
-class OpenAIImageOptions(OpenAIImageBaseOptions):
+class OpenAIImageBaseOptions(OpenAIImageOutputOptions):
+    count: int = Field(default=1, ge=1, le=10)
     moderation: Literal["auto", "low"] = "auto"
+
+
+class OpenAIImageOptions(OpenAIImageBaseOptions):
     partial_images: int = Field(default=2, ge=0, le=3)
 
 

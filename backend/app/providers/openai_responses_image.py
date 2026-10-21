@@ -43,6 +43,9 @@ class OpenAIResponsesImageAdapter:
             "stream": True,
         }
 
+        if request.options.safety_identifier:
+            payload["safety_identifier"] = request.options.safety_identifier
+
         response_id: str | None = None
         completed_call_ids: set[str] = set()
         completed_count = 0
@@ -220,14 +223,16 @@ class OpenAIResponsesImageAdapter:
         tool: dict[str, Any] = {
             "type": "image_generation",
             "action": "auto",
+            "model": options.image_model,
             "quality": options.quality,
             "size": options.size,
             "output_format": options.output_format,
-            "output_compression": options.output_compression,
             "background": options.background,
             "partial_images": options.partial_images,
             "moderation": options.moderation,
         }
+        if options.output_format in {"jpeg", "webp"}:
+            tool["output_compression"] = options.output_compression
         if options.input_fidelity != "auto":
             tool["input_fidelity"] = options.input_fidelity
         return tool

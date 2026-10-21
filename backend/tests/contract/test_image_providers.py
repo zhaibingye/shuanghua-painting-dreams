@@ -53,8 +53,9 @@ async def test_openai_generation_payload_and_response(settings: Settings, model_
     assert call.headers["Authorization"] == "Bearer secret"
     assert call.payload is not None
     assert call.payload["model"] == model_id
-    assert call.payload["response_format"] == "b64_json"
+    assert "response_format" not in call.payload
     assert call.payload["n"] == 2
+    assert "output_compression" not in call.payload
     assert result.images[0].base64_data == "aW1hZ2U="
     assert result.usage is not None and result.usage.total_tokens == 3
 
@@ -178,9 +179,16 @@ async def test_openai_image_stream_emits_partial_and_final(settings: Settings) -
         {
             "apiFormat": "openaiImage",
             "baseUrl": "https://shapi.vip",
-            "modelId": "gpt-image-2",
+            "modelId": "gpt-image-2.5-sunburst",
             "prompt": "snow",
-            "options": {"partialImages": 2},
+            "options": {
+                "partialImages": 2,
+                "quality": "max",
+                "size": "3840x2160",
+                "outputFormat": "webp",
+                "outputCompression": 80,
+                "safetyIdentifier": "hashed-user",
+            },
         }
     )
 
@@ -190,6 +198,11 @@ async def test_openai_image_stream_emits_partial_and_final(settings: Settings) -
     assert transport.calls[0].payload is not None
     assert transport.calls[0].payload["stream"] is True
     assert transport.calls[0].payload["partial_images"] == 2
+    assert transport.calls[0].payload["quality"] == "max"
+    assert transport.calls[0].payload["size"] == "3840x2160"
+    assert transport.calls[0].payload["output_compression"] == 80
+    assert transport.calls[0].payload["safety_identifier"] == "hashed-user"
+    assert "response_format" not in transport.calls[0].payload
     assert chunks[1].image is not None and chunks[1].image.base64_data == "ZmluYWw="
 
 
@@ -215,7 +228,7 @@ async def test_openai_image_turn_with_reference_uses_non_streaming_edit(
         {
             "apiFormat": "openaiImage",
             "baseUrl": "https://shapi.vip",
-            "modelId": "gpt-image-2",
+            "modelId": "gpt-image-2.5-flare",
             "prompt": "make it blue",
             "sourceImages": [
                 {
@@ -224,7 +237,13 @@ async def test_openai_image_turn_with_reference_uses_non_streaming_edit(
                     "filename": "source.png",
                 }
             ],
-            "options": {"partialImages": 3, "inputFidelity": "auto"},
+            "options": {
+                "partialImages": 3,
+                "inputFidelity": "auto",
+                "quality": "max",
+                "moderation": "low",
+                "safetyIdentifier": "hashed-user",
+            },
         }
     )
 
@@ -236,6 +255,12 @@ async def test_openai_image_turn_with_reference_uses_non_streaming_edit(
     assert call.headers == {"Authorization": "Bearer secret"}
     assert not any(name in {"stream", "partial_images"} for name, _ in call.form.fields)
     assert not any(name == "input_fidelity" for name, _ in call.form.fields)
+    assert ("quality", "max") in call.form.fields
+    assert ("moderation", "low") in call.form.fields
+    assert ("safety_identifier", "hashed-user") in call.form.fields
+    assert not any(
+        name in {"response_format", "output_compression"} for name, _ in call.form.fields
+    )
     assert len(call.form.files) == 1
     assert call.form.files[0].field_name == "image"
     assert call.form.files[0].filename == "source.png"
@@ -290,7 +315,7 @@ async def test_openai_image_edit_non_streaming_uses_multipart(settings: Settings
         {
             "apiFormat": "openaiImage",
             "baseUrl": "https://shapi.vip",
-            "modelId": "gpt-image-2",
+            "modelId": "gpt-image-1.5",
             "prompt": "combine",
             "images": [
                 {"kind": "dataUrl", "dataUrl": "data:image/png;base64,iVBORw0KGgo="},
@@ -398,7 +423,13 @@ async def test_openai_responses_is_stateless_and_replays_image_calls(
                     },
                 },
             ],
-            "options": {"partialImages": 3},
+            "options": {
+                "partialImages": 3,
+                "quality": "max",
+                "imageModel": "gpt-image-2.5-flare",
+                "safetyIdentifier": "hashed-user",
+                "size": "2160x3840",
+            },
         }
     )
 
@@ -409,6 +440,11 @@ async def test_openai_responses_is_stateless_and_replays_image_calls(
     assert payload["store"] is False
     assert "previous_response_id" not in payload
     assert payload["tools"][0]["partial_images"] == 3
+    assert payload["tools"][0]["model"] == "gpt-image-2.5-flare"
+    assert payload["tools"][0]["quality"] == "max"
+    assert payload["tools"][0]["size"] == "2160x3840"
+    assert "output_compression" not in payload["tools"][0]
+    assert payload["safety_identifier"] == "hashed-user"
     assert payload["input"][1] == {
         "type": "image_generation_call",
         "id": "ig_old",
