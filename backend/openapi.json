@@ -1121,13 +1121,6 @@
       },
       "OpenAIImageEditOptions": {
         "properties": {
-          "count": {
-            "type": "integer",
-            "maximum": 10.0,
-            "minimum": 1.0,
-            "title": "Count",
-            "default": 1
-          },
           "size": {
             "type": "string",
             "maxLength": 32,
@@ -1141,7 +1134,9 @@
               "auto",
               "low",
               "medium",
-              "high"
+              "high",
+              "xhigh",
+              "max"
             ],
             "title": "Quality",
             "default": "auto"
@@ -1171,6 +1166,34 @@
               "transparent"
             ],
             "title": "Background",
+            "default": "auto"
+          },
+          "safetyIdentifier": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Safetyidentifier"
+          },
+          "count": {
+            "type": "integer",
+            "maximum": 10.0,
+            "minimum": 1.0,
+            "title": "Count",
+            "default": 1
+          },
+          "moderation": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "low"
+            ],
+            "title": "Moderation",
             "default": "auto"
           },
           "inputFidelity": {
@@ -1302,13 +1325,6 @@
       },
       "OpenAIImageOptions": {
         "properties": {
-          "count": {
-            "type": "integer",
-            "maximum": 10.0,
-            "minimum": 1.0,
-            "title": "Count",
-            "default": 1
-          },
           "size": {
             "type": "string",
             "maxLength": 32,
@@ -1322,7 +1338,9 @@
               "auto",
               "low",
               "medium",
-              "high"
+              "high",
+              "xhigh",
+              "max"
             ],
             "title": "Quality",
             "default": "auto"
@@ -1353,6 +1371,25 @@
             ],
             "title": "Background",
             "default": "auto"
+          },
+          "safetyIdentifier": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Safetyidentifier"
+          },
+          "count": {
+            "type": "integer",
+            "maximum": 10.0,
+            "minimum": 1.0,
+            "title": "Count",
+            "default": 1
           },
           "moderation": {
             "type": "string",
@@ -1377,13 +1414,6 @@
       },
       "OpenAIImageTurnOptions": {
         "properties": {
-          "count": {
-            "type": "integer",
-            "maximum": 10.0,
-            "minimum": 1.0,
-            "title": "Count",
-            "default": 1
-          },
           "size": {
             "type": "string",
             "maxLength": 32,
@@ -1397,7 +1427,9 @@
               "auto",
               "low",
               "medium",
-              "high"
+              "high",
+              "xhigh",
+              "max"
             ],
             "title": "Quality",
             "default": "auto"
@@ -1428,6 +1460,25 @@
             ],
             "title": "Background",
             "default": "auto"
+          },
+          "safetyIdentifier": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Safetyidentifier"
+          },
+          "count": {
+            "type": "integer",
+            "maximum": 10.0,
+            "minimum": 1.0,
+            "title": "Count",
+            "default": 1
           },
           "moderation": {
             "type": "string",
@@ -1578,7 +1629,9 @@
               "auto",
               "low",
               "medium",
-              "high"
+              "high",
+              "xhigh",
+              "max"
             ],
             "title": "Quality",
             "default": "auto"
@@ -1609,6 +1662,25 @@
             ],
             "title": "Background",
             "default": "auto"
+          },
+          "safetyIdentifier": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Safetyidentifier"
+          },
+          "imageModel": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Imagemodel",
+            "default": "gpt-image-2.5-sunburst"
           },
           "moderation": {
             "type": "string",

@@ -77,7 +77,7 @@ class ImageService:
                     images=request.source_images,
                     mask=request.mask,
                     options=OpenAIImageEditOptions.model_validate(
-                        request.options.model_dump(exclude={"moderation", "partial_images"})
+                        request.options.model_dump(exclude={"partial_images"})
                     ),
                 )
                 result = await self._providers.openai_image.edit(edit_request, api_key)
@@ -88,6 +88,7 @@ class ImageService:
                     yield chunk
             return
         if isinstance(request, OpenAIResponsesImageTurnRequest):
+            validate_openai_image_request(request)
             async for chunk in self._providers.openai_responses_image.stream_turn(request, api_key):
                 yield chunk
             return

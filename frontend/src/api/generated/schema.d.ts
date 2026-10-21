@@ -444,11 +444,6 @@ export interface components {
         /** OpenAIImageEditOptions */
         OpenAIImageEditOptions: {
             /**
-             * Count
-             * @default 1
-             */
-            count: number;
-            /**
              * Size
              * @default 1024x1024
              */
@@ -458,7 +453,7 @@ export interface components {
              * @default auto
              * @enum {string}
              */
-            quality: "auto" | "low" | "medium" | "high";
+            quality: "auto" | "low" | "medium" | "high" | "xhigh" | "max";
             /**
              * Outputformat
              * @default png
@@ -476,6 +471,19 @@ export interface components {
              * @enum {string}
              */
             background: "auto" | "opaque" | "transparent";
+            /** Safetyidentifier */
+            safetyIdentifier?: string | null;
+            /**
+             * Count
+             * @default 1
+             */
+            count: number;
+            /**
+             * Moderation
+             * @default auto
+             * @enum {string}
+             */
+            moderation: "auto" | "low";
             /**
              * Inputfidelity
              * @default auto
@@ -519,11 +527,6 @@ export interface components {
         /** OpenAIImageOptions */
         OpenAIImageOptions: {
             /**
-             * Count
-             * @default 1
-             */
-            count: number;
-            /**
              * Size
              * @default 1024x1024
              */
@@ -533,7 +536,7 @@ export interface components {
              * @default auto
              * @enum {string}
              */
-            quality: "auto" | "low" | "medium" | "high";
+            quality: "auto" | "low" | "medium" | "high" | "xhigh" | "max";
             /**
              * Outputformat
              * @default png
@@ -551,6 +554,13 @@ export interface components {
              * @enum {string}
              */
             background: "auto" | "opaque" | "transparent";
+            /** Safetyidentifier */
+            safetyIdentifier?: string | null;
+            /**
+             * Count
+             * @default 1
+             */
+            count: number;
             /**
              * Moderation
              * @default auto
@@ -566,11 +576,6 @@ export interface components {
         /** OpenAIImageTurnOptions */
         OpenAIImageTurnOptions: {
             /**
-             * Count
-             * @default 1
-             */
-            count: number;
-            /**
              * Size
              * @default 1024x1024
              */
@@ -580,7 +585,7 @@ export interface components {
              * @default auto
              * @enum {string}
              */
-            quality: "auto" | "low" | "medium" | "high";
+            quality: "auto" | "low" | "medium" | "high" | "xhigh" | "max";
             /**
              * Outputformat
              * @default png
@@ -598,6 +603,13 @@ export interface components {
              * @enum {string}
              */
             background: "auto" | "opaque" | "transparent";
+            /** Safetyidentifier */
+            safetyIdentifier?: string | null;
+            /**
+             * Count
+             * @default 1
+             */
+            count: number;
             /**
              * Moderation
              * @default auto
@@ -663,7 +675,7 @@ export interface components {
              * @default auto
              * @enum {string}
              */
-            quality: "auto" | "low" | "medium" | "high";
+            quality: "auto" | "low" | "medium" | "high" | "xhigh" | "max";
             /**
              * Outputformat
              * @default png
@@ -681,6 +693,13 @@ export interface components {
              * @enum {string}
              */
             background: "auto" | "opaque" | "transparent";
+            /** Safetyidentifier */
+            safetyIdentifier?: string | null;
+            /**
+             * Imagemodel
+             * @default gpt-image-2.5-sunburst
+             */
+            imageModel: string;
             /**
              * Moderation
              * @default auto

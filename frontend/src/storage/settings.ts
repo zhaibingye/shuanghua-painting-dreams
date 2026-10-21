@@ -82,6 +82,7 @@ export const defaultSettings: StoredSettings = {
       modelId: 'gpt-5.6-luna',
       keyOverride: null,
       defaults: {
+        imageModel: 'gpt-image-2.5-sunburst',
         size: 'auto',
         quality: 'auto',
         outputFormat: 'png',

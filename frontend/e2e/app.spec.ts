@@ -311,3 +311,36 @@ test('窗口缩小后输入区仍可见，抽屉支持 Escape', async ({ page })
   await expect(page.getByRole('dialog', { name: '对话导航' })).toHaveCount(0)
   await expect(page.getByRole('button', { name: '打开侧边栏' })).toBeFocused()
 })
+
+test('OpenAI 九种比例分辨率预设与 max 质量随请求保存', async ({ page }) => {
+  await page.getByLabel('API Key').fill('browser-test-key')
+  await page.getByRole('button', { name: '保存 Key 并进入' }).click()
+  await createConversation(page, 'image', 'openaiImage')
+  await page.getByRole('button', { name: '参数', exact: true }).click()
+  await expect(page.getByLabel('快捷比例').locator('option')).toHaveCount(9)
+  await page.getByLabel('快捷比例').selectOption('16:9')
+  await page.getByRole('button', { name: /4K/ }).click()
+  await expect(page.getByRole('textbox', { name: /^尺寸/ })).toHaveValue('3840x2160')
+  await page.getByLabel('质量', { exact: true }).selectOption('max')
+  await page.getByRole('button', { name: '关闭参数面板' }).click()
+
+  const captured = page.waitForRequest('**/api/v1/images/conversation-turns/stream')
+  await page.route('**/api/v1/images/conversation-turns/stream', (route) => route.fulfill({
+    status: 200, contentType: 'text/event-stream',
+    body: [
+      'event: turn.started\ndata: {"requestId":"req_presets","apiFormat":"openaiImage"}\n\n',
+      `event: image.completed\ndata: {"index":0,"image":{"id":"img_presets","mimeType":"image/png","base64Data":"${tinyPng.toString('base64')}","revisedPrompt":null,"thought":false,"thoughtSignature":null},"providerMetadata":null}\n\n`,
+      'event: turn.completed\ndata: {"requestId":"req_presets","usage":null,"providerState":null}\n\n',
+    ].join(''),
+  }))
+  await page.getByRole('textbox', { name: '消息', exact: true }).fill('测试预设')
+  await page.getByRole('button', { name: '发送消息' }).click()
+  expect((await captured).postDataJSON()).toMatchObject({
+    options: { size: '3840x2160', quality: 'max' },
+  })
+  await expect(page.getByAltText('生成结果 1')).toBeVisible()
+  await page.reload()
+  await page.getByRole('button', { name: '参数', exact: true }).click()
+  await expect(page.getByRole('textbox', { name: /^尺寸/ })).toHaveValue('3840x2160')
+  await expect(page.getByLabel('质量', { exact: true })).toHaveValue('max')
+})

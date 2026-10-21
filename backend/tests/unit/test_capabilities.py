@@ -11,7 +11,7 @@ from app.schemas.images import OpenAIImageGenerationRequest
 from app.schemas.videos import ByteDanceVideoGenerationRequest, XAIVideoGenerationRequest
 
 
-def test_gpt_image_2_transparent_background_is_blocked() -> None:
+def test_gpt_image_2_transparent_background_is_supported_in_preview() -> None:
     request = OpenAIImageGenerationRequest.model_validate(
         {
             "apiFormat": "openaiImage",
@@ -21,8 +21,7 @@ def test_gpt_image_2_transparent_background_is_blocked() -> None:
             "options": {"background": "transparent", "outputFormat": "png"},
         }
     )
-    with pytest.raises(ApplicationError, match="透明背景"):
-        validate_openai_image_request(request)
+    validate_openai_image_request(request)
 
 
 def test_seedance_2_rejects_camera_fixed() -> None:
