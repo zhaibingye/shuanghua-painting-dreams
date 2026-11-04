@@ -1,16 +1,9 @@
 from app.domain.enums import ApiFormat, ErrorCategory, MediaKind
 from app.domain.errors import ApplicationError
-from app.domain.openai_images import (
-    IMAGE_MODELS,
-    STANDARD_SIZES,
-    openai_image_capabilities,
-)
-from app.domain.seedance import (
-    DEFAULT_BYTE_DANCE_MODEL_ID,
-)
-from app.domain.seedance import (
-    byte_dance_model_capabilities as byte_dance_model_capabilities,
-)
+from app.domain.image_options import IMAGE_OPTION_MODELS
+from app.domain.openai_images import IMAGE_MODELS, STANDARD_SIZES, openai_image_capabilities
+from app.domain.seedance import DEFAULT_BYTE_DANCE_MODEL_ID
+from app.domain.seedance import byte_dance_model_capabilities as byte_dance_model_capabilities
 from app.schemas.image_turns import OpenAIImageTurnRequest, OpenAIResponsesImageTurnRequest
 from app.schemas.images import OpenAIImageEditRequest, OpenAIImageGenerationRequest
 from app.schemas.metadata import ProviderMetadata, ProviderMetadataResponse
@@ -39,13 +32,7 @@ _PROVIDER_DATA: tuple[ProviderMetadata, ...] = (
                 "maxReferenceImages": 14,
             }
         },
-        default_options={
-            "aspectRatio": "1:1",
-            "imageSize": "1K",
-            "responseModalities": "IMAGE",
-            "thinkingLevel": "High",
-            "includeThoughts": False,
-        },
+        default_options={},
     ),
     ProviderMetadata(
         api_format=ApiFormat.OPENAI_IMAGE,
@@ -62,22 +49,13 @@ _PROVIDER_DATA: tuple[ProviderMetadata, ...] = (
             "qualityControl": True,
             "generationStreaming": True,
             "generationPartialImages": True,
-            "editStreaming": False,
-            "editPartialImages": False,
+            "editStreaming": True,
+            "editPartialImages": True,
         },
         known_models={
             model_id: dict(openai_image_capabilities(model_id)) for model_id in IMAGE_MODELS
         },
-        default_options={
-            "count": 1,
-            "size": "1024x1024",
-            "quality": "auto",
-            "outputFormat": "png",
-            "outputCompression": 100,
-            "background": "auto",
-            "moderation": "auto",
-            "partialImages": 2,
-        },
+        default_options={},
     ),
     ProviderMetadata(
         api_format=ApiFormat.OPENAI_RESPONSES_IMAGE,
@@ -103,17 +81,7 @@ _PROVIDER_DATA: tuple[ProviderMetadata, ...] = (
                 "statelessConversation": True,
             }
         },
-        default_options={
-            "imageModel": "gpt-image-2.5-sunburst",
-            "size": "auto",
-            "quality": "auto",
-            "outputFormat": "png",
-            "outputCompression": 100,
-            "background": "auto",
-            "moderation": "auto",
-            "inputFidelity": "auto",
-            "partialImages": 2,
-        },
+        default_options={},
     ),
     ProviderMetadata(
         api_format=ApiFormat.XAI_IMAGE,
@@ -137,12 +105,30 @@ _PROVIDER_DATA: tuple[ProviderMetadata, ...] = (
                 "maxReferenceImages": 3,
             }
         },
-        default_options={
-            "count": 1,
-            "aspectRatio": "1:1",
-            "resolution": "1k",
-            "quality": "medium",
+        default_options={},
+    ),
+    ProviderMetadata(
+        api_format=ApiFormat.BYTE_DANCE_IMAGE,
+        media_kind=MediaKind.IMAGE,
+        display_name="字节 Seedream 图像",
+        default_base_url=_DEFAULT_BASE_URL,
+        default_model_id="doubao-seedream-5-0-pro-260628",
+        generic_capabilities={
+            "textToImage": True,
+            "imageEditing": True,
+            "maskEditing": False,
+            "maxReferenceImages": 14,
+            "nativeBatchCount": True,
+            "responseFormat": "b64_json",
         },
+        known_models={
+            "doubao-seedream-5-0-pro-260628": {
+                "maxReferenceImages": 10,
+                "imageSizes": ["1K", "1.5K", "2K"],
+                "sequentialImageGeneration": False,
+            },
+        },
+        default_options={},
     ),
     ProviderMetadata(
         api_format=ApiFormat.BYTE_DANCE_VIDEO,
@@ -222,9 +208,13 @@ _PROVIDER_DATA: tuple[ProviderMetadata, ...] = (
 
 
 def provider_metadata() -> ProviderMetadataResponse:
+    providers = [provider.model_copy(deep=True) for provider in _PROVIDER_DATA]
+    for provider in providers:
+        if model := IMAGE_OPTION_MODELS.get(provider.api_format):
+            provider.default_options = model().model_dump(by_alias=True)
     return ProviderMetadataResponse(
-        schema_version=3,
-        providers=[provider.model_copy(deep=True) for provider in _PROVIDER_DATA],
+        schema_version=4,
+        providers=providers,
     )
 
 

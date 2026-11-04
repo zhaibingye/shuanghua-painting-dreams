@@ -17,8 +17,11 @@ type SettingsState = {
   setFormatKeyOverride: (format: ApiFormat, value: string | null) => void
   updateFormat: (
     format: ApiFormat,
-    patch: Partial<Pick<StoredSettings['formats'][ApiFormat], 'baseUrl' | 'modelId' | 'defaults'>>,
+    patch: Partial<Pick<StoredSettings['formats'][ApiFormat], 'baseUrl' | 'defaults'>>,
   ) => void
+  addModel: (format: ApiFormat, modelId: string) => void
+  removeModel: (format: ApiFormat, modelId: string) => void
+  setDefaultModel: (format: ApiFormat, modelId: string) => void
   setActiveImageFormat: (format: ImageApiFormat) => void
   setActiveVideoFormat: (format: VideoApiFormat) => void
   setTheme: (theme: ThemeMode) => void
@@ -35,18 +38,6 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   setFormatKeyOverride: (format, value) =>
     set((state) => {
       const normalized = value?.trim() ?? ''
-      if (!state.settings.globalApiKey.trim() && normalized) {
-        return {
-          settings: {
-            ...state.settings,
-            globalApiKey: normalized,
-            formats: {
-              ...state.settings.formats,
-              [format]: { ...state.settings.formats[format], keyOverride: null },
-            },
-          },
-        }
-      }
       return {
         settings: {
           ...state.settings,
@@ -54,7 +45,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
             ...state.settings.formats,
             [format]: {
               ...state.settings.formats[format],
-              keyOverride: normalized || null,
+              keyOverride: value === null ? null : normalized,
             },
           },
         },
@@ -69,11 +60,32 @@ export const useSettingsStore = create<SettingsState>((set) => ({
           [format]: {
             ...state.settings.formats[format],
             ...patch,
-            defaults: patch.defaults ?? state.settings.formats[format].defaults,
           },
         },
       },
     })),
+  addModel: (format, value) => set((state) => {
+    const modelId = value.trim()
+    if (!modelId || /[\s/?#\\]/.test(modelId)) throw new Error('模型 ID 不能包含空白或路径字符。')
+    const current = state.settings.formats[format]
+    if (current.models.includes(modelId)) throw new Error('模型已在列表中。')
+    return { settings: { ...state.settings, formats: { ...state.settings.formats,
+      [format]: { ...current, models: [...current.models, modelId] } } } }
+  }),
+  removeModel: (format, modelId) => set((state) => {
+    const current = state.settings.formats[format]
+    const models = current.models.filter((item) => item !== modelId)
+    const [firstModel] = models
+    if (!firstModel) throw new Error('每个格式至少保留一个模型。')
+    return { settings: { ...state.settings, formats: { ...state.settings.formats,
+      [format]: { ...current, models, modelId: current.modelId === modelId ? firstModel : current.modelId } } } }
+  }),
+  setDefaultModel: (format, modelId) => set((state) => {
+    const current = state.settings.formats[format]
+    if (!current.models.includes(modelId)) throw new Error('请先将模型添加到列表。')
+    return { settings: { ...state.settings, formats: { ...state.settings.formats,
+      [format]: { ...current, modelId } } } }
+  }),
   setActiveImageFormat: (activeImageFormat) =>
     set((state) => ({ settings: { ...state.settings, activeImageFormat } })),
   setActiveVideoFormat: (activeVideoFormat) =>

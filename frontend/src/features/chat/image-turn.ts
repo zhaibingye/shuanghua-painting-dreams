@@ -1,3 +1,4 @@
+import { parseImageOptions } from '../../api/image-options'
 import type { components } from '../../api/generated/schema'
 import type { ImageConversationTurnRequest } from '../../api/client'
 import {
@@ -7,7 +8,6 @@ import {
   type StoredMediaAsset,
   type StoredMessage,
 } from '../../storage/db'
-import { OPENAI_IMAGE_QUALITIES, OPENAI_IMAGE_MODELS } from './openai-image-options'
 import { fileToDataUrl } from '../../workers/image-worker-client'
 
 export type DraftImage =
@@ -47,7 +47,7 @@ export async function buildImageTurnRequest(options: {
 
   if (conversation.apiFormat === 'openaiImage') {
     const active = conversation.activeImageAssetId
-      ? await getApiAsset(conversation.activeImageAssetId)
+      ? await requiredApiAsset(conversation.activeImageAssetId)
       : null
     const sourceImages = active ? [active, ...currentImages] : currentImages
     return {
@@ -58,7 +58,7 @@ export async function buildImageTurnRequest(options: {
       mask: options.maskDataUrl
         ? { kind: 'dataUrl', dataUrl: options.maskDataUrl, filename: 'mask.png' }
         : null,
-      options: openAIImageOptions(options.turnOptions),
+      options: parseImageOptions('openaiImage', options.turnOptions),
     }
   }
 
@@ -69,7 +69,7 @@ export async function buildImageTurnRequest(options: {
       prompt: options.prompt,
       history: await buildResponsesHistory(options.previousMessages),
       images: currentImages,
-      options: openAIResponsesOptions(options.turnOptions),
+      options: parseImageOptions('openaiResponsesImage', options.turnOptions),
     }
   }
 
@@ -80,19 +80,22 @@ export async function buildImageTurnRequest(options: {
       prompt: options.prompt,
       history: await buildGeminiHistory(options.previousMessages),
       images: currentImages,
-      options: geminiOptions(options.turnOptions),
+      options: parseImageOptions('googleGeminiImage', options.turnOptions),
     }
   }
 
-  return {
-    apiFormat: 'xaiImage',
-    ...connection,
-    prompt: options.prompt,
-    sourceImages: conversation.activeImageAssetId
-      ? [await requiredApiAsset(conversation.activeImageAssetId), ...currentImages]
-      : currentImages,
-    options: xaiOptions(options.turnOptions),
+  const sourceImages = conversation.activeImageAssetId
+    ? [await requiredApiAsset(conversation.activeImageAssetId), ...currentImages]
+    : currentImages
+  if (conversation.apiFormat === 'xaiImage') return {
+    apiFormat: 'xaiImage', ...connection, prompt: options.prompt, sourceImages,
+    options: parseImageOptions('xaiImage', options.turnOptions),
   }
+  if (conversation.apiFormat === 'byteDanceImage') return {
+    apiFormat: 'byteDanceImage', ...connection, prompt: options.prompt, sourceImages,
+    options: parseImageOptions('byteDanceImage', options.turnOptions),
+  }
+  throw new Error('当前对话格式不支持图片生成。')
 }
 
 export function draftToStoredAsset(options: {
@@ -222,12 +225,6 @@ async function assetsToApi(ids: string[]): Promise<ApiImageAsset[]> {
   return Promise.all(assets.map(assetToApi))
 }
 
-async function getApiAsset(id: string): Promise<ApiImageAsset | null> {
-  const assets = await getAssets([id])
-  const asset = assets[0]
-  return asset ? assetToApi(asset) : null
-}
-
 async function requiredApiAsset(id: string): Promise<ApiImageAsset> {
   return assetToApi(await requiredAsset(id))
 }
@@ -246,110 +243,6 @@ async function assetToApi(asset: StoredMediaAsset): Promise<ApiImageAsset> {
     dataUrl: await storedAssetToDataUrl(asset),
     filename: asset.filename,
   }
-}
-
-function openAIImageOptions(
-  options: Record<string, unknown>,
-): components['schemas']['OpenAIImageTurnOptions'] {
-  return {
-    safetyIdentifier: textOption(options, 'safetyIdentifier', '') || null,
-    count: numberOption(options, 'count', 1),
-    size: textOption(options, 'size', '1024x1024'),
-    quality: enumOption(options, 'quality', OPENAI_IMAGE_QUALITIES, 'auto'),
-    outputFormat: enumOption(options, 'outputFormat', ['png', 'jpeg', 'webp'], 'png'),
-    outputCompression: numberOption(options, 'outputCompression', 100),
-    background: enumOption(
-      options,
-      'background',
-      ['auto', 'opaque', 'transparent'],
-      'auto',
-    ),
-    moderation: enumOption(options, 'moderation', ['auto', 'low'], 'auto'),
-    partialImages: numberOption(options, 'partialImages', 2),
-    inputFidelity: enumOption(options, 'inputFidelity', ['auto', 'low', 'high'], 'auto'),
-  }
-}
-
-function openAIResponsesOptions(
-  options: Record<string, unknown>,
-): components['schemas']['OpenAIResponsesImageOptions'] {
-  return {
-    imageModel: textOption(options, 'imageModel', OPENAI_IMAGE_MODELS[0]),
-    safetyIdentifier: textOption(options, 'safetyIdentifier', '') || null,
-    size: textOption(options, 'size', 'auto'),
-    quality: enumOption(options, 'quality', OPENAI_IMAGE_QUALITIES, 'auto'),
-    outputFormat: enumOption(options, 'outputFormat', ['png', 'jpeg', 'webp'], 'png'),
-    outputCompression: numberOption(options, 'outputCompression', 100),
-    background: enumOption(
-      options,
-      'background',
-      ['auto', 'opaque', 'transparent'],
-      'auto',
-    ),
-    moderation: enumOption(options, 'moderation', ['auto', 'low'], 'auto'),
-    inputFidelity: enumOption(options, 'inputFidelity', ['auto', 'low', 'high'], 'auto'),
-    partialImages: numberOption(options, 'partialImages', 2),
-  }
-}
-
-function geminiOptions(
-  options: Record<string, unknown>,
-): components['schemas']['GeminiImageOptions'] {
-  return {
-    aspectRatio: textOption(options, 'aspectRatio', '1:1'),
-    imageSize: enumOption(options, 'imageSize', ['512', '1K', '2K', '4K'], '1K'),
-    responseModalities: enumOption(
-      options,
-      'responseModalities',
-      ['IMAGE', 'TEXT_AND_IMAGE'],
-      'IMAGE',
-    ),
-    thinkingLevel: enumOption(
-      options,
-      'thinkingLevel',
-      ['High', 'Low', 'Off'],
-      'High',
-    ),
-    includeThoughts: booleanOption(options, 'includeThoughts', false),
-  }
-}
-
-function xaiOptions(
-  options: Record<string, unknown>,
-): components['schemas']['XAIImageOptions'] {
-  return {
-    count: numberOption(options, 'count', 1),
-    aspectRatio: textOption(options, 'aspectRatio', '1:1'),
-    resolution: enumOption(options, 'resolution', ['1k', '2k'], '1k'),
-    quality: enumOption(options, 'quality', ['low', 'medium'], 'medium'),
-  }
-}
-
-function textOption(options: Record<string, unknown>, key: string, fallback: string): string {
-  return typeof options[key] === 'string' ? options[key] : fallback
-}
-
-function numberOption(options: Record<string, unknown>, key: string, fallback: number): number {
-  const value = options[key]
-  return typeof value === 'number' && Number.isFinite(value) ? value : fallback
-}
-
-function booleanOption(
-  options: Record<string, unknown>,
-  key: string,
-  fallback: boolean,
-): boolean {
-  return typeof options[key] === 'boolean' ? options[key] : fallback
-}
-
-function enumOption<const T extends string>(
-  options: Record<string, unknown>,
-  key: string,
-  values: readonly T[],
-  fallback: T,
-): T {
-  const value = options[key]
-  return typeof value === 'string' && values.includes(value as T) ? (value as T) : fallback
 }
 
 export function providerStateFromStream(options: {

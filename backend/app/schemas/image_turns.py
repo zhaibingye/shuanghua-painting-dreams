@@ -6,8 +6,9 @@ from app.domain.enums import ApiFormat
 from app.domain.openai_images import DEFAULT_IMAGE_MODEL
 from app.schemas.common import ApiModel, DataUrlImageAsset, ImageAsset, UpstreamRequest
 from app.schemas.images import (
+    ByteDanceImageGenerationRequest,
     GeminiImageOptions,
-    OpenAIImageBaseOptions,
+    OpenAIImageEditOptions,
     OpenAIImageOutputOptions,
     XAIImageOptions,
 )
@@ -58,16 +59,26 @@ OpenAIResponsesHistoryItem = Annotated[
 
 
 class OpenAIResponsesImageOptions(OpenAIImageOutputOptions):
-    image_model: str = Field(default=DEFAULT_IMAGE_MODEL, min_length=1, max_length=256)
-    size: str = Field(default="auto", min_length=3, max_length=32)
-    moderation: Literal["auto", "low"] = "auto"
-    input_fidelity: Literal["auto", "low", "high"] = "auto"
-    partial_images: int = Field(default=2, ge=0, le=3)
+    size: str = Field(default="auto", min_length=3, max_length=32, title="尺寸")
+    image_model: str = Field(
+        default=DEFAULT_IMAGE_MODEL,
+        min_length=1,
+        max_length=256,
+        title="生图工具模型",
+        description="auto 使用上游默认值，也可填写 gpt-image-2 等生图模型 ID。",
+    )
+    action: Literal["auto", "generate", "edit"] = Field(default="auto", title="生图动作")
+    moderation: Literal["auto", "low"] = Field(default="auto", title="Moderation")
+    input_fidelity: Literal["auto", "low", "high"] = Field(default="auto", title="输入保真度")
+    partial_images: int = Field(default=2, ge=0, le=3, title="渐进预览数量")
 
 
-class OpenAIImageTurnOptions(OpenAIImageBaseOptions):
-    input_fidelity: Literal["auto", "low", "high"] = "auto"
-    partial_images: int = Field(default=2, ge=0, le=3)
+class OpenAIImageTurnOptions(OpenAIImageEditOptions):
+    pass
+
+
+class ByteDanceImageTurnRequest(ByteDanceImageGenerationRequest):
+    source_images: list[ImageAsset] = Field(default_factory=list, max_length=14)
 
 
 class OpenAIImageTurnRequest(UpstreamRequest):
@@ -111,6 +122,7 @@ ImageConversationTurnRequest = Annotated[
     OpenAIImageTurnRequest
     | OpenAIResponsesImageTurnRequest
     | GeminiImageTurnRequest
-    | XAIImageTurnRequest,
+    | XAIImageTurnRequest
+    | ByteDanceImageTurnRequest,
     Field(discriminator="api_format"),
 ]

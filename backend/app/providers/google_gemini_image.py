@@ -83,7 +83,7 @@ class GoogleGeminiImageAdapter:
         payload: dict[str, Any],
     ) -> ImageResult:
         model = encode_path_segment(model_id)
-        url = build_upstream_url(base_url, f"/v1/models/{model}:generateContent")
+        url = build_upstream_url(base_url, f"/v1beta/models/{model}:generateContent")
         response = await self._transport.request_json(
             method="POST",
             url=url,
@@ -102,11 +102,9 @@ class GoogleGeminiImageAdapter:
             modalities = ["TEXT", "IMAGE"]
         return {
             "responseModalities": modalities,
-            "responseFormat": {
-                "image": {
-                    "aspectRatio": options.aspect_ratio,
-                    "imageSize": options.image_size,
-                }
+            "imageConfig": {
+                "aspectRatio": options.aspect_ratio,
+                "imageSize": options.image_size,
             },
             "thinkingConfig": {
                 "thinkingLevel": options.thinking_level,

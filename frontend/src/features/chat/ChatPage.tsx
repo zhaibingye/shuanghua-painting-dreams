@@ -10,6 +10,7 @@ import {
 } from '../../api/client'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
+import { Select } from '../../components/ui/Field'
 import { Spinner } from '../../components/ui/Spinner'
 import { useChatScroll } from '../../hooks/use-chat-scroll'
 import { useConversation, useMessages } from '../../hooks/use-history'
@@ -24,7 +25,7 @@ import {
   type StoredMessage,
   type StoredVideoTask,
 } from '../../storage/db'
-import { apiFormatLabels, effectiveKey } from '../../storage/settings'
+import { apiFormatLabels, effectiveKey, optionsForFormat } from '../../storage/settings'
 import { useSettingsStore } from '../../stores/settings-store'
 import {
   cancelImageTask,
@@ -44,7 +45,6 @@ import {
 import { MessageList } from './MessageList'
 import { normalizeByteDanceOptions, resolveModelCapabilities } from './model-capabilities'
 import {
-  normalizeOpenAIImageOptions,
   openAIResponsesImageModel,
   openAIImageSizeError,
 } from './openai-image-options'
@@ -102,18 +102,7 @@ export function ChatPage({ onOpenSidebar }: { onOpenSidebar: () => void }) {
 
   useEffect(() => {
     if (!currentApiFormat) return
-    let defaults = {
-      ...useSettingsStore.getState().settings.formats[currentApiFormat].defaults,
-    }
-    if (currentApiFormat === 'byteDanceVideo' && currentModelId) {
-      defaults = normalizeByteDanceOptions(defaults, currentModelId)
-    }
-    if (currentApiFormat === 'openaiImage' && currentModelId) {
-      defaults = normalizeOpenAIImageOptions(defaults, currentModelId)
-    }
-    if (currentApiFormat === 'openaiResponsesImage') {
-      defaults = normalizeOpenAIImageOptions(defaults, openAIResponsesImageModel(defaults))
-    }
+    const defaults = optionsForFormat(useSettingsStore.getState().settings, currentApiFormat)
     setTurnOptions(defaults)
     setPrompt('')
     setVideoDraft({ ...defaultVideoDraft })
@@ -123,6 +112,11 @@ export function ChatPage({ onOpenSidebar }: { onOpenSidebar: () => void }) {
       revokeDraftImages(current)
       return []
     })
+  }, [currentApiFormat, currentConversationId])
+
+  useEffect(() => {
+    if (currentApiFormat !== 'byteDanceVideo' || !currentModelId) return
+    setTurnOptions((current) => normalizeByteDanceOptions(current, currentModelId))
   }, [currentApiFormat, currentConversationId, currentModelId])
 
   useEffect(
@@ -171,11 +165,7 @@ export function ChatPage({ onOpenSidebar }: { onOpenSidebar: () => void }) {
       ? imagePreparing || activeImageTask !== null
       : videoBusy
   const setOption = (name: string, value: unknown) => {
-    let next = { ...turnOptions, [name]: value }
-    if (conversation.apiFormat === 'openaiImage' || conversation.apiFormat === 'openaiResponsesImage') {
-      const imageModel = conversation.apiFormat === 'openaiImage' ? conversation.modelId : openAIResponsesImageModel(next)
-      next = normalizeOpenAIImageOptions(next, imageModel)
-    }
+    const next = { ...turnOptions, [name]: value }
     setTurnOptions(next)
     updateFormat(conversation.apiFormat, { defaults: next })
   }
@@ -513,9 +503,6 @@ export function ChatPage({ onOpenSidebar }: { onOpenSidebar: () => void }) {
 
   const canOpenMask = hasSingleMaskSource(conversation, images) &&
     (Boolean(conversation.activeImageAssetId) || images[0]?.kind === 'file')
-  const openAIImageEditing =
-    conversation.apiFormat === 'openaiImage' &&
-    (Boolean(conversation.activeImageAssetId) || images.length > 0 || Boolean(maskDataUrl))
 
   return (
     <div className="chat-workspace">
@@ -525,6 +512,11 @@ export function ChatPage({ onOpenSidebar }: { onOpenSidebar: () => void }) {
           <h1 className="truncate text-sm font-semibold">{conversation.title}</h1>
           <p className="truncate text-xs text-[var(--ds-text-caption)]">{apiFormatLabels[conversation.apiFormat]} · {conversation.modelId}</p>
         </div>
+        <Select aria-label="当前模型" className="workspace-model" value={conversation.modelId} disabled={busy} onChange={(event) => {
+          void updateConversation(conversation.id, { modelId: event.target.value }).catch(() => toast.error('模型切换失败'))
+        }}>
+          {[...new Set([conversation.modelId, ...settings.formats[conversation.apiFormat].models])].map((model) => <option key={model} value={model}>{model}</option>)}
+        </Select>
         <span className="key-status"><Badge tone={key ? 'success' : 'warning'}>{key ? 'Key 已就绪' : '缺少 Key'}</Badge></span>
         <Button size="sm" variant="ghost" icon={<SlidersHorizontal className="size-4" />} onClick={() => setParametersOpen(true)}>参数</Button>
       </header>
@@ -571,7 +563,6 @@ export function ChatPage({ onOpenSidebar }: { onOpenSidebar: () => void }) {
         options={turnOptions}
         videoDraft={videoDraft}
         modelCapabilities={capabilities}
-        openAIImageEditing={openAIImageEditing}
         onOpenChange={setParametersOpen}
         onOption={setOption}
         onVideoDraft={(patch) => setVideoDraft((current) => ({ ...current, ...patch }))}

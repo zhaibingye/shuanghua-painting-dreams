@@ -20,7 +20,7 @@ afterEach(() => {
   Reflect.deleteProperty(navigator, 'storage')
 })
 
-it('commits the complete first format key instead of promoting its first keystroke', async () => {
+it('keeps a complete independent key scoped to its API format', async () => {
   const user = userEvent.setup()
   render(<SettingsDialog open onOpenChange={() => undefined} />)
   await user.click(screen.getByRole('checkbox', { name: /使用独立 Key/ }))
@@ -29,9 +29,9 @@ it('commits the complete first format key instead of promoting its first keystro
   expect(input).toHaveValue('complete-key')
   await user.tab()
 
-  expect(useSettingsStore.getState().settings.globalApiKey).toBe('complete-key')
-  expect(useSettingsStore.getState().settings.formats.openaiImage.keyOverride).toBeNull()
-  expect(screen.getByLabelText('全局 Key')).toHaveValue('complete-key')
+  expect(useSettingsStore.getState().settings.globalApiKey).toBe('')
+  expect(useSettingsStore.getState().settings.formats.openaiImage.keyOverride).toBe('complete-key')
+  expect(screen.getByLabelText('全局 Key')).toHaveValue('')
 })
 
 

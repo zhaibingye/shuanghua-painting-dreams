@@ -2,7 +2,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from app.domain.enums import ApiFormat
-from app.domain.models import GeneratedImage, ImageResult, Usage
+from app.domain.models import ImageResult
 from app.infrastructure.config import Settings
 from app.infrastructure.url_builder import build_upstream_url
 from app.providers.base import (
@@ -10,8 +10,8 @@ from app.providers.base import (
     bearer_headers,
     ensure_success,
     image_asset_value,
-    invalid_response_error,
 )
+from app.providers.image_response import parse_base64_images
 from app.schemas.images import XAIImageEditRequest, XAIImageGenerationRequest, XAIImageOptions
 
 
@@ -72,37 +72,4 @@ class XAIImageAdapter:
         return self._parse_response(data)
 
     def _parse_response(self, data: Mapping[str, Any]) -> ImageResult:
-        raw_images = data.get("data")
-        if not isinstance(raw_images, list):
-            raise invalid_response_error(self.api_format, "xAI 响应缺少 data 图片列表。")
-
-        images: list[GeneratedImage] = []
-        for item in raw_images:
-            if not isinstance(item, Mapping):
-                continue
-            encoded = item.get("b64_json")
-            mime_type = item.get("mime_type")
-            if isinstance(encoded, str) and encoded:
-                images.append(
-                    GeneratedImage(
-                        mime_type=mime_type if isinstance(mime_type, str) else "image/jpeg",
-                        base64_data=encoded,
-                    )
-                )
-        if not images:
-            raise invalid_response_error(self.api_format, "xAI 响应中没有 Base64 图片。")
-
-        usage_data = data.get("usage")
-        usage = None
-        if isinstance(usage_data, Mapping):
-            usage = Usage(
-                input_tokens=_optional_int(usage_data.get("input_tokens")),
-                output_tokens=_optional_int(usage_data.get("output_tokens")),
-                total_tokens=_optional_int(usage_data.get("total_tokens")),
-                cost_in_usd_ticks=_optional_int(usage_data.get("cost_in_usd_ticks")),
-            )
-        return ImageResult(images=images, usage=usage)
-
-
-def _optional_int(value: object) -> int | None:
-    return value if isinstance(value, int) and not isinstance(value, bool) else None
+        return parse_base64_images(data, api_format=self.api_format, default_mime_type="image/jpeg")

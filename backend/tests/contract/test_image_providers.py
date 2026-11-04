@@ -106,6 +106,11 @@ async def test_gemini_edit_maps_data_url_to_inline_data(settings: Settings) -> N
 
     call = transport.calls[0]
     assert call.payload is not None
+    assert str(call.url) == "https://shapi.vip/v1beta/models/nano-banana-2:generateContent"
+    config = call.payload["generationConfig"]
+    assert config["imageConfig"] == {"aspectRatio": "1:1", "imageSize": "1K"}
+    assert config["thinkingConfig"]["thinkingLevel"] == "HIGH"
+    assert "responseFormat" not in config
     parts = call.payload["contents"][0]["parts"]
     assert parts[1] == {"inline_data": {"mime_type": "image/png", "data": "aGVsbG8gd29ybGQ="}}
     assert result.images[0].base64_data == "b3V0"
@@ -207,20 +212,19 @@ async def test_openai_image_stream_emits_partial_and_final(settings: Settings) -
 
 
 @pytest.mark.asyncio
-async def test_openai_image_turn_with_reference_uses_non_streaming_edit(
+async def test_openai_image_turn_with_reference_streams_edit(
     settings: Settings,
 ) -> None:
     transport = FakeTransport(
-        multipart_responses=[
-            UpstreamResponse(
-                status=200,
-                data={
-                    "data": [{"b64_json": "ZmluYWw="}],
-                    "output_format": "png",
-                    "usage": {"total_tokens": 18},
-                },
-                headers={"Content-Type": "application/json"},
-            )
+        multipart_stream_events=[
+            UpstreamSseEvent(
+                event="image_edit.partial_image",
+                data={"b64_json": "cHJldmlldw==", "partial_image_index": 0},
+            ),
+            UpstreamSseEvent(
+                event="image_edit.completed",
+                data={"b64_json": "ZmluYWw=", "usage": {"total_tokens": 18}},
+            ),
         ]
     )
     service = ImageService(ProviderRegistry.create(transport, settings))
@@ -249,11 +253,12 @@ async def test_openai_image_turn_with_reference_uses_non_streaming_edit(
 
     chunks = [chunk async for chunk in service.stream_turn(request, "secret")]
 
-    assert [chunk.kind for chunk in chunks] == ["completed", "done"]
+    assert [chunk.kind for chunk in chunks] == ["partial", "completed", "done"]
     call = transport.multipart_calls[0]
     assert str(call.url) == "https://shapi.vip/v1/images/edits"
-    assert call.headers == {"Authorization": "Bearer secret"}
-    assert not any(name in {"stream", "partial_images"} for name, _ in call.form.fields)
+    assert call.headers == {"Authorization": "Bearer secret", "Accept": "text/event-stream"}
+    assert ("stream", "true") in call.form.fields
+    assert ("partial_images", "3") in call.form.fields
     assert not any(name == "input_fidelity" for name, _ in call.form.fields)
     assert ("quality", "max") in call.form.fields
     assert ("moderation", "low") in call.form.fields
@@ -265,7 +270,7 @@ async def test_openai_image_turn_with_reference_uses_non_streaming_edit(
     assert call.form.files[0].field_name == "image"
     assert call.form.files[0].filename == "source.png"
     assert call.form.files[0].data.startswith(b"\x89PNG")
-    assert chunks[0].image is not None and chunks[0].image.base64_data == "ZmluYWw="
+    assert chunks[1].image is not None and chunks[1].image.base64_data == "ZmluYWw="
     assert chunks[-1].usage is not None and chunks[-1].usage.total_tokens == 18
 
 
@@ -425,8 +430,9 @@ async def test_openai_responses_is_stateless_and_replays_image_calls(
             ],
             "options": {
                 "partialImages": 3,
-                "quality": "max",
                 "imageModel": "gpt-image-2.5-flare",
+                "action": "edit",
+                "quality": "max",
                 "safetyIdentifier": "hashed-user",
                 "size": "2160x3840",
             },
@@ -445,6 +451,7 @@ async def test_openai_responses_is_stateless_and_replays_image_calls(
     assert payload["tools"][0]["size"] == "2160x3840"
     assert "output_compression" not in payload["tools"][0]
     assert payload["safety_identifier"] == "hashed-user"
+    assert payload["tools"][0]["action"] == "edit"
     assert payload["input"][1] == {
         "type": "image_generation_call",
         "id": "ig_old",

@@ -9,9 +9,21 @@
 默认生图协议为 OpenAI Images（Image API，`openaiImage`），所有协议的默认 Base URL 为 `https://www.shapi.vip`。已有的自定义设置和历史对话保留原值；点击「恢复默认设置」可应用新默认值。
 
 - Google Gemini：默认 `nano-banana-2`，原生完整多轮 `contents` 与 `thought_signature` 回传。
-- OpenAI Images：默认 `gpt-image-2.5-sunburst`；无参考图的生成使用上游 SSE 与 0～3 张渐进预览，参考图/遮罩编辑使用上游非流式 multipart，并统一转换为本站完成事件。
+- OpenAI Images：默认 `gpt-image-2.5-sunburst`；生成与参考图/遮罩编辑共用参数，均支持上游 SSE 与 0～3 张渐进预览。
 - OpenAI Responses：默认主体模型 `gpt-5.6-luna`，`store: false`，通过显式回传本地历史实现无状态多轮生成/编辑，支持 SSE 与渐进预览。
 - xAI Image：默认 `grok-imagine-image-2.0`，采用与 OpenAI Images 相同的“最新图片继续编辑”逻辑。
+- 字节 Seedream：默认 `doubao-seedream-5-0-pro-260628`，支持文生图、单图/多图参考编辑；支持组图的模型可配置组图模式与最大数量。支持 Base64 图片和 URL 图片，URL 结果由后端安全下载后统一返回并保存到本地；组图部分失败会保留成功图片并显示失败信息。
+
+字节生图按[火山方舟图片生成 API](https://console.volcengine.com/ark/region:cn-beijing/docs/image-generation-api)实现。直连方舟时，将该格式的 Base URL 设为 `https://ark.cn-beijing.volces.com`，填写方舟 Key 与已开通的模型 ID 或 Endpoint ID；API 路径由服务端追加。不同 Seedream 模型的尺寸、参考图数量、组图、输出格式与联网搜索能力不同，已知模型会按文档校验，自定义别名由上游确认能力。
+
+字节图片和视频根据 Base URL 自动选择协议：
+
+| Base URL 主机 | 图片生成 / 编辑 | 视频提交 / 查询 |
+| --- | --- | --- |
+| `ark.cn-beijing.volces.com`、`ark.ap-southeast.bytepluses.com` | `/api/v3/images/generations` | `/api/v3/contents/generations/tasks[/{id}]` |
+| 其他主机，例如 `www.shapi.vip` | `/v1/images/generations`、`/v1/images/edits` | `/v1/videos[/{id}]` |
+
+官方主机按完整主机名匹配。Base URL 可以是服务根地址，也可带 `/v1` 或 `/api/v3`，程序会按所选协议规范化版本路径，保留自定义代理前缀。使用 SHAPI 时填写 `https://www.shapi.vip` 或 `https://www.shapi.vip/v1`，此前用于原生插件的 `/doubao` 前缀应从设置中去掉。非官方生图请求 URL 输出，下载图片时不向图片服务器转发 API Key；兼容视频使用 `seconds` 和 `metadata` 承载参数，将 `queued/in_progress/completed` 映射为本站任务状态，并从 `metadata.url` 读取完成视频地址。兼容服务需要在完成响应中提供可访问的视频 URL。
 
 ### 视频
 
@@ -39,6 +51,9 @@ Seedance 2.5 默认自动时长（`-1`，模型选择 4～30 秒）、`adaptive`
 - 阅读体验：跟随最新内容；向上阅读历史时保持位置，可一键回到最新消息。
 - 主题：浅色、深色、跟随系统。
 - 设置：LocalStorage。
+- 每个 API 格式可配置模型列表、默认模型、Base URL 和独立 Key；新对话只需选择格式，对话顶部可切换列表中的模型，切换保留输入草稿。独立 Key 不会改写全局 Key。
+- 图片参数只有一套表单：后端 Pydantic 契约同时生成默认值、前端字段与校验规则。OpenAI Images 和 Responses 是不同端点，保留两个格式并共用输出参数定义；Gemini 统一使用 GenerateContent 的 `imageConfig` 与标准思考等级。
+- 设置 schema v2 会迁移为 v3，保留原有 Key、连接、默认参数和模型；原单个模型自动成为模型列表首项。
 - 对话、消息、图片 Blob、视频任务：IndexedDB。
 - Partial Images：由全局内存图片任务管理器按结果索引维护，仅作为临时预览，不持久化、不参与后续编辑。
 - 图片任务切换对话后继续运行并写回原对话；刷新或关闭浏览器仍会中断未完成请求。
@@ -49,7 +64,7 @@ Seedance 2.5 默认自动时长（`-1`，模型选择 4～30 秒）、`adaptive`
 - 前端：React 19 + TypeScript + Vite + Tailwind CSS
 - 后端：FastAPI + aiohttp + Pydantic
 - Python 管理：uv
-- API 类型：FastAPI OpenAPI → `openapi-typescript`
+- API 类型与图片参数：FastAPI OpenAPI / Pydantic JSON Schema → `openapi-typescript` / 参数目录
 - 生产入口：FastAPI 同时提供 `/api/v1/*` 与 Vite 构建产物
 - 默认监听：`127.0.0.1:3002`
 - 部署：Linux + Nginx/宝塔 + PM2
@@ -71,6 +86,8 @@ npm run build
 npm start
 npm run check
 ```
+
+修改后端请求模型后运行 `npm run api:generate --prefix frontend`，同时更新 OpenAPI、前端类型及参数目录。不要手工修改 `frontend/src/api/generated/` 中的生成文件。
 
 开发模式：
 

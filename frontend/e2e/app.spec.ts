@@ -24,11 +24,12 @@ test('Key 引导、对话创建和设置持久化', async ({ page }) => {
   await page.getByRole('button', { name: /图片对话/ }).first().click()
   const dialog = page.getByRole('dialog')
   await expect(dialog.getByLabel('API 格式')).toHaveValue('openaiImage')
-  await expect(dialog.getByLabel('模型 ID')).toHaveValue('gpt-image-2.5-sunburst')
+  await expect(dialog.getByLabel('模型 ID')).toHaveCount(0)
+  await expect(dialog.getByText(/默认模型：gpt-image-2.5-sunburst/)).toBeVisible()
   await expect(dialog.getByText('https://www.shapi.vip', { exact: true })).toBeVisible()
   await dialog.getByRole('button', { name: '创建对话' }).click()
   await expect(page.getByText('OpenAI Images · gpt-image-2.5-sunburst').last()).toBeVisible()
-  await expect(page.locator('.key-status')).toContainText('Key 已就绪')
+  await expect(page.getByLabel('当前模型')).toHaveValue('gpt-image-2.5-sunburst')
 
   await openSettings(page)
   await expect(page.getByLabel('全局 Key', { exact: true })).toHaveValue('browser-test-key')
@@ -52,7 +53,7 @@ test('OpenAI Responses 默认启用可配置的渐进式图片', async ({ page }
   await expect(page.getByLabel('渐进预览数量')).toHaveValue('2')
   await page.getByLabel('渐进预览数量').fill('3')
   await expect(page.getByLabel('渐进预览数量')).toHaveValue('3')
-  await expect(page.getByText('gpt-5.6-luna', { exact: true })).toBeVisible()
+  await expect(page.getByRole('dialog').getByText('gpt-5.6-luna', { exact: true })).toBeVisible()
 })
 
 test('切换对话不会中断正在运行的图片任务', async ({ page }) => {
@@ -146,7 +147,7 @@ test('Seedance 2.5 默认模型、清晰度、自动时长和同步音频', asyn
   await ignoreKeyGate(page)
   await createConversation(page, 'video', 'byteDanceVideo')
   await page.getByRole('button', { name: '参数', exact: true }).click()
-  await expect(page.getByText('doubao-seedance-2-5-260628', { exact: true })).toBeVisible()
+  await expect(page.getByRole('dialog').getByText('doubao-seedance-2-5-260628', { exact: true })).toBeVisible()
   await expect(page.getByLabel('分辨率')).toHaveValue('720p')
   await expect(page.getByLabel('分辨率').locator('option')).toHaveText(['480p', '720p', '1080p'])
   await expect(page.getByLabel('自动决定时长')).toBeChecked()
@@ -201,12 +202,20 @@ async function createConversation(
   format: string,
   modelId?: string,
 ): Promise<void> {
+  if (modelId) {
+    await openSettings(page)
+    await page.getByLabel('API 格式配置').selectOption(format)
+    await page.getByLabel('添加模型 ID').fill(modelId)
+    await page.getByRole('button', { name: '添加', exact: true }).click()
+    await page.getByLabel('默认模型', { exact: true }).selectOption(modelId)
+    await page.getByRole('button', { name: '关闭设置' }).click()
+  }
   const name = kind === 'image' ? /图片对话/ : /视频对话/
   await page.getByRole('button', { name }).first().click()
   const dialog = page.getByRole('dialog')
   if (kind === 'video') await dialog.getByRole('button', { name: '视频对话' }).click()
   await dialog.getByLabel('API 格式').selectOption(format)
-  if (modelId) await dialog.getByLabel('模型 ID').fill(modelId)
+  await expect(dialog.getByLabel('模型 ID', { exact: true })).toHaveCount(0)
   await dialog.getByRole('button', { name: '创建对话' }).click()
 }
 
@@ -234,25 +243,58 @@ async function openNewConversation(page: Page): Promise<void> {
 
 async function openSettings(page: Page): Promise<void> {
   await openSidebarIfNeeded(page)
-  await page.locator('aside').getByRole('button', { name: '设置', exact: true }).click()
+  await page.locator('aside').getByRole('button', { name: /^设置/ }).click()
 }
 
+
+test('按格式管理模型，新对话无需填写模型，且可切换并持久化', async ({ page }) => {
+  await ignoreKeyGate(page)
+  await createConversation(page, 'image', 'byteDanceImage', 'ep-custom-image')
+  await expect(page.getByLabel('当前模型')).toHaveValue('ep-custom-image')
+  await page.getByLabel('消息', { exact: true }).fill('保留的草稿')
+  await page.getByLabel('当前模型').selectOption('doubao-seedream-5-0-pro-260628')
+  await expect(page.getByLabel('消息', { exact: true })).toHaveValue('保留的草稿')
+  await page.getByRole('button', { name: '参数', exact: true }).click()
+  await expect(page.getByLabel('尺寸', { exact: true })).toHaveValue('2K')
+  await expect(page.getByLabel('添加水印')).toBeChecked()
+  await page.getByRole('button', { name: '关闭参数面板' }).click()
+  await page.screenshot({ path: test.info().outputPath('chat-models.png'), fullPage: true })
+  await page.reload()
+  await expect(page.getByLabel('当前模型').locator('option[value="ep-custom-image"]')).toHaveCount(1)
+  await expect(page.getByLabel('当前模型')).toHaveValue('doubao-seedream-5-0-pro-260628')
+})
+
+test('独立 Key 不会改写全局 Key 或其他格式', async ({ page }) => {
+  await ignoreKeyGate(page)
+  await openSettings(page)
+  await page.getByLabel('API 格式配置').selectOption('byteDanceImage')
+  await page.getByLabel('使用独立 Key').check()
+  await page.getByLabel('独立 Key', { exact: true }).fill('seedream-only')
+  await expect(page.getByLabel('全局 Key', { exact: true })).toHaveValue('')
+  await page.getByLabel('API 格式配置').selectOption('openaiImage')
+  await expect(page.getByLabel('使用独立 Key')).not.toBeChecked()
+  await page.getByLabel('API 格式配置').selectOption('byteDanceImage')
+  await expect(page.getByLabel('独立 Key', { exact: true })).toHaveValue('seedream-only')
+  await page.screenshot({ path: test.info().outputPath('settings.png'), fullPage: true })
+})
 
 test('恢复默认设置会更新配置并在刷新后保留', async ({ page }) => {
   await ignoreKeyGate(page)
   await openSettings(page)
   await page.getByLabel('Base URL').fill('https://custom.example')
-  await page.getByLabel('默认模型 ID').fill('custom-model')
+  await page.getByLabel('添加模型 ID').fill('custom-model')
+  await page.getByRole('button', { name: '添加', exact: true }).click()
+  await page.getByLabel('默认模型', { exact: true }).selectOption('custom-model')
   await page.getByLabel('主题').selectOption('dark')
   await page.getByRole('button', { name: '恢复默认设置' }).click()
   await expect(page.getByLabel('Base URL')).toHaveValue('https://www.shapi.vip')
-  await expect(page.getByLabel('默认模型 ID')).toHaveValue('gpt-image-2.5-sunburst')
+  await expect(page.getByLabel('默认模型', { exact: true })).toHaveValue('gpt-image-2.5-sunburst')
   await expect(page.getByLabel('主题')).toHaveValue('system')
   await page.getByRole('button', { name: '关闭设置' }).click()
   await page.reload()
   await openSettings(page)
   await expect(page.getByLabel('Base URL')).toHaveValue('https://www.shapi.vip')
-  await expect(page.getByLabel('默认模型 ID')).toHaveValue('gpt-image-2.5-sunburst')
+  await expect(page.getByLabel('默认模型', { exact: true })).toHaveValue('gpt-image-2.5-sunburst')
 })
 
 

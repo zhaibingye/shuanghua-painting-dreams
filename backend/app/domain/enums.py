@@ -6,6 +6,7 @@ class ApiFormat(StrEnum):
     OPENAI_IMAGE = "openaiImage"
     OPENAI_RESPONSES_IMAGE = "openaiResponsesImage"
     XAI_IMAGE = "xaiImage"
+    BYTE_DANCE_IMAGE = "byteDanceImage"
     BYTE_DANCE_VIDEO = "byteDanceVideo"
     XAI_VIDEO = "xaiVideo"
 

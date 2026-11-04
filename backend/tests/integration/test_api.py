@@ -20,8 +20,8 @@ async def test_health_and_metadata() -> None:
     assert live.json() == {"status": "ok"}
     assert metadata.status_code == 200
     payload = metadata.json()
-    assert payload["schemaVersion"] == 3
-    assert len(payload["providers"]) == 6
+    assert payload["schemaVersion"] == 4
+    assert len(payload["providers"]) == 7
     openai_images = next(
         provider for provider in payload["providers"] if provider["apiFormat"] == "openaiImage"
     )
@@ -36,8 +36,8 @@ async def test_health_and_metadata() -> None:
         "qualityControl": True,
         "generationStreaming": True,
         "generationPartialImages": True,
-        "editStreaming": False,
-        "editPartialImages": False,
+        "editStreaming": True,
+        "editPartialImages": True,
     }
     responses = next(
         provider

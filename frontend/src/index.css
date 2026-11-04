@@ -738,6 +738,19 @@ button:disabled {
 .key-status {
   flex-shrink: 0;
 }
+.workspace-model {
+  width: min(24vw, 220px);
+  min-width: 0;
+}
+@media (max-width: 639px) {
+  .workspace-header {
+    flex-wrap: wrap;
+  }
+  .workspace-model {
+    order: 1;
+    width: 100%;
+  }
+}
 .message-region {
   position: relative;
   flex: 1;

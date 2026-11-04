@@ -83,6 +83,34 @@ def test_relative_redirect_preserves_validated_public_origin() -> None:
     assert str(result) == "https://8.8.8.8/next"
 
 
+def test_signed_media_query_and_encoding_are_preserved() -> None:
+    transport = SafeHttpTransport(Settings())
+    address = "https://cdn.example.com/image.jpg?signature=a%2Fb%2Bc%3D&part=1&part=2"
+    result = transport._validate_full_url(URL(address, encoded=True))
+    assert str(result) == address
+
+
+def test_signed_media_redirect_preserves_signature(monkeypatch: pytest.MonkeyPatch) -> None:
+    transport = SafeHttpTransport(Settings())
+    response = RedirectResponse()
+    location = "https://cdn.example.com/image.jpg?signature=a%2Fb%2Bc%3D"
+    monkeypatch.setattr(RedirectResponse, "headers", {"Location": location})
+    result = transport._download_redirect_target(
+        URL("https://proxy.example.com/start"),
+        cast(aiohttp.ClientResponse, response),
+        0,
+        ApiFormat.BYTE_DANCE_IMAGE,
+    )
+    assert str(result) == location
+
+
+def test_signed_media_query_does_not_bypass_private_address_check() -> None:
+    with pytest.raises(SecurityError):
+        SafeHttpTransport(Settings())._validate_full_url(
+            URL("http://127.0.0.1/image?signature=abc")
+        )
+
+
 @pytest.mark.asyncio
 async def test_redirect_limit_is_enforced_without_retrying_creation() -> None:
     transport, session = transport_with_session(Settings(max_redirects=1))

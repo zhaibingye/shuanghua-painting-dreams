@@ -1,6 +1,8 @@
 from collections.abc import Mapping
 from typing import Any
 
+from pydantic import AliasChoices, BaseModel, Field, ValidationError
+
 from app.domain.capabilities import byte_dance_model_capabilities
 from app.domain.enums import ApiFormat, TaskOperation, TaskStatus
 from app.domain.models import (
@@ -11,14 +13,46 @@ from app.domain.models import (
     VideoTaskResult,
 )
 from app.infrastructure.config import Settings
-from app.infrastructure.url_builder import build_upstream_url, encode_path_segment
 from app.providers.base import (
     ProviderTransport,
     bearer_headers,
     ensure_success,
     invalid_response_error,
 )
+from app.providers.bytedance_endpoints import byte_dance_endpoints
+from app.schemas.common import PublicHttpUrl
 from app.schemas.videos import ByteDanceVideoGenerationRequest
+
+_COMPATIBLE_STATUSES = {
+    "queued": TaskStatus.QUEUED,
+    "in_progress": TaskStatus.PROCESSING,
+    "completed": TaskStatus.SUCCEEDED,
+    "failed": TaskStatus.FAILED,
+    "expired": TaskStatus.EXPIRED,
+    "cancelled": TaskStatus.CANCELLED,
+}
+
+
+class CompatibleVideoMetadata(BaseModel):
+    url: PublicHttpUrl | None = None
+    last_frame_url: PublicHttpUrl | None = None
+
+
+class CompatibleVideoError(BaseModel):
+    code: str = "upstreamTaskFailed"
+    message: str = "字节视频任务失败。"
+
+
+class CompatibleVideoTask(BaseModel):
+    id: str = Field(min_length=1)
+    status: str
+    model: str | None = None
+    progress: int | None = Field(default=None, ge=0, le=100)
+    duration: float | None = Field(
+        default=None, validation_alias=AliasChoices("seconds", "duration")
+    )
+    metadata: CompatibleVideoMetadata = Field(default_factory=CompatibleVideoMetadata)
+    error: CompatibleVideoError | None = None
 
 
 class ByteDanceVideoAdapter:
@@ -32,15 +66,33 @@ class ByteDanceVideoAdapter:
         self, request: ByteDanceVideoGenerationRequest, api_key: str
     ) -> CreatedVideoTask:
         payload = self._payload(request)
+        endpoints = byte_dance_endpoints(request.base_url)
+        if not endpoints.official:
+            payload = {
+                "model": request.model_id,
+                "prompt": request.prompt,
+                "seconds": str(request.options.duration),
+                "metadata": {
+                    key: value for key, value in payload.items() if key not in {"model", "duration"}
+                },
+            }
         response = await self._transport.request_json(
             method="POST",
-            url=build_upstream_url(request.base_url, "/api/v3/contents/generations/tasks"),
+            url=endpoints.video(),
             headers=bearer_headers(api_key),
             payload=payload,
             read_timeout=self._settings.video_create_timeout_seconds,
             api_format=self.api_format,
         )
         data = ensure_success(response, api_format=self.api_format)
+        if not endpoints.official:
+            compatible = self._compatible_task(data)
+            return CreatedVideoTask(
+                task_id=compatible.id,
+                api_format=self.api_format,
+                operation=TaskOperation.GENERATION,
+                status=_COMPATIBLE_STATUSES[compatible.status],
+            )
         task_id = data.get("id")
         if not isinstance(task_id, str) or not task_id:
             raise invalid_response_error(self.api_format, "字节视频响应缺少任务 ID。")
@@ -52,10 +104,10 @@ class ByteDanceVideoAdapter:
         )
 
     async def get_status(self, base_url: str, task_id: str, api_key: str) -> VideoTaskResult:
-        encoded_id = encode_path_segment(task_id)
+        endpoints = byte_dance_endpoints(base_url)
         response = await self._transport.request_json(
             method="GET",
-            url=build_upstream_url(base_url, f"/api/v3/contents/generations/tasks/{encoded_id}"),
+            url=endpoints.video(task_id),
             headers=bearer_headers(api_key),
             payload=None,
             read_timeout=self._settings.video_status_timeout_seconds,
@@ -63,7 +115,45 @@ class ByteDanceVideoAdapter:
             retryable=True,
         )
         data = ensure_success(response, api_format=self.api_format, retryable=True)
+        if not endpoints.official:
+            return self._parse_compatible_status(task_id, data)
         return self._parse_status(task_id, data)
+
+    def _compatible_task(self, data: Mapping[str, Any]) -> CompatibleVideoTask:
+        try:
+            task = CompatibleVideoTask.model_validate(data)
+        except ValidationError as exc:
+            raise invalid_response_error(self.api_format, "兼容视频响应不符合接口契约。") from exc
+        if task.status not in _COMPATIBLE_STATUSES:
+            raise invalid_response_error(self.api_format, f"未知兼容视频状态：{task.status}")
+        return task
+
+    def _parse_compatible_status(self, task_id: str, data: Mapping[str, Any]) -> VideoTaskResult:
+        task = self._compatible_task(data)
+        status = _COMPATIBLE_STATUSES[task.status]
+        output = None
+        if status == TaskStatus.SUCCEEDED:
+            if task.metadata.url is None:
+                raise invalid_response_error(self.api_format, "兼容视频完成响应缺少 metadata.url。")
+            output = VideoOutput(
+                video_url=str(task.metadata.url),
+                last_frame_url=str(task.metadata.last_frame_url)
+                if task.metadata.last_frame_url
+                else None,
+                duration=task.duration,
+            )
+        error = task.error or CompatibleVideoError()
+        return VideoTaskResult(
+            task_id=task_id,
+            api_format=self.api_format,
+            status=status,
+            progress=task.progress,
+            model_id=task.model,
+            output=output,
+            error=VideoTaskError(code=error.code, message=error.message)
+            if status == TaskStatus.FAILED
+            else None,
+        )
 
     @staticmethod
     def _payload(request: ByteDanceVideoGenerationRequest) -> dict[str, Any]:

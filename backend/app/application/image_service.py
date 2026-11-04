@@ -8,6 +8,7 @@ from app.domain.models import ImageResult, ImageStreamChunk, Usage
 from app.providers.registry import ProviderRegistry
 from app.schemas.common import UsageResponse
 from app.schemas.image_turns import (
+    ByteDanceImageTurnRequest,
     GeminiImageTurnRequest,
     ImageConversationTurnRequest,
     OpenAIImageTurnRequest,
@@ -15,13 +16,14 @@ from app.schemas.image_turns import (
     XAIImageTurnRequest,
 )
 from app.schemas.images import (
+    ByteDanceImageEditRequest,
+    ByteDanceImageGenerationRequest,
     GeminiImageEditRequest,
     GeminiImageGenerationRequest,
     GeneratedImageResponse,
     ImageEditRequest,
     ImageGenerationRequest,
     ImageOperationResponse,
-    OpenAIImageEditOptions,
     OpenAIImageEditRequest,
     OpenAIImageGenerationRequest,
     XAIImageEditRequest,
@@ -43,6 +45,8 @@ class ImageService:
             result = await self._providers.openai_image.generate(request, api_key)
         elif isinstance(request, XAIImageGenerationRequest):
             result = await self._providers.xai_image.generate(request, api_key)
+        elif isinstance(request, ByteDanceImageGenerationRequest):
+            result = await self._providers.byte_dance_image.generate(request, api_key)
         else:
             raise _unsupported_request()
         return _to_response(result, request_id)
@@ -57,6 +61,8 @@ class ImageService:
             result = await self._providers.openai_image.edit(request, api_key)
         elif isinstance(request, XAIImageEditRequest):
             result = await self._providers.xai_image.edit(request, api_key)
+        elif isinstance(request, ByteDanceImageEditRequest):
+            result = await self._providers.byte_dance_image.edit(request, api_key)
         else:
             raise _unsupported_request()
         return _to_response(result, request_id)
@@ -69,19 +75,7 @@ class ImageService:
         if isinstance(request, OpenAIImageTurnRequest):
             validate_openai_image_request(request)
             if request.source_images:
-                edit_request = OpenAIImageEditRequest(
-                    api_format=request.api_format,
-                    base_url=request.base_url,
-                    model_id=request.model_id,
-                    prompt=request.prompt,
-                    images=request.source_images,
-                    mask=request.mask,
-                    options=OpenAIImageEditOptions.model_validate(
-                        request.options.model_dump(exclude={"partial_images"})
-                    ),
-                )
-                result = await self._providers.openai_image.edit(edit_request, api_key)
-                async for chunk in _result_chunks(result):
+                async for chunk in self._providers.openai_image.stream_edit(request, api_key):
                     yield chunk
             else:
                 async for chunk in self._providers.openai_image.stream_generate(request, api_key):
@@ -117,6 +111,11 @@ class ImageService:
                     options=request.options,
                 )
                 result = await self._providers.xai_image.generate(xai_generation, api_key)
+            async for chunk in _result_chunks(result):
+                yield chunk
+            return
+        if isinstance(request, ByteDanceImageTurnRequest):
+            result = await self._providers.byte_dance_image.conversation(request, api_key)
             async for chunk in _result_chunks(result):
                 yield chunk
             return

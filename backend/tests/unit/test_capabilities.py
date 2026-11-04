@@ -11,7 +11,7 @@ from app.schemas.images import OpenAIImageGenerationRequest
 from app.schemas.videos import ByteDanceVideoGenerationRequest, XAIVideoGenerationRequest
 
 
-def test_gpt_image_2_transparent_background_is_supported_in_preview() -> None:
+def test_gpt_image_2_supports_transparent_background_preview() -> None:
     request = OpenAIImageGenerationRequest.model_validate(
         {
             "apiFormat": "openaiImage",

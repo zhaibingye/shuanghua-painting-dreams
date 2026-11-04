@@ -25,18 +25,19 @@ def test_openai_mask_requires_single_image() -> None:
         )
 
 
-def test_openai_non_streaming_edit_rejects_partial_images() -> None:
-    with pytest.raises(ValidationError):
-        OpenAIImageEditRequest.model_validate(
-            {
-                "apiFormat": "openaiImage",
-                "baseUrl": "https://shapi.vip",
-                "modelId": "gpt-image-2",
-                "prompt": "edit",
-                "images": [{"kind": "url", "url": "https://example.com/a.png"}],
-                "options": {"partialImages": 2},
-            }
-        )
+def test_openai_edit_shares_conversation_options() -> None:
+    request = OpenAIImageEditRequest.model_validate(
+        {
+            "apiFormat": "openaiImage",
+            "baseUrl": "https://shapi.vip",
+            "modelId": "gpt-image-2",
+            "prompt": "edit",
+            "images": [{"kind": "url", "url": "https://example.com/a.png"}],
+            "options": {"partialImages": 2, "moderation": "low"},
+        }
+    )
+    assert request.options.partial_images == 2
+    assert request.options.moderation == "low"
 
 
 def test_openai_conversation_options_cover_generation_and_editing() -> None:
