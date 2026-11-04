@@ -4,7 +4,7 @@
       "apiFormat": "googleGeminiImage",
       "mediaKind": "image",
       "displayName": "Google Gemini 图像",
-      "defaultBaseUrl": "https://shapi.vip",
+      "defaultBaseUrl": "https://www.shapi.vip",
       "defaultModelId": "nano-banana-2",
       "genericCapabilities": {
         "textToImage": true,
@@ -37,8 +37,8 @@
       "apiFormat": "openaiImage",
       "mediaKind": "image",
       "displayName": "OpenAI Images",
-      "defaultBaseUrl": "https://shapi.vip",
-      "defaultModelId": "gpt-image-2",
+      "defaultBaseUrl": "https://www.shapi.vip",
+      "defaultModelId": "gpt-image-2.5-sunburst",
       "genericCapabilities": {
         "textToImage": true,
         "imageEditing": true,
@@ -52,19 +52,114 @@
         "editPartialImages": true
       },
       "knownModels": {
-        "gpt-image-2": {
-          "maskEditing": true,
-          "transparentBackground": true,
+        "gpt-image-2.5-sunburst": {
+          "qualities": [
+            "auto",
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
           "customImageSize": true,
-          "maxReferenceImages": 16
+          "transparentBackground": true,
+          "inputFidelities": [
+            "auto"
+          ]
+        },
+        "gpt-image-2.5-flare": {
+          "qualities": [
+            "auto",
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
+          "customImageSize": true,
+          "transparentBackground": true,
+          "inputFidelities": [
+            "auto"
+          ]
+        },
+        "gpt-image-2": {
+          "qualities": [
+            "auto",
+            "low",
+            "medium",
+            "high"
+          ],
+          "customImageSize": true,
+          "transparentBackground": true,
+          "inputFidelities": [
+            "auto"
+          ]
+        },
+        "gpt-image-1.5": {
+          "qualities": [
+            "auto",
+            "low",
+            "medium",
+            "high"
+          ],
+          "customImageSize": false,
+          "transparentBackground": true,
+          "inputFidelities": [
+            "auto",
+            "low",
+            "high"
+          ]
+        },
+        "gpt-image-1": {
+          "qualities": [
+            "auto",
+            "low",
+            "medium",
+            "high"
+          ],
+          "customImageSize": false,
+          "transparentBackground": true,
+          "inputFidelities": [
+            "auto",
+            "low",
+            "high"
+          ]
+        },
+        "gpt-image-1-mini": {
+          "qualities": [
+            "auto",
+            "low",
+            "medium",
+            "high"
+          ],
+          "customImageSize": false,
+          "transparentBackground": true,
+          "inputFidelities": [
+            "auto",
+            "low"
+          ]
+        },
+        "chatgpt-image-latest": {
+          "qualities": [
+            "auto",
+            "low",
+            "medium",
+            "high"
+          ],
+          "customImageSize": false,
+          "transparentBackground": true,
+          "inputFidelities": [
+            "auto"
+          ]
         }
       },
       "defaultOptions": {
-        "size": "auto",
+        "size": "1024x1024",
         "quality": "auto",
         "outputFormat": "png",
         "outputCompression": 100,
         "background": "auto",
+        "safetyIdentifier": null,
         "count": 1,
         "moderation": "auto",
         "partialImages": 2,
@@ -75,7 +170,7 @@
       "apiFormat": "openaiResponsesImage",
       "mediaKind": "image",
       "displayName": "OpenAI Responses 图像",
-      "defaultBaseUrl": "https://shapi.vip",
+      "defaultBaseUrl": "https://www.shapi.vip",
       "defaultModelId": "gpt-5.6-luna",
       "genericCapabilities": {
         "textToImage": true,
@@ -101,7 +196,8 @@
         "outputFormat": "png",
         "outputCompression": 100,
         "background": "auto",
-        "imageModel": "auto",
+        "safetyIdentifier": null,
+        "imageModel": "gpt-image-2.5-sunburst",
         "action": "auto",
         "moderation": "auto",
         "inputFidelity": "auto",
@@ -112,7 +208,7 @@
       "apiFormat": "xaiImage",
       "mediaKind": "image",
       "displayName": "xAI 图像",
-      "defaultBaseUrl": "https://shapi.vip",
+      "defaultBaseUrl": "https://www.shapi.vip",
       "defaultModelId": "grok-imagine-image-2.0",
       "genericCapabilities": {
         "textToImage": true,
@@ -147,7 +243,7 @@
       "apiFormat": "byteDanceImage",
       "mediaKind": "image",
       "displayName": "字节 Seedream 图像",
-      "defaultBaseUrl": "https://shapi.vip",
+      "defaultBaseUrl": "https://www.shapi.vip",
       "defaultModelId": "doubao-seedream-5-0-pro-260628",
       "genericCapabilities": {
         "textToImage": true,
@@ -182,8 +278,8 @@
       "apiFormat": "byteDanceVideo",
       "mediaKind": "video",
       "displayName": "字节 Seedance 视频",
-      "defaultBaseUrl": "https://shapi.vip",
-      "defaultModelId": "doubao-seedance-2-0-260128",
+      "defaultBaseUrl": "https://www.shapi.vip",
+      "defaultModelId": "doubao-seedance-2-5-260628",
       "genericCapabilities": {
         "textToVideo": true,
         "firstFrameToVideo": true,
@@ -193,6 +289,40 @@
         "tailFrameContinuation": true
       },
       "knownModels": {
+        "doubao-seedance-2-5-260628": {
+          "durationMin": 4,
+          "durationMax": 30,
+          "automaticDuration": true,
+          "resolutions": [
+            "480p",
+            "720p",
+            "1080p"
+          ],
+          "aspectRatios": [
+            "16:9",
+            "4:3",
+            "1:1",
+            "3:4",
+            "9:16",
+            "21:9",
+            "adaptive"
+          ],
+          "generateAudio": true,
+          "cameraFixed": false,
+          "serviceTiers": [
+            "default"
+          ],
+          "serviceTierParameter": false,
+          "webSearch": true,
+          "returnLastFrame": true,
+          "seed": false,
+          "defaultDuration": -1,
+          "defaultResolution": "720p",
+          "defaultGenerateAudio": true,
+          "frameAspectRatios": [
+            "adaptive"
+          ]
+        },
         "doubao-seedance-2-0-260128": {
           "durationMin": 4,
           "durationMax": 15,
@@ -219,14 +349,78 @@
           ],
           "serviceTierParameter": false,
           "webSearch": true,
-          "returnLastFrame": true
+          "returnLastFrame": true,
+          "seed": false,
+          "defaultDuration": 5,
+          "defaultResolution": "720p",
+          "defaultGenerateAudio": true
+        },
+        "doubao-seedance-2-0-fast-260128": {
+          "durationMin": 4,
+          "durationMax": 15,
+          "automaticDuration": true,
+          "resolutions": [
+            "480p",
+            "720p"
+          ],
+          "aspectRatios": [
+            "16:9",
+            "4:3",
+            "1:1",
+            "3:4",
+            "9:16",
+            "21:9",
+            "adaptive"
+          ],
+          "generateAudio": true,
+          "cameraFixed": false,
+          "serviceTiers": [
+            "default"
+          ],
+          "serviceTierParameter": false,
+          "webSearch": true,
+          "returnLastFrame": true,
+          "seed": false,
+          "defaultDuration": 5,
+          "defaultResolution": "720p",
+          "defaultGenerateAudio": true
+        },
+        "doubao-seedance-2-0-mini-260615": {
+          "durationMin": 4,
+          "durationMax": 15,
+          "automaticDuration": true,
+          "resolutions": [
+            "480p",
+            "720p"
+          ],
+          "aspectRatios": [
+            "16:9",
+            "4:3",
+            "1:1",
+            "3:4",
+            "9:16",
+            "21:9",
+            "adaptive"
+          ],
+          "generateAudio": true,
+          "cameraFixed": false,
+          "serviceTiers": [
+            "default"
+          ],
+          "serviceTierParameter": false,
+          "webSearch": true,
+          "returnLastFrame": true,
+          "seed": false,
+          "defaultDuration": 5,
+          "defaultResolution": "720p",
+          "defaultGenerateAudio": true
         }
       },
       "defaultOptions": {
-        "duration": 5,
+        "duration": -1,
         "resolution": "720p",
         "aspectRatio": "adaptive",
-        "generateAudio": false,
+        "generateAudio": true,
         "watermark": false,
         "seed": -1,
         "returnLastFrame": false,
@@ -239,7 +433,7 @@
       "apiFormat": "xaiVideo",
       "mediaKind": "video",
       "displayName": "xAI Grok 视频",
-      "defaultBaseUrl": "https://shapi.vip",
+      "defaultBaseUrl": "https://www.shapi.vip",
       "defaultModelId": "grok-imagine-video-1.5",
       "genericCapabilities": {
         "textToVideo": true,
@@ -351,7 +545,7 @@
       "additionalProperties": false,
       "properties": {
         "size": {
-          "default": "auto",
+          "default": "1024x1024",
           "description": "auto 或 WIDTHxHEIGHT",
           "maxLength": 32,
           "minLength": 3,
@@ -398,6 +592,20 @@
           ],
           "title": "背景",
           "type": "string"
+        },
+        "safetyIdentifier": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "最多 128 字符；请使用用户标识的哈希值。",
+          "title": "安全标识（可选）"
         },
         "count": {
           "default": 1,
@@ -442,7 +650,6 @@
       "properties": {
         "size": {
           "default": "auto",
-          "description": "auto 或 WIDTHxHEIGHT",
           "maxLength": 32,
           "minLength": 3,
           "title": "尺寸",
@@ -489,8 +696,22 @@
           "title": "背景",
           "type": "string"
         },
+        "safetyIdentifier": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "最多 128 字符；请使用用户标识的哈希值。",
+          "title": "安全标识（可选）"
+        },
         "imageModel": {
-          "default": "auto",
+          "default": "gpt-image-2.5-sunburst",
           "description": "auto 使用上游默认值，也可填写 gpt-image-2 等生图模型 ID。",
           "maxLength": 256,
           "minLength": 1,

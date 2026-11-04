@@ -3,6 +3,7 @@ from typing import Annotated, Literal
 from pydantic import Field, model_validator
 
 from app.domain.enums import ApiFormat
+from app.domain.openai_images import DEFAULT_IMAGE_MODEL
 from app.schemas.common import ApiModel, DataUrlImageAsset, ImageAsset, UpstreamRequest
 from app.schemas.images import (
     ByteDanceImageGenerationRequest,
@@ -58,8 +59,9 @@ OpenAIResponsesHistoryItem = Annotated[
 
 
 class OpenAIResponsesImageOptions(OpenAIImageOutputOptions):
+    size: str = Field(default="auto", min_length=3, max_length=32, title="尺寸")
     image_model: str = Field(
-        default="auto",
+        default=DEFAULT_IMAGE_MODEL,
         min_length=1,
         max_length=256,
         title="生图工具模型",

@@ -1,6 +1,34 @@
 # OpenAI 图像生成与编辑 REST API 规范文档
 
-本文档基于 OpenAI 官方开发者文档及 API 规范整理，系统规范了 OpenAI 全系列图像大模型（包括最新一代旗舰模型 **`gpt-image-2`**、`gpt-image-1.5`、`gpt-image-1`、`gpt-image-1-mini` 以及经典模型 `dall-e-3`、`dall-e-2`）的 REST API 接口定义、请求参数、响应数据结构、图像编辑与多图融合参考、局部遮罩重绘（Inpainting）、流式渐进式出图（Streaming）、对话式视觉工作流（Responses API Image Tool）以及生产环境异常处理标准。
+本文档基于 OpenAI 官方开发者文档及 API 规范整理，系统规范了 OpenAI 全系列图像大模型（包括 **`gpt-image-2.5-sunburst`**、**`gpt-image-2.5-flare`**、`gpt-image-2`、`gpt-image-1.5`、`gpt-image-1`、`gpt-image-1-mini` 以及经典模型 `dall-e-3`、`dall-e-2`）的 REST API 接口定义、请求参数、响应数据结构、图像编辑与多图融合参考、局部遮罩重绘（Inpainting）、流式渐进式出图（Streaming）、对话式视觉工作流（Responses API Image Tool）以及生产环境异常处理标准。
+
+## 2026-10-21 项目参数对齐
+
+官方来源：[生成指南](https://developers.openai.com/api/docs/guides/image-generation)、[生成参数](https://developers.openai.com/api/reference/resources/images/methods/generate)、[编辑参数](https://developers.openai.com/api/reference/resources/images/methods/edit)、[Responses 图像工具](https://developers.openai.com/api/docs/guides/tools-image-generation)。
+
+- 默认图像模型为 `gpt-image-2.5-sunburst`。2.5 的 Sunburst、Flare 及日期快照支持 `auto / low / medium / high / xhigh / max`；此前模型最高为 `high`。
+- Images 和 Responses 共用质量、尺寸、格式、压缩、背景约束。Responses 的 `options.imageModel` 映射到 `tools[].model`，与顶层对话模型 `modelId` 分开配置。
+- `safetyIdentifier` 可选、最多 128 字符，建议传用户标识哈希值；Images 映射为 `safety_identifier`，Responses 放在顶层请求。
+- GPT Image 固定返回 Base64，请求不发送 `response_format`。仅 JPEG / WebP 发送 `output_compression`。选择透明背景会将 JPEG 改为 PNG；Image 2 透明背景属于官方预览能力。
+- `inputFidelity: auto` 是项目“省略参数”的标记，并非官方枚举。Image 1 / 1.5 可选 `low / high`，1 Mini 仅 `low`；Image 2 和其他未明确支持调节的模型不提供手动保真度。
+- 编辑沿用非流式 multipart，透传 `moderation`，省略渐进预览参数；文生图和 Responses 继续流式预览。
+- DALL·E 已退役；本文相关段落保留作历史参考，项目不提供这些旧模型的参数。
+
+### 九种比例的快捷尺寸
+
+1K / 2K / 4K 为项目档位，目标长边为 1024 / 2048 / 3840。为保持精确比例、16 像素倍数及 655,360–8,294,400 总像素，尺寸会按限制调整，界面始终展示实际像素。超过 2560×1440 总像素为实验性分辨率。早期模型仅显示标准尺寸。
+
+| 比例 | 1K 档 | 2K 档 | 4K 档 |
+| --- | --- | --- | --- |
+| 1:1 | `1024x1024` | `2048x2048` | `2880x2880` |
+| 16:9 | `1280x720` | `2048x1152` | `3840x2160` |
+| 9:16 | `720x1280` | `1152x2048` | `2160x3840` |
+| 4:3 | `1024x768` | `2048x1536` | `3264x2448` |
+| 3:4 | `768x1024` | `1536x2048` | `2448x3264` |
+| 3:2 | `1008x672` | `2064x1376` | `3504x2336` |
+| 2:3 | `672x1008` | `1376x2064` | `2336x3504` |
+| 21:9 | `1344x576` | `2016x864` | `3808x1632` |
+| 9:21 | `576x1344` | `864x2016` | `1632x3808` |
 
 ---
 
@@ -32,7 +60,7 @@ Authorization: Bearer $OPENAI_API_KEY
 
 | 模型标识 (Model ID) | 核心定位与能力说明 | 支持功能 | 最大提示词长度 | 默认返回格式 |
 | :--- | :--- | :--- | :---: | :---: |
-| **`gpt-image-2`** | **最新旗舰图像模型**。具备顶尖的真实感画质渲染、复杂文字排版与拼写能力、精准构图指令遵循、高保真多图参考编辑与任意自定义分辨率（最高 4K）。 | 文生图、多图融合编辑（最多16张）、遮罩重绘、流式渐进式出图、画质分级 | 32,000 字符 | Base64 (`b64_json`) |
+| **`gpt-image-2`** | **GPT Image 2 图像模型**。具备顶尖的真实感画质渲染、复杂文字排版与拼写能力、精准构图指令遵循、高保真多图参考编辑与任意自定义分辨率（最高 4K）。 | 文生图、多图融合编辑（最多16张）、遮罩重绘、流式渐进式出图、画质分级 | 32,000 字符 | Base64 (`b64_json`) |
 | **`gpt-image-1.5`** | 高性能平衡模型。生成速度更快、成本更低，支持单图/多图参考编辑与透明背景。 | 文生图、图像编辑、透明背景、流式出图 | 32,000 字符 | Base64 (`b64_json`) |
 | **`gpt-image-1`** | 第一代 GPT 图像模型。具备出色的文本遵循与编辑保真度。 | 文生图、图像编辑、遮罩重绘 | 32,000 字符 | Base64 (`b64_json`) |
 | **`gpt-image-1-mini`** | 轻量极速模型。主打极低延迟与超高性价比，适合快速预览与草图生成。 | 快速文生图、轻量编辑 | 32,000 字符 | Base64 (`b64_json`) |
@@ -102,19 +130,19 @@ OpenAI 提供了两种接入图像能力的方式：
 | 参数名称 | 类型 | 必填 | 默认值 | 取值范围 / 详细说明 |
 | :--- | :--- | :---: | :--- | :--- |
 | **`prompt`** | `string` | **是** | - | 图像生成的描述性文本。GPT 系列模型上限 **32,000** 字符，`dall-e-3` 上限 4,000 字符，`dall-e-2` 上限 1,000 字符。 |
-| **`model`** | `string` | 否 | `dall-e-2` | 调用的模型标识：`gpt-image-2`（推荐）、`gpt-image-1.5`、`gpt-image-1`、`gpt-image-1-mini`、`dall-e-3`、`dall-e-2`。 |
+| **`model`** | `string` | 否 | `gpt-image-2.5-sunburst` | 调用的模型标识：`gpt-image-2.5-sunburst`、`gpt-image-2.5-flare`、`gpt-image-2`、`gpt-image-1.5`、`gpt-image-1`、`gpt-image-1-mini`、`dall-e-3`、`dall-e-2`。 |
 | **`n`** | `integer` | 否 | `1` | 单次请求生成的图片张数。取值范围：`1 ~ 10`。注：`dall-e-3` 仅支持 `n=1`。 |
-| **`size`** | `string` | 否 | `"auto"` | 图像分辨率与尺寸：<br>• **`gpt-image-2`**：支持任意 `WIDTHxHEIGHT`（如 `"1536x864"`、`"2048x1152"`、`"3840x2160"`），宽高需均为 16 的倍数，宽高比介于 1:3 与 3:1 之间，总像素 655,360 ~ 8,294,400。<br>• **标准枚举**：`"1024x1024"`、`"1536x1024"`、`"1024x1536"`、`"auto"`。<br>• **`dall-e-3`**：`"1024x1024"`、`"1792x1024"`、`"1024x1792"`。<br>• **`dall-e-2`**：`"256x256"`、`"512x512"`、`"1024x1024"`。 |
-| **`quality`** | `string` | 否 | `"auto"` | 渲染画质等级：<br>• **GPT 模型**：`"low"`（草图极速）、`"medium"`（标准）、`"high"`（超清精细）、`"auto"`。<br>• **`dall-e-3`**：`"standard"`、`"hd"`。<br>• **`dall-e-2`**：仅支持 `"standard"`。 |
-| **`background`** | `string` | 否 | `"auto"` | 背景透明度控制（仅 GPT Image 模型支持）：<br>• `"auto"`：模型自动判断最适背景<br>• `"opaque"`：实体不透明背景<br>• `"transparent"`：透明背景（输出格式须为 `png` 或 `webp`；注：`gpt-image-2` 暂不支持 transparent） |
+| **`size`** | `string` | 否 | `"auto"` | 图像分辨率与尺寸：<br>• **Image 2 / 2.5**：支持任意 `WIDTHxHEIGHT`（如 `"1536x864"`、`"2048x1152"`、`"3840x2160"`），宽高需均为 16 的倍数，宽高比介于 1:3 与 3:1 之间，总像素 655,360 ~ 8,294,400。<br>• **标准枚举**：`"1024x1024"`、`"1536x1024"`、`"1024x1536"`、`"auto"`。<br>• **`dall-e-3`**：`"1024x1024"`、`"1792x1024"`、`"1024x1792"`。<br>• **`dall-e-2`**：`"256x256"`、`"512x512"`、`"1024x1024"`。 |
+| **`quality`** | `string` | 否 | `"auto"` | 渲染画质等级：<br>• **GPT Image 2.5**：另支持 `"xhigh"`、`"max"`。<br>• **GPT 基础选项**：`"low"`（草图极速）、`"medium"`（标准）、`"high"`（超清精细）、`"auto"`。<br>• **`dall-e-3`**：`"standard"`、`"hd"`。<br>• **`dall-e-2`**：仅支持 `"standard"`。 |
+| **`background`** | `string` | 否 | `"auto"` | 背景透明度控制（仅 GPT Image 模型支持）：<br>• `"auto"`：模型自动判断最适背景<br>• `"opaque"`：实体不透明背景<br>• `"transparent"`：透明背景（输出格式须为 `png` 或 `webp`；注：`gpt-image-2` 透明背景属于预览能力） |
 | **`output_format`** | `string` | 否 | `"png"` | 输出文件格式（仅 GPT Image 模型支持）：`"png"`、`"jpeg"`、`"webp"`。**`jpeg` 格式具有更低的编码延迟与更小的网络传输体积**。 |
 | **`output_compression`** | `integer` | 否 | `100` | 输出图片压缩等级（0 ~ 100%）。仅在 `output_format` 为 `jpeg` 或 `webp` 时生效。 |
-| **`response_format`** | `string` | 否 | `"url"` | 数据返回格式：`"b64_json"` 或 `"url"`。<br>⚠️ **注意**：GPT Image 模型始终返回 Base64 (`b64_json`)；`"url"` 仅适用于 `dall-e-2` 和 `dall-e-3`（生成的 URL 有效期为 60 分钟）。 |
+| **`response_format`** | `string` | 否 | `"url"` | 数据返回格式：`"b64_json"` 或 `"url"`。<br>⚠️ **注意**：此参数已弃用且不支持 GPT Image；GPT Image 固定返回 Base64 (`b64_json`)；`"url"` 仅适用于 `dall-e-2` 和 `dall-e-3`（生成的 URL 有效期为 60 分钟）。 |
 | **`stream`** | `boolean` | 否 | `false` | 是否开启 Server-Sent Events (SSE) 流式传输。仅 GPT Image 模型支持。 |
 | **`partial_images`** | `integer` | 否 | `0` | 流式传输过程中返回的部分中间草图数量（取值范围：`0 ~ 3`）。设置为 0 时仅在最终完成时返回单张图片。每产生一张中间图会额外增加 100 输出 tokens。 |
 | **`moderation`** | `string` | 否 | `"auto"` | 内容审查严格度过滤级别（仅 GPT Image 模型支持）：<br>• `"auto"`：标准合规过滤（默认）<br>• `"low"`：低限制宽松过滤 |
 | **`style`** | `string` | 否 | `"vivid"` | 生成画面艺术风格。**仅 `dall-e-3` 支持**：<br>• `"vivid"`：生动、超现实、戏剧化光影<br>• `"natural"`：写实、自然自然光照风格 |
-| **`user`** | `string` | 否 | `null` | 终端用户的唯一标识符字符串，协助 OpenAI 进行滥用与安全监控。 |
+| **`safety_identifier`** | `string` | 否 | `null` | 最多 128 字符，建议使用哈希，替代已弃用的 `user`。终端用户的唯一标识符字符串，协助 OpenAI 进行滥用与安全监控。 |
 
 ---
 
@@ -348,17 +376,17 @@ OpenAI 图像编辑端点支持三大核心能力：
 | **`image` / `image[]`** | `file` / `array<file>` | **是** | - | 输入图像文件。GPT Image 模型最多支持 **16 张** PNG、JPEG 或 WebP，每张小于 50MB；单图使用 `image`，多图使用 `image[]`。 |
 | **`mask`** | `file` | 否 | `null` | multipart 二进制遮罩文件。必须是 PNG、小于 4MB、与第一张输入图尺寸完全相同并包含 Alpha 通道；透明区域表示待编辑区域。 |
 | **`model`** | `string` | 否 | `gpt-image-1.5` | 编辑模型标识：`gpt-image-2`（推荐）、`gpt-image-1.5`、`gpt-image-1`、`gpt-image-1-mini`、`chatgpt-image-latest`、`dall-e-2`。 |
-| **`input_fidelity`** | `string` | 否 | `"auto"` | 控制模型对输入图像细节特征的保留忠实度：<br>• `"high"`：严格忠实于原图细节<br>• `"low"`：允许更自由的创意发挥<br>• `"auto"`：模型自适应<br>💡 **注意**：`gpt-image-2` 默认全流程采用高保真处理，调用该模型时可省略此参数。 |
+| **`input_fidelity`** | `string` | 否 | 省略 | 官方枚举为 `low / high`。Image 1 / 1.5 可用两档，1 Mini 仅 `low`；Image 2 必须省略。项目 `auto` 表示省略；其他未明确支持的模型也不发送。 |
 | **`n`** | `integer` | 否 | `1` | 单次生成的编辑结果图片张数（`1 ~ 10`）。 |
 | **`size`** | `string` | 否 | `"auto"` | 目标输出尺寸：`"auto"`、`"1024x1024"`、`"1536x1024"`、`"1024x1536"` 或自定义宽高。 |
-| **`quality`** | `string` | 否 | `"auto"` | 输出画质：`"low"`、`"medium"`、`"high"`、`"auto"`。 |
+| **`quality`** | `string` | 否 | `"auto"` | 输出画质：`"low"`、`"medium"`、`"high"`、`"auto"`；Image 2.5 另支持 `"xhigh"`、`"max"`。 |
 | **`background`** | `string` | 否 | `"auto"` | 结果背景处理：`"transparent"`、`"opaque"`、`"auto"`。 |
 | **`output_format`** | `string` | 否 | `"png"` | 输出格式：`"png"`、`"jpeg"`、`"webp"`。 |
 | **`output_compression`** | `integer` | 否 | `100` | 压缩比例（0 ~ 100%）。 |
 | **`stream`** | `boolean` | 否 | `false` | 是否开启流式传输编辑进度。 |
 | **`partial_images`** | `integer` | 否 | `0` | 流式返回的中间过程图片数量（0 ~ 3）。 |
 | **`moderation`** | `string` | 否 | `"auto"` | 内容审查严格度：`"auto"` 或 `"low"`。 |
-| **`user`** | `string` | 否 | `null` | 终端用户唯一标识符。 |
+| **`safety_identifier`** | `string` | 否 | `null` | 最多 128 字符，建议使用哈希，替代已弃用的 `user`。终端用户唯一标识符。 |
 
 ---
 
@@ -500,7 +528,7 @@ curl -X POST "https://api.openai.com/v1/images/edits" \
 | **`n`** | `integer` | 否 | `1` | 生成变体张数（`1 ~ 10`）。 |
 | **`size`** | `string` | 否 | `"1024x1024"` | 尺寸大小：`"256x256"`、`"512x512"` 或 `"1024x1024"`。 |
 | **`response_format`** | `string` | 否 | `"url"` | 返回格式：`"url"` 或 `"b64_json"`。 |
-| **`user`** | `string` | 否 | `null` | 终端用户标识符。 |
+| **`safety_identifier`** | `string` | 否 | `null` | 最多 128 字符，建议使用哈希，替代已弃用的 `user`。终端用户标识符。 |
 
 ### 4.2 变体生成代码示例 (cURL)
 
@@ -555,7 +583,7 @@ Responses API (`/v1/responses`) 允许将图像生成与编辑作为大语言模
 | :--- | :--- | :--- | :--- |
 | **`type`** | `string` | `"image_generation"` | 工具类型标识，固定为 `"image_generation"`。 |
 | **`action`** | `string` | `"auto"` | 行为模式控制：<br>• `"auto"`：模型根据对话历史自动判断生成新图或编辑已有图片<br>• `"generate"`：强制生成全新图像<br>• `"edit"`：强制对上下文中的已有图像进行编辑 |
-| **`quality`** | `string` | `"auto"` | 工具调用的图像画质：`"low"`、`"medium"`、`"high"`、`"auto"`。 |
+| **`quality`** | `string` | `"auto"` | 工具调用的图像画质：`"low"`、`"medium"`、`"high"`、`"auto"`；Image 2.5 另支持 `"xhigh"`、`"max"`。 |
 | **`size`** | `string` | `"auto"` | 图像尺寸：`"1024x1024"`、`"1536x1024"`、`"1024x1536"` 或 `"auto"`。 |
 | **`output_format`** | `string` | `"png"` | 图像输出格式：`"png"`、`"jpeg"`、`"webp"`。 |
 | **`input_image_mask`** | `object` | `null` | 遮罩配置：`{ "file_id": "file-abc123" }`。 |

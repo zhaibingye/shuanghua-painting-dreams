@@ -82,6 +82,7 @@ class ImageService:
                     yield chunk
             return
         if isinstance(request, OpenAIResponsesImageTurnRequest):
+            validate_openai_image_request(request)
             async for chunk in self._providers.openai_responses_image.stream_turn(request, api_key):
                 yield chunk
             return

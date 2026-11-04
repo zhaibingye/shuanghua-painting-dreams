@@ -6,8 +6,10 @@
 
 ### 图片
 
+默认生图协议为 OpenAI Images（Image API，`openaiImage`），所有协议的默认 Base URL 为 `https://www.shapi.vip`。已有的自定义设置和历史对话保留原值；点击「恢复默认设置」可应用新默认值。
+
 - Google Gemini：默认 `nano-banana-2`，原生完整多轮 `contents` 与 `thought_signature` 回传。
-- OpenAI Images：默认 `gpt-image-2`；生成与参考图/遮罩编辑共用参数，均支持上游 SSE 与 0～3 张渐进预览。
+- OpenAI Images：默认 `gpt-image-2.5-sunburst`；生成与参考图/遮罩编辑共用参数，均支持上游 SSE 与 0～3 张渐进预览。
 - OpenAI Responses：默认主体模型 `gpt-5.6-luna`，`store: false`，通过显式回传本地历史实现无状态多轮生成/编辑，支持 SSE 与渐进预览。
 - xAI Image：默认 `grok-imagine-image-2.0`，采用与 OpenAI Images 相同的“最新图片继续编辑”逻辑。
 - 字节 Seedream：默认 `doubao-seedream-5-0-pro-260628`，支持文生图、单图/多图参考编辑；支持组图的模型可配置组图模式与最大数量。支持 Base64 图片和 URL 图片，URL 结果由后端安全下载后统一返回并保存到本地；组图部分失败会保留成功图片并显示失败信息。
@@ -25,15 +27,28 @@
 
 ### 视频
 
-- 字节 Seedance：默认 `doubao-seedance-2-0-260128`。
+- 字节 Seedance：默认 `doubao-seedance-2-5-260628`。
 - xAI Video：默认 `grok-imagine-video-1.5`。
 
-同一视频对话中的普通轮次彼此独立。字节尾帧续写和 xAI 视频扩展必须由用户显式发起。Seedance 2.0 请求不会发送其不支持的 `service_tier` 字段。
+同一视频对话中的普通轮次彼此独立。字节尾帧续写和 xAI 视频扩展必须由用户显式发起。Seedance 2.5 / 2.0 系列请求不会发送不支持的 `service_tier` 和 `seed` 字段。
+
+字节模型参数依据[火山方舟创建视频生成任务 API](https://console.volcengine.com/ark/region:cn-beijing/docs/create-video-generation-task-api)核对（2026-10-21）：
+
+| 模型 | 可用清晰度 | 默认清晰度 |
+| --- | --- | --- |
+| Seedance 2.5 | 480p、720p、1080p | 720p |
+| Seedance 2.0 | 480p、720p、1080p、4k | 720p |
+| Seedance 2.0 fast / mini | 480p、720p | 720p |
+| Seedance 1.0 pro / pro fast | 480p、720p、1080p | 1080p |
+
+Seedance 2.5 默认自动时长（`-1`，模型选择 4～30 秒）、`adaptive` 比例、开启同步音频、关闭水印和返回尾帧。首帧/首尾帧生成仅允许 `adaptive`。模型名带 `-se` 不会额外开放官方未支持的清晰度。已有设置与历史对话保留；恢复默认设置可应用新模型与默认参数。
 
 ## UI 与本地数据
 
 - UI：依据 `文档/DS设计语言.MD` 实现的冷蓝中性 DS Design System。
-- 布局：对话侧边栏、消息流、浮动输入框、参数抽屉、设置弹窗。
+- 布局：桌面常驻导航、手机模态抽屉、独立消息滚动区、自适应输入区、参数抽屉和设置弹窗。
+- 屏幕适配：动态可视高度、软键盘与浏览器栏变化、安全区域、窄屏与横屏；输入区按内容占位，不覆盖消息。
+- 阅读体验：跟随最新内容；向上阅读历史时保持位置，可一键回到最新消息。
 - 主题：浅色、深色、跟随系统。
 - 设置：LocalStorage。
 - 每个 API 格式可配置模型列表、默认模型、Base URL 和独立 Key；新对话只需选择格式，对话顶部可切换列表中的模型，切换保留输入草稿。独立 Key 不会改写全局 Key。
@@ -51,7 +66,7 @@
 - Python 管理：uv
 - API 类型与图片参数：FastAPI OpenAPI / Pydantic JSON Schema → `openapi-typescript` / 参数目录
 - 生产入口：FastAPI 同时提供 `/api/v1/*` 与 Vite 构建产物
-- 默认监听：`127.0.0.1:3001`
+- 默认监听：`127.0.0.1:3002`
 - 部署：Linux + Nginx/宝塔 + PM2
 
 ## 环境要求
@@ -77,7 +92,7 @@ npm run check
 开发模式：
 
 - 前端：`http://127.0.0.1:5173`
-- 后端：`http://127.0.0.1:3001`
+- 后端：`http://127.0.0.1:3002`
 - Vite 自动代理 `/api`
 
 `npm run check` 依次执行：

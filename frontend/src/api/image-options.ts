@@ -13,10 +13,11 @@ export type ImageOptions<F extends ImageFormat> = {
 }[F]
 
 export type OptionField = {
-  type: string
+  type?: string
   title: string
   description?: string
-  default: string | number | boolean
+  default: string | number | boolean | null
+  anyOf?: { type: string; minLength?: number; maxLength?: number }[]
   enum?: string[]
   minimum?: number
   maximum?: number
@@ -41,10 +42,11 @@ function optionSchema(format: ImageFormat) {
       if (field.maximum !== undefined) number = number.max(field.maximum)
       value = number
     } else {
+      const textField = field.anyOf?.find((item) => item.type === 'string') ?? field
       let text = z.string()
-      if (field.minLength !== undefined) text = text.min(field.minLength)
-      if (field.maxLength !== undefined) text = text.max(field.maxLength)
-      value = text
+      if (textField.minLength !== undefined) text = text.min(textField.minLength)
+      if (textField.maxLength !== undefined) text = text.max(textField.maxLength)
+      value = field.anyOf?.some((item) => item.type === 'null') ? text.nullable() : text
     }
     return [key, value.default(field.default)]
   }))

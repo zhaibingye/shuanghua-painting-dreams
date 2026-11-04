@@ -28,8 +28,10 @@ export function MaskEditor({
 }: MaskEditorProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const currentStroke = useRef<Stroke | null>(null)
-  const [actions, setActions] = useState<MaskAction[]>([])
-  const [redoActions, setRedoActions] = useState<MaskAction[]>([])
+  const [history, setHistory] = useState<{ actions: MaskAction[]; redoActions: MaskAction[] }>({
+    actions: [], redoActions: [],
+  })
+  const { actions, redoActions } = history
   const [mode, setMode] = useState<'paint' | 'erase'>('paint')
   const [brushSize, setBrushSize] = useState(Math.max(8, Math.round(Math.min(width, height) / 30)))
 
@@ -49,8 +51,8 @@ export function MaskEditor({
   useEffect(() => render(), [render])
   useEffect(() => {
     if (!open) return
-    setActions([])
-    setRedoActions([])
+    setHistory({ actions: [], redoActions: [] })
+    currentStroke.current = null
   }, [open, imageUrl])
 
   const pointFromEvent = (event: React.PointerEvent<HTMLCanvasElement>): Point => {
@@ -82,25 +84,30 @@ export function MaskEditor({
     const stroke = currentStroke.current
     if (!stroke) return
     currentStroke.current = null
-    setActions((value) => [...value, stroke])
-    setRedoActions([])
+    commitAction(stroke)
+  }
+
+  const commitAction = (action: MaskAction) => {
+    setHistory((current) => ({ actions: [...current.actions, action], redoActions: [] }))
   }
 
   const undo = () => {
-    setActions((value) => {
-      const last = value.at(-1)
-      if (!last) return value
-      setRedoActions((redo) => [...redo, last])
-      return value.slice(0, -1)
+    setHistory((current) => {
+      const last = current.actions.at(-1)
+      return last ? {
+        actions: current.actions.slice(0, -1),
+        redoActions: [...current.redoActions, last],
+      } : current
     })
   }
 
   const redo = () => {
-    setRedoActions((value) => {
-      const last = value.at(-1)
-      if (!last) return value
-      setActions((current) => [...current, last])
-      return value.slice(0, -1)
+    setHistory((current) => {
+      const last = current.redoActions.at(-1)
+      return last ? {
+        actions: [...current.actions, last],
+        redoActions: current.redoActions.slice(0, -1),
+      } : current
     })
   }
 
@@ -139,15 +146,15 @@ export function MaskEditor({
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-[80] bg-[var(--ds-bg-overlay)] backdrop-blur-[2px]" />
-        <Dialog.Content className="fixed inset-2 z-[80] grid grid-rows-[auto_1fr_auto] overflow-hidden rounded-2xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-layer-1)] shadow-[var(--ds-shadow-popup)] md:inset-8">
-          <header className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--ds-border-light)] px-4 py-3">
+        <Dialog.Content className="ds-mask-editor">
+          <header className="mask-header">
             <div>
               <Dialog.Title className="font-semibold text-[var(--ds-text-primary)]">OpenAI 遮罩编辑器</Dialog.Title>
               <Dialog.Description className="text-xs text-[var(--ds-text-secondary)]">
                 涂抹需要模型重新绘制的区域。
               </Dialog.Description>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="mask-controls ds-scroll">
               <Button
                 size="sm"
                 variant={mode === 'paint' ? 'primary' : 'secondary'}
@@ -173,15 +180,12 @@ export function MaskEditor({
                 value={brushSize}
                 onChange={(event) => setBrushSize(Math.max(1, Number(event.target.value)))}
               />
-              <Button size="sm" variant="ghost" onClick={undo} disabled={!actions.length} icon={<Undo2 className="size-4" />} />
-              <Button size="sm" variant="ghost" onClick={redo} disabled={!redoActions.length} icon={<Redo2 className="size-4" />} />
+              <Button size="sm" variant="ghost" aria-label="撤销" onClick={undo} disabled={!actions.length} icon={<Undo2 className="size-4" />} />
+              <Button size="sm" variant="ghost" aria-label="重做" onClick={redo} disabled={!redoActions.length} icon={<Redo2 className="size-4" />} />
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() => {
-                  setActions((value) => [...value, { kind: 'invert' }])
-                  setRedoActions([])
-                }}
+                onClick={() => commitAction({ kind: 'invert' })}
                 icon={<RotateCcw className="size-4" />}
               >
                 反转
@@ -189,10 +193,7 @@ export function MaskEditor({
               <Button
                 size="sm"
                 variant="danger"
-                onClick={() => {
-                  setActions((value) => [...value, { kind: 'clear' }])
-                  setRedoActions([])
-                }}
+                onClick={() => commitAction({ kind: 'clear' })}
                 icon={<Trash2 className="size-4" />}
               >
                 清空
@@ -203,12 +204,12 @@ export function MaskEditor({
             </div>
           </header>
 
-          <div className="grid place-items-center overflow-auto bg-[var(--ds-bg-hover)] p-4">
-            <div className="relative max-h-full max-w-full overflow-hidden rounded-lg shadow-2xl">
+          <div className="mask-stage ds-scroll">
+            <div className="mask-frame rounded-lg shadow-xl">
               <img
                 src={imageUrl}
                 alt="待编辑原图"
-                className="block max-h-[70vh] max-w-full select-none object-contain"
+                className="mask-image"
                 draggable={false}
               />
               <canvas
@@ -224,7 +225,7 @@ export function MaskEditor({
             </div>
           </div>
 
-          <footer className="flex items-center justify-between gap-3 border-t border-[var(--ds-border-light)] px-4 py-3">
+          <footer className="mask-footer">
             <span className="text-xs text-[var(--ds-text-secondary)]">
               输出尺寸 {width} × {height}，透明区域为编辑区域。
             </span>

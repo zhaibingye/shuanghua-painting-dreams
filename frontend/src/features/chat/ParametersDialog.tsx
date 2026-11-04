@@ -31,17 +31,18 @@ export function ParametersDialog({
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-[var(--ds-bg-overlay)] backdrop-blur-[2px]" />
-        <Dialog.Content className="fixed bottom-0 right-0 top-0 z-50 w-[min(92vw,28rem)] overflow-hidden border-l border-[var(--ds-border-default)] bg-[var(--ds-bg-layer-1)] shadow-[var(--ds-shadow-popup)]">
+        <Dialog.Content className="ds-parameters">
           <header className="flex h-16 items-center justify-between border-b border-[var(--ds-border-light)] px-5">
             <div className="flex items-center gap-2">
               <SlidersHorizontal className="size-4 text-[var(--ds-brand-text)]" />
               <Dialog.Title className="font-semibold">本轮参数</Dialog.Title>
+              <Dialog.Description className="sr-only">调整当前创作的生成参数和参考素材。</Dialog.Description>
             </div>
             <Dialog.Close asChild>
               <Button size="icon" variant="ghost" icon={<X className="size-4" />} aria-label="关闭参数面板" />
             </Dialog.Close>
           </header>
-          <div className="ds-scroll h-[calc(100vh-4rem)] overflow-y-auto p-5">
+          <div className="parameters-body ds-scroll">
             <div className="mb-5 rounded-xl bg-[var(--ds-bg-hover)] p-3 text-xs text-[var(--ds-text-secondary)]">
               <p className="font-medium text-[var(--ds-text-primary)]">{conversation.modelId}</p>
               <p className="mt-1 break-all">{conversation.baseUrl}</p>
@@ -50,6 +51,7 @@ export function ParametersDialog({
             {isImageFormat(conversation.apiFormat) ? (
               <ImageParameters
                 format={conversation.apiFormat}
+                modelId={conversation.modelId}
                 options={options}
                 onOption={onOption}
               />
@@ -101,6 +103,9 @@ function VideoParameters({
     const durationMin = numberCapability(capabilities, 'durationMin', 2)
     const durationMax = numberCapability(capabilities, 'durationMax', 15)
     const resolutions = stringCapability(capabilities, 'resolutions', ['480p', '720p'])
+    const defaultDuration = numberCapability(capabilities, 'defaultDuration', 5)
+    const frameMode = draft.byteMode === 'firstFrameToVideo' || draft.byteMode === 'firstLastFrameToVideo'
+    const adaptiveOnly = frameMode && capabilities?.frameAspectRatios !== undefined
     return (
       <ParameterGrid>
         <SelectField label="生成模式" value={draft.byteMode} values={['textToVideo', 'firstFrameToVideo', 'firstLastFrameToVideo', 'referenceToVideo']} labels={['文生视频', '首帧生视频', '首尾帧生视频', '参考素材生视频']} onChange={(value) => onDraft({ byteMode: value as VideoDraft['byteMode'] })} />
@@ -111,14 +116,14 @@ function VideoParameters({
           <FieldShell label="参考视频 URL"><Input value={draft.referenceVideoUrl} onChange={(event) => onDraft({ referenceVideoUrl: event.target.value })} /></FieldShell>
           <FieldShell label="参考音频 URL"><Input value={draft.referenceAudioUrl} onChange={(event) => onDraft({ referenceAudioUrl: event.target.value })} /></FieldShell>
         </> : null}
-        <NumberField label="时长（秒）" value={num(options, 'duration', 5) === -1 ? durationMin : num(options, 'duration', 5)} min={durationMin} max={durationMax} disabled={num(options, 'duration', 5) === -1} onChange={(value) => onOption('duration', value)} />
-        {capabilities?.automaticDuration === true ? <CheckField label="自动决定时长" checked={num(options, 'duration', 5) === -1} onChange={(value) => onOption('duration', value ? -1 : durationMin)} /> : null}
+        <NumberField label="时长（秒）" value={num(options, 'duration', defaultDuration) === -1 ? durationMin : num(options, 'duration', defaultDuration)} min={durationMin} max={durationMax} disabled={num(options, 'duration', defaultDuration) === -1} onChange={(value) => onOption('duration', value)} />
+        {capabilities?.automaticDuration === true ? <CheckField label="自动决定时长" checked={num(options, 'duration', defaultDuration) === -1} onChange={(value) => onOption('duration', value ? -1 : durationMin)} /> : null}
         <SelectField label="分辨率" value={text(options, 'resolution', '720p')} values={resolutions} onChange={(value) => onOption('resolution', value)} />
-        <SelectField label="画面比例" value={text(options, 'aspectRatio', 'adaptive')} values={['adaptive', '16:9', '9:16', '1:1', '4:3', '3:4', '21:9']} onChange={(value) => onOption('aspectRatio', value)} />
-        {capabilities?.generateAudio === true ? <CheckField label="生成同步音频" checked={bool(options, 'generateAudio', false)} onChange={(value) => onOption('generateAudio', value)} /> : null}
+        <SelectField label="画面比例" value={adaptiveOnly ? 'adaptive' : text(options, 'aspectRatio', 'adaptive')} values={adaptiveOnly ? ['adaptive'] : ['adaptive', '16:9', '9:16', '1:1', '4:3', '3:4', '21:9']} onChange={(value) => onOption('aspectRatio', value)} />
+        {capabilities?.generateAudio === true ? <CheckField label="生成同步音频" checked={bool(options, 'generateAudio', capabilities.defaultGenerateAudio === true)} onChange={(value) => onOption('generateAudio', value)} /> : null}
         <CheckField label="添加水印" checked={bool(options, 'watermark', false)} onChange={(value) => onOption('watermark', value)} />
         <CheckField label="返回尾帧" checked={bool(options, 'returnLastFrame', false)} onChange={(value) => onOption('returnLastFrame', value)} />
-        <NumberField label="Seed" value={num(options, 'seed', -1)} min={-1} max={4294967295} onChange={(value) => onOption('seed', value)} />
+        {capabilities?.seed === true ? <NumberField label="Seed" value={num(options, 'seed', -1)} min={-1} max={4294967295} onChange={(value) => onOption('seed', value)} /> : null}
         {capabilities?.cameraFixed === true ? <CheckField label="固定机位" checked={bool(options, 'cameraFixed', false)} onChange={(value) => onOption('cameraFixed', value)} /> : null}
         {capabilities?.webSearch === true ? <CheckField label="Web Search" checked={bool(options, 'webSearch', false)} onChange={(value) => onOption('webSearch', value)} /> : null}
         {capabilities?.serviceTierParameter === true ? <SelectField label="服务等级" value={text(options, 'serviceTier', 'default')} values={stringCapability(capabilities, 'serviceTiers', ['default'])} onChange={(value) => onOption('serviceTier', value)} /> : null}

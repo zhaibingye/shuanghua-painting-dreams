@@ -23,31 +23,15 @@ describe('ByteDance video capabilities', () => {
     ])
   })
 
-  it('keeps Seedance 2.0 fast at 720p unless the model id ends with -se', () => {
-    expect(byteDanceResolutionsForModel('doubao-seedance-2-0-fast-260128')).toEqual([
-      '480p',
-      '720p',
-    ])
-    expect(byteDanceResolutionsForModel('doubao-seedance-2-0-fast-260128-se')).toEqual([
-      '480p',
-      '720p',
-      '1080p',
-    ])
-  })
-
-  it('unlocks 1080p for any model whose id ends with -se', () => {
-    expect(byteDanceResolutionsForModel('doubao-seedance-1-0-lite-250128-se')).toEqual([
-      '480p',
-      '720p',
-      '1080p',
-    ])
-    expect(byteDanceResolutionsForModel('custom-endpoint-se')).toEqual(['480p', '720p', '1080p'])
-    expect(byteDanceResolutionsForModel('doubao-seedance-2-0-260128-se')).toEqual([
-      '480p',
-      '720p',
-      '1080p',
-      '4k',
-    ])
+  it.each([
+    ['doubao-seedance-2-5-260628', ['480p', '720p', '1080p']],
+    ['doubao-seedance-2-0-mini-260615', ['480p', '720p']],
+    ['doubao-seedance-2-0-fast-260128', ['480p', '720p']],
+    ['doubao-seedance-2-0-fast-260128-se', ['480p', '720p']],
+    ['doubao-seedance-1-0-lite-250128-se', ['480p', '720p']],
+    ['custom-endpoint-se', ['480p', '720p']],
+  ])('uses documented resolutions for %s', (modelId, resolutions) => {
+    expect(byteDanceResolutionsForModel(modelId)).toEqual(resolutions)
   })
 
   it('does not treat -se in the middle of a model id as special edition', () => {
@@ -60,7 +44,7 @@ describe('ByteDance video capabilities', () => {
   it('clamps unsupported resolutions back to 720p', () => {
     expect(clampByteDanceResolution('4k', 'doubao-seedance-2-0-260128')).toBe('4k')
     expect(clampByteDanceResolution('4k', 'doubao-seedance-2-0-fast-260128-se')).toBe('720p')
-    expect(clampByteDanceResolution('1080p', 'doubao-seedance-2-0-fast-260128-se')).toBe('1080p')
+    expect(clampByteDanceResolution('1080p', 'doubao-seedance-2-0-fast-260128-se')).toBe('720p')
   })
 })
 
@@ -71,7 +55,7 @@ describe('resolveModelCapabilities', () => {
       modelId: 'doubao-seedance-2-0-fast-260128-se',
       provider: undefined,
     })
-    expect(capabilities?.resolutions).toEqual(['480p', '720p', '1080p'])
+    expect(capabilities?.resolutions).toEqual(['480p', '720p'])
     expect(capabilities?.generateAudio).toBe(true)
   })
 

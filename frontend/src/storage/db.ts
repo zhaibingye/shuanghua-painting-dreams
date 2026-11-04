@@ -235,15 +235,18 @@ export async function updateConversation(
   patch: Partial<StoredConversation>,
 ): Promise<void> {
   const db = await database()
-  const current = await db.get('conversations', id)
-  if (!current) return
-  await db.put('conversations', {
-    ...current,
-    ...patch,
-    id,
-    updatedAt: patch.updatedAt ?? new Date().toISOString(),
-  })
-  notifyChange()
+  const transaction = db.transaction('conversations', 'readwrite')
+  const current = await transaction.store.get(id)
+  if (current) {
+    await transaction.store.put({
+      ...current,
+      ...patch,
+      id,
+      updatedAt: patch.updatedAt ?? new Date().toISOString(),
+    })
+  }
+  await transaction.done
+  if (current) notifyChange()
 }
 
 export async function deleteConversation(id: string): Promise<void> {
@@ -279,15 +282,18 @@ export async function updateMessage(
   patch: Partial<StoredMessage>,
 ): Promise<void> {
   const db = await database()
-  const current = await db.get('messages', id)
-  if (!current) return
-  await db.put('messages', {
-    ...current,
-    ...patch,
-    id,
-    updatedAt: new Date().toISOString(),
-  })
-  notifyChange()
+  const transaction = db.transaction('messages', 'readwrite')
+  const current = await transaction.store.get(id)
+  if (current) {
+    await transaction.store.put({
+      ...current,
+      ...patch,
+      id,
+      updatedAt: new Date().toISOString(),
+    })
+  }
+  await transaction.done
+  if (current) notifyChange()
 }
 
 export async function createTurn(options: {
@@ -376,15 +382,18 @@ export async function updateVideoTask(
   patch: Partial<StoredVideoTask>,
 ): Promise<void> {
   const db = await database()
-  const current = await db.get('videoTasks', id)
-  if (!current) return
-  await db.put('videoTasks', {
-    ...current,
-    ...patch,
-    id,
-    updatedAt: new Date().toISOString(),
-  })
-  notifyChange()
+  const transaction = db.transaction('videoTasks', 'readwrite')
+  const current = await transaction.store.get(id)
+  if (current) {
+    await transaction.store.put({
+      ...current,
+      ...patch,
+      id,
+      updatedAt: new Date().toISOString(),
+    })
+  }
+  await transaction.done
+  if (current) notifyChange()
 }
 
 export async function listActiveVideoTasks(): Promise<StoredVideoTask[]> {

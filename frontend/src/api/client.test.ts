@@ -141,3 +141,71 @@ describe('API client errors', () => {
     )
   })
 })
+
+
+describe('image stream lifecycle', () => {
+  it('completes immediately and releases an SSE connection that remains open', async () => {
+    const cancel = vi.fn()
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode(
+          'event: turn.completed\ndata: {"requestId":"req_done","usage":null,"providerState":null}\n\n',
+        ))
+      },
+      cancel,
+    })
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(stream)))
+    const onEvent = vi.fn()
+
+    await streamImageConversationTurn({
+      request, apiKey: 'key', signal: new AbortController().signal, onEvent,
+    })
+
+    expect(onEvent).toHaveBeenCalledOnce()
+    expect(cancel).toHaveBeenCalledOnce()
+    expect(stream.locked).toBe(false)
+  })
+
+  it('releases the connection when a consumer callback fails', async () => {
+    const cancel = vi.fn()
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode(
+          'event: text.delta\ndata: {"delta":"snow"}\n\n',
+        ))
+      },
+      cancel,
+    })
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(stream)))
+
+    await expect(streamImageConversationTurn({
+      request,
+      apiKey: 'key',
+      signal: new AbortController().signal,
+      onEvent: () => { throw new Error('storage failed') },
+    })).rejects.toThrow('storage failed')
+    expect(cancel).toHaveBeenCalledOnce()
+    expect(stream.locked).toBe(false)
+  })
+
+  it('handles a final event at EOF and fragmented UTF-8 with CRLF delimiters', async () => {
+    const bytes = new TextEncoder().encode([
+      'event: text.delta\r\ndata: {"delta":"雪花"}\r\n\r\n',
+      'event: turn.completed\r\ndata: {"requestId":"req_done","usage":null,"providerState":null}',
+    ].join(''))
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        for (const byte of bytes) controller.enqueue(new Uint8Array([byte]))
+        controller.close()
+      },
+    })
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(stream)))
+    const onEvent = vi.fn()
+    await streamImageConversationTurn({
+      request, apiKey: 'key', signal: new AbortController().signal, onEvent,
+    })
+    expect(onEvent.mock.calls[0]?.[0]).toEqual({ type: 'text.delta', delta: '雪花' })
+    expect(onEvent.mock.calls[1]?.[0].type).toBe('turn.completed')
+    expect(stream.locked).toBe(false)
+  })
+})

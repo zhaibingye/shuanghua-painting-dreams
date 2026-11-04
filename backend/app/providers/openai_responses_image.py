@@ -43,11 +43,15 @@ class OpenAIResponsesImageAdapter:
             "stream": True,
         }
 
+        if request.options.safety_identifier:
+            payload["safety_identifier"] = request.options.safety_identifier
+
         response_id: str | None = None
         completed_call_ids: set[str] = set()
         completed_count = 0
         text_emitted = False
         final_usage: Usage | None = None
+        response_completed = False
 
         async for event in self._transport.stream_sse(
             method="POST",
@@ -124,6 +128,7 @@ class OpenAIResponsesImageAdapter:
                 continue
 
             if event_type == "response.completed":
+                response_completed = True
                 response = data.get("response")
                 if not isinstance(response, Mapping):
                     response = data
@@ -153,7 +158,13 @@ class OpenAIResponsesImageAdapter:
                             if text:
                                 text_emitted = True
                                 yield ImageStreamChunk(kind="text_delta", text_delta=text)
+                break
 
+        if not response_completed:
+            raise invalid_response_error(
+                self.api_format,
+                "OpenAI Responses 流在完整响应完成前意外结束。",
+            )
         if completed_count == 0:
             raise invalid_response_error(
                 self.api_format,
@@ -215,15 +226,12 @@ class OpenAIResponsesImageAdapter:
             "quality": options.quality,
             "size": options.size,
             "output_format": options.output_format,
-            **(
-                {"output_compression": options.output_compression}
-                if options.output_format != "png"
-                else {}
-            ),
             "background": options.background,
             "partial_images": options.partial_images,
             "moderation": options.moderation,
         }
+        if options.output_format in {"jpeg", "webp"}:
+            tool["output_compression"] = options.output_compression
         if options.input_fidelity != "auto":
             tool["input_fidelity"] = options.input_fidelity
         if options.image_model != "auto":

@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     environment: str = Field(default="development", validation_alias="SHUANGHUA_ENV")
     host: str = "127.0.0.1"
     port: int = Field(
-        default=3001,
+        default=3002,
         ge=1,
         le=65535,
         validation_alias=AliasChoices("PORT", "SHUANGHUA_PORT"),

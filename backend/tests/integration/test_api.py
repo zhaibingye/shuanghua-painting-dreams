@@ -25,6 +25,8 @@ async def test_health_and_metadata() -> None:
     openai_images = next(
         provider for provider in payload["providers"] if provider["apiFormat"] == "openaiImage"
     )
+    assert all(p["defaultBaseUrl"] == "https://www.shapi.vip" for p in payload["providers"])
+    assert openai_images["defaultModelId"] == "gpt-image-2.5-sunburst"
     assert openai_images["genericCapabilities"] == {
         "textToImage": True,
         "imageEditing": True,
@@ -46,6 +48,14 @@ async def test_health_and_metadata() -> None:
     byte_dance = next(
         provider for provider in payload["providers"] if provider["apiFormat"] == "byteDanceVideo"
     )
+    assert byte_dance["defaultModelId"] == "doubao-seedance-2-5-260628"
+    assert byte_dance["defaultOptions"]["duration"] == -1
+    assert byte_dance["defaultOptions"]["generateAudio"] is True
+    assert byte_dance["knownModels"]["doubao-seedance-2-5-260628"]["resolutions"] == [
+        "480p",
+        "720p",
+        "1080p",
+    ]
     assert byte_dance["knownModels"]["doubao-seedance-2-0-260128"]["resolutions"] == [
         "480p",
         "720p",

@@ -31,7 +31,7 @@ describe('buildVideoGenerationRequest resolution', () => {
     expect(request.options?.resolution).toBe('4k')
   })
 
-  it('sends 1080p for Seedance 2.0 fast special edition', () => {
+  it('does not infer 1080p support from a custom suffix', () => {
     const request = buildVideoGenerationRequest({
       conversation: conversation('doubao-seedance-2-0-fast-260128-se'),
       prompt: 'snow',
@@ -41,7 +41,7 @@ describe('buildVideoGenerationRequest resolution', () => {
     })
     expect(request.apiFormat).toBe('byteDanceVideo')
     if (request.apiFormat !== 'byteDanceVideo') return
-    expect(request.options?.resolution).toBe('1080p')
+    expect(request.options?.resolution).toBe('720p')
   })
 
   it('falls back when the current model cannot use 4k or 1080p', () => {
@@ -66,5 +66,38 @@ describe('buildVideoGenerationRequest resolution', () => {
     expect(lite.apiFormat).toBe('byteDanceVideo')
     if (lite.apiFormat !== 'byteDanceVideo') return
     expect(lite.options?.resolution).toBe('720p')
+  })
+})
+
+
+describe('Seedance model defaults', () => {
+  it.each([
+    ['doubao-seedance-2-5-260628', -1, '720p', true],
+    ['doubao-seedance-2-0-260128', 5, '720p', true],
+    ['doubao-seedance-1-0-pro-250528', 5, '1080p', false],
+  ] as const)('builds valid defaults for %s', (modelId, duration, resolution, generateAudio) => {
+    const request = buildVideoGenerationRequest({
+      conversation: conversation(modelId), prompt: 'snow', draft: defaultVideoDraft,
+      images: [], turnOptions: {},
+    })
+    expect(request.options).toMatchObject({ duration, resolution, generateAudio })
+  })
+
+  it('preserves explicit audio and duration choices and fixes stale 4k for 2.5', () => {
+    const request = buildVideoGenerationRequest({
+      conversation: conversation('doubao-seedance-2-5-260628'), prompt: 'snow',
+      draft: defaultVideoDraft, images: [],
+      turnOptions: { duration: 30, resolution: '4k', generateAudio: false },
+    })
+    expect(request.options).toMatchObject({ duration: 30, resolution: '720p', generateAudio: false })
+  })
+
+  it('uses adaptive ratio for 2.5 frame generation', () => {
+    const request = buildVideoGenerationRequest({
+      conversation: conversation('doubao-seedance-2-5-260628'), prompt: 'snow',
+      draft: { ...defaultVideoDraft, byteMode: 'firstFrameToVideo', firstFrameUrl: 'https://example.com/first.png' },
+      images: [], turnOptions: { aspectRatio: '16:9' },
+    })
+    expect(request.options).toMatchObject({ aspectRatio: 'adaptive' })
   })
 })

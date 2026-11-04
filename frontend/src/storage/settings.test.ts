@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import {
+  apiFormats,
   defaultSettings,
   effectiveKey,
   hasAnyKey,
@@ -74,7 +75,35 @@ describe('settings storage', () => {
     settings.formats.openaiImage.keyOverride = ''
     saveSettings(settings)
     const loaded = loadSettings()
-    expect(loaded.formats.openaiImage.models).toEqual(['gpt-image-2', 'custom-image'])
+    expect(loaded.formats.openaiImage.models).toEqual(['gpt-image-2.5-sunburst', 'custom-image'])
     expect(effectiveKey(loaded, 'openaiImage')).toBe('')
   })
+})
+
+
+it('defaults to Image API with the configured model and canonical URL for every provider', () => {
+  const settings = loadSettings()
+  expect(settings.formats.byteDanceVideo).toMatchObject({
+    modelId: 'doubao-seedance-2-5-260628',
+    defaults: { duration: -1, resolution: '720p', generateAudio: true, aspectRatio: 'adaptive' },
+  })
+  expect(settings.activeImageFormat).toBe('openaiImage')
+  expect(settings.formats.openaiImage.modelId).toBe('gpt-image-2.5-sunburst')
+  for (const format of apiFormats) {
+    expect(settings.formats[format].baseUrl).toBe('https://www.shapi.vip')
+  }
+})
+
+it('preserves saved custom connections and protocol choices', () => {
+  const settings = structuredClone(defaultSettings)
+  settings.activeImageFormat = 'openaiResponsesImage'
+  settings.formats.openaiImage = {
+    ...settings.formats.openaiImage,
+    baseUrl: 'https://custom.example/proxy',
+    modelId: 'custom-model',
+    models: ['custom-model'],
+    keyOverride: 'custom-key',
+  }
+  saveSettings(settings)
+  expect(loadSettings()).toEqual(settings)
 })

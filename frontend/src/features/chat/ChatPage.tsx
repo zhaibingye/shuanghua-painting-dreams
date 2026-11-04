@@ -1,4 +1,4 @@
-import { Menu, SlidersHorizontal } from 'lucide-react'
+import { ArrowDown, Menu, SlidersHorizontal } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -12,6 +12,7 @@ import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { Select } from '../../components/ui/Field'
 import { Spinner } from '../../components/ui/Spinner'
+import { useChatScroll } from '../../hooks/use-chat-scroll'
 import { useConversation, useMessages } from '../../hooks/use-history'
 import { useProviderMetadata } from '../../hooks/use-provider-metadata'
 import {
@@ -42,7 +43,11 @@ import {
   type DraftImage,
 } from './image-turn'
 import { MessageList } from './MessageList'
-import { clampByteDanceResolution, resolveModelCapabilities } from './model-capabilities'
+import { normalizeByteDanceOptions, resolveModelCapabilities } from './model-capabilities'
+import {
+  openAIResponsesImageModel,
+  openAIImageSizeError,
+} from './openai-image-options'
 import { ParametersDialog } from './ParametersDialog'
 import {
   buildVideoExtensionRequest,
@@ -70,6 +75,7 @@ export function ChatPage({ onOpenSidebar }: { onOpenSidebar: () => void }) {
   const [imagePreparing, setImagePreparing] = useState(false)
   const imagePreparingRef = useRef(false)
   const [videoBusy, setVideoBusy] = useState(false)
+  const videoBusyRef = useRef(false)
   const [maskDataUrl, setMaskDataUrl] = useState<string | null>(null)
   const [maskSource, setMaskSource] = useState<{
     url: string
@@ -77,7 +83,6 @@ export function ChatPage({ onOpenSidebar }: { onOpenSidebar: () => void }) {
     height: number
     ownedUrl: boolean
   } | null>(null)
-  const scrollRef = useRef<HTMLDivElement>(null)
   const activeImageTask = useImageTaskStore((state) =>
     taskForConversation(state.tasks, conversationId ?? ''),
   )
@@ -88,6 +93,7 @@ export function ChatPage({ onOpenSidebar }: { onOpenSidebar: () => void }) {
 
   useEffect(() => {
     conversationIdRef.current = conversationId
+    return () => { conversationIdRef.current = undefined }
   }, [conversationId])
 
   const currentConversationId = conversation?.id
@@ -110,8 +116,7 @@ export function ChatPage({ onOpenSidebar }: { onOpenSidebar: () => void }) {
 
   useEffect(() => {
     if (currentApiFormat !== 'byteDanceVideo' || !currentModelId) return
-    setTurnOptions((current) => ({ ...current,
-      resolution: clampByteDanceResolution(current.resolution, currentModelId) }))
+    setTurnOptions((current) => normalizeByteDanceOptions(current, currentModelId))
   }, [currentApiFormat, currentConversationId, currentModelId])
 
   useEffect(
@@ -128,11 +133,12 @@ export function ChatPage({ onOpenSidebar }: { onOpenSidebar: () => void }) {
     [maskSource],
   )
 
-  useEffect(() => {
-    const element = scrollRef.current
-    if (!element) return
-    element.scrollTo({ top: element.scrollHeight, behavior: 'smooth' })
-  }, [activeImageTask?.partials, activeImageTask?.text, messages.length])
+  const scrollRevision = useMemo(() => ({
+    messages, partials: activeImageTask?.partials, text: activeImageTask?.text,
+  }), [messages, activeImageTask?.partials, activeImageTask?.text])
+  const { scrollRef, contentRef, atBottom, scrollToBottom } = useChatScroll(
+    conversationId, scrollRevision, !loading && Boolean(conversation),
+  )
 
   const capabilities = useMemo(
     () =>
@@ -170,6 +176,16 @@ export function ChatPage({ onOpenSidebar }: { onOpenSidebar: () => void }) {
       toast.error('当前 API 格式没有可用的 Key，请先在设置中填写。')
       return
     }
+    if (conversation.apiFormat === 'openaiImage' || conversation.apiFormat === 'openaiResponsesImage') {
+      const imageModel = conversation.apiFormat === 'openaiImage' ? conversation.modelId : openAIResponsesImageModel(turnOptions)
+      const error = openAIImageSizeError(typeof turnOptions.size === 'string' ? turnOptions.size : 'auto', imageModel)
+      if (error) {
+        toast.error(error)
+        setParametersOpen(true)
+        return
+      }
+    }
+    scrollToBottom()
     if (conversation.mediaKind === 'image') void submitImage(conversation, messages, key)
     else void submitVideo(conversation, key)
   }
@@ -189,7 +205,9 @@ export function ChatPage({ onOpenSidebar }: { onOpenSidebar: () => void }) {
       return
     }
 
-    if (imagePreparingRef.current) return
+    if (imagePreparingRef.current || taskForConversation(
+      useImageTaskStore.getState().tasks, currentConversation.id,
+    )) return
     imagePreparingRef.current = true
     setImagePreparing(true)
     const draftImages = images
@@ -276,6 +294,7 @@ export function ChatPage({ onOpenSidebar }: { onOpenSidebar: () => void }) {
   }
 
   const submitVideo = async (currentConversation: typeof conversation, apiKey: string) => {
+    if (videoBusyRef.current) return
     const validation = validateVideoTurn({
       conversation: currentConversation,
       prompt,
@@ -290,108 +309,111 @@ export function ChatPage({ onOpenSidebar }: { onOpenSidebar: () => void }) {
     const userMessageId = `msg_${crypto.randomUUID()}`
     const assistantMessageId = `msg_${crypto.randomUUID()}`
     const taskId = `video_${crypto.randomUUID()}`
-    const inputAssets = images.map((draft) =>
-      draftToStoredAsset({ draft, conversationId: currentConversation.id, messageId: userMessageId }),
-    )
-    const request =
-      videoDraft.operation === 'extension'
-        ? buildVideoExtensionRequest({
-            conversation: currentConversation,
-            prompt,
-            draft: videoDraft,
-            turnOptions,
-          })
-        : buildVideoGenerationRequest({
-            conversation: currentConversation,
-            prompt,
-            draft: videoDraft,
-            images,
-            turnOptions,
-          })
-    const userMessage: StoredMessage = {
-      id: userMessageId,
-      conversationId: currentConversation.id,
-      mediaKind: 'video',
-      role: 'user',
-      status: 'succeeded',
-      text: prompt.trim(),
-      attachmentAssetIds: inputAssets.map((asset) => asset.id),
-      outputAssetIds: [],
-      providerState: null,
-      optionsSnapshot: turnOptions,
-      taskId: null,
-      error: null,
-      createdAt: now,
-      updatedAt: now,
-    }
-    const assistantMessage: StoredMessage = {
-      id: assistantMessageId,
-      conversationId: currentConversation.id,
-      mediaKind: 'video',
-      role: 'assistant',
-      status: 'pending',
-      text: '',
-      attachmentAssetIds: [],
-      outputAssetIds: [],
-      providerState: null,
-      optionsSnapshot: turnOptions,
-      taskId,
-      error: null,
-      createdAt: new Date(Date.now() + 1).toISOString(),
-      updatedAt: now,
-    }
-    const task: StoredVideoTask = {
-      id: taskId,
-      conversationId: currentConversation.id,
-      userMessageId,
-      assistantMessageId,
-      apiFormat: currentConversation.apiFormat as StoredVideoTask['apiFormat'],
-      operation:
-        videoDraft.operation === 'extension'
-          ? 'extension'
-          : videoDraft.parentTaskId && currentConversation.apiFormat === 'byteDanceVideo'
-            ? 'byteDanceContinuation'
-            : 'generation',
-      upstreamTaskId: null,
-      parentTaskId: videoDraft.parentTaskId,
-      baseUrl: currentConversation.baseUrl,
-      modelId: currentConversation.modelId,
-      prompt: prompt.trim(),
-      requestSnapshot: {
-        operation: videoDraft.operation,
-        prompt: prompt.trim(),
-        options: turnOptions,
-        videoDraft,
-        inputAssetIds: inputAssets.map((asset) => asset.id),
-      },
-      status: 'submitting',
-      previousStatus: null,
-      progress: null,
-      videoUrl: null,
-      lastFrameUrl: null,
-      duration: null,
-      error: null,
-      pollFailures: 0,
-      createdAt: now,
-      updatedAt: now,
-      lastPolledAt: null,
-    }
-    await createTurn({
-      conversation: {
-        ...currentConversation,
-        title: messages.length === 0 ? titleFromPrompt(prompt || '视频任务') : currentConversation.title,
-        updatedAt: now,
-      },
-      userMessage,
-      assistantMessage,
-      inputAssets,
-      videoTask: task,
-    })
+    videoBusyRef.current = true
     setVideoBusy(true)
-    setPrompt('')
-    revokeDraftImages(images)
-    setImages([])
     try {
+      const inputAssets = images.map((draft) =>
+        draftToStoredAsset({ draft, conversationId: currentConversation.id, messageId: userMessageId }),
+      )
+      const request =
+        videoDraft.operation === 'extension'
+          ? buildVideoExtensionRequest({
+              conversation: currentConversation,
+              prompt,
+              draft: videoDraft,
+              turnOptions,
+            })
+          : buildVideoGenerationRequest({
+              conversation: currentConversation,
+              prompt,
+              draft: videoDraft,
+              images,
+              turnOptions,
+            })
+      const userMessage: StoredMessage = {
+        id: userMessageId,
+        conversationId: currentConversation.id,
+        mediaKind: 'video',
+        role: 'user',
+        status: 'succeeded',
+        text: prompt.trim(),
+        attachmentAssetIds: inputAssets.map((asset) => asset.id),
+        outputAssetIds: [],
+        providerState: null,
+        optionsSnapshot: turnOptions,
+        taskId: null,
+        error: null,
+        createdAt: now,
+        updatedAt: now,
+      }
+      const assistantMessage: StoredMessage = {
+        id: assistantMessageId,
+        conversationId: currentConversation.id,
+        mediaKind: 'video',
+        role: 'assistant',
+        status: 'pending',
+        text: '',
+        attachmentAssetIds: [],
+        outputAssetIds: [],
+        providerState: null,
+        optionsSnapshot: turnOptions,
+        taskId,
+        error: null,
+        createdAt: new Date(Date.now() + 1).toISOString(),
+        updatedAt: now,
+      }
+      const task: StoredVideoTask = {
+        id: taskId,
+        conversationId: currentConversation.id,
+        userMessageId,
+        assistantMessageId,
+        apiFormat: currentConversation.apiFormat as StoredVideoTask['apiFormat'],
+        operation:
+          videoDraft.operation === 'extension'
+            ? 'extension'
+            : videoDraft.parentTaskId && currentConversation.apiFormat === 'byteDanceVideo'
+              ? 'byteDanceContinuation'
+              : 'generation',
+        upstreamTaskId: null,
+        parentTaskId: videoDraft.parentTaskId,
+        baseUrl: currentConversation.baseUrl,
+        modelId: currentConversation.modelId,
+        prompt: prompt.trim(),
+        requestSnapshot: {
+          operation: videoDraft.operation,
+          prompt: prompt.trim(),
+          options: turnOptions,
+          videoDraft,
+          inputAssetIds: inputAssets.map((asset) => asset.id),
+        },
+        status: 'submitting',
+        previousStatus: null,
+        progress: null,
+        videoUrl: null,
+        lastFrameUrl: null,
+        duration: null,
+        error: null,
+        pollFailures: 0,
+        createdAt: now,
+        updatedAt: now,
+        lastPolledAt: null,
+      }
+      await createTurn({
+        conversation: {
+          ...currentConversation,
+          title: messages.length === 0 ? titleFromPrompt(prompt || '视频任务') : currentConversation.title,
+          updatedAt: now,
+        },
+        userMessage,
+        assistantMessage,
+        inputAssets,
+        videoTask: task,
+      })
+      revokeDraftImages(images)
+      if (conversationIdRef.current === currentConversation.id) {
+        setPrompt('')
+        setImages([])
+      }
       const response =
         videoDraft.operation === 'extension'
           ? await extendVideo(request as ReturnType<typeof buildVideoExtensionRequest>, apiKey)
@@ -405,7 +427,9 @@ export function ChatPage({ onOpenSidebar }: { onOpenSidebar: () => void }) {
       for (const voiceId of videoDraft.voiceIds.split(',').map((item) => item.trim()).filter(Boolean)) {
         addRecentVoiceId(voiceId)
       }
-      setVideoDraft({ ...defaultVideoDraft })
+      if (conversationIdRef.current === currentConversation.id) {
+        setVideoDraft({ ...defaultVideoDraft })
+      }
       toast.success('视频任务已提交')
     } catch (error) {
       const message = error instanceof Error ? error.message : '视频任务提交失败'
@@ -414,6 +438,7 @@ export function ChatPage({ onOpenSidebar }: { onOpenSidebar: () => void }) {
       await updateMessage(assistantMessageId, { status: 'failed', error: { code, message } })
       toast.error(message)
     } finally {
+      videoBusyRef.current = false
       setVideoBusy(false)
     }
   }
@@ -480,23 +505,25 @@ export function ChatPage({ onOpenSidebar }: { onOpenSidebar: () => void }) {
     (Boolean(conversation.activeImageAssetId) || images[0]?.kind === 'file')
 
   return (
-    <div className="relative flex h-full min-w-0 flex-col bg-[var(--ds-bg-base)]">
-      <header className="flex min-h-16 shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b border-[var(--ds-border-light)] px-3 py-3 sm:h-16 sm:flex-nowrap sm:px-5 sm:py-0">
+    <div className="chat-workspace">
+      <header className="workspace-header">
         <Button size="icon" variant="ghost" className="lg:hidden" icon={<Menu className="size-5" />} aria-label="打开侧边栏" onClick={onOpenSidebar} />
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-sm font-semibold">{conversation.title}</h1>
           <p className="truncate text-xs text-[var(--ds-text-caption)]">{apiFormatLabels[conversation.apiFormat]} · {conversation.modelId}</p>
         </div>
-        <Select aria-label="当前模型" className="order-last w-full sm:order-none sm:max-w-44" value={conversation.modelId} disabled={busy} onChange={(event) => {
+        <Select aria-label="当前模型" className="workspace-model" value={conversation.modelId} disabled={busy} onChange={(event) => {
           void updateConversation(conversation.id, { modelId: event.target.value }).catch(() => toast.error('模型切换失败'))
         }}>
           {[...new Set([conversation.modelId, ...settings.formats[conversation.apiFormat].models])].map((model) => <option key={model} value={model}>{model}</option>)}
         </Select>
-        <Badge tone={key ? 'success' : 'warning'}>{key ? 'Key 已就绪' : '缺少 Key'}</Badge>
+        <span className="key-status"><Badge tone={key ? 'success' : 'warning'}>{key ? 'Key 已就绪' : '缺少 Key'}</Badge></span>
         <Button size="sm" variant="ghost" icon={<SlidersHorizontal className="size-4" />} onClick={() => setParametersOpen(true)}>参数</Button>
       </header>
 
-      <div ref={scrollRef} className="ds-scroll min-h-0 flex-1 overflow-y-auto">
+      <div className="message-region">
+      <div ref={scrollRef} className="message-scroll ds-scroll" aria-label="对话消息">
+        <div ref={contentRef}>
         <MessageList
           conversation={conversation}
           messages={messages}
@@ -504,9 +531,14 @@ export function ChatPage({ onOpenSidebar }: { onOpenSidebar: () => void }) {
           onMaskImage={openMaskForAsset}
           onContinueVideo={continueVideo}
         />
+        </div>
+      </div>
+      {!atBottom ? <Button className="jump-to-latest" variant="secondary" size="sm" icon={<ArrowDown className="size-4" />} onClick={scrollToBottom}>回到最新消息</Button> : null}
       </div>
 
       <ChatComposer
+        key={conversation.id}
+        canStop={Boolean(activeImageTask)}
         conversation={conversation}
         prompt={prompt}
         images={images}

@@ -45,7 +45,7 @@ export const defaultSettings: StoredSettings = {
   schemaVersion: 3,
   appearance: { theme: 'system' },
   globalApiKey: '',
-  activeImageFormat: 'openaiResponsesImage',
+  activeImageFormat: 'openaiImage',
   activeVideoFormat: 'byteDanceVideo',
   recentVoiceIds: [],
   formats: Object.fromEntries(catalog.providers.map((provider): [string, FormatSettings] => [provider.apiFormat, {

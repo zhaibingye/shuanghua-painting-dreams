@@ -129,16 +129,20 @@ class XAIVideoAdapter:
         output = None
         task_error = None
         video_data = data.get("video")
-        if status == TaskStatus.SUCCEEDED and isinstance(video_data, Mapping):
+        if status == TaskStatus.SUCCEEDED:
+            if not isinstance(video_data, Mapping):
+                raise invalid_response_error(self.api_format, "成功任务缺少 video 视频结果。")
             respects_moderation = video_data.get("respect_moderation")
             video_url = video_data.get("url")
-            if respects_moderation is False or not isinstance(video_url, str) or not video_url:
+            if respects_moderation is False:
                 status = TaskStatus.FAILED
                 task_error = VideoTaskError(
                     code="moderationBlocked",
                     message="生成视频未通过上游安全审核。",
                 )
             else:
+                if not isinstance(video_url, str) or not video_url:
+                    raise invalid_response_error(self.api_format, "成功任务缺少视频 URL。")
                 output = VideoOutput(
                     video_url=video_url,
                     duration=_optional_float(video_data.get("duration")),

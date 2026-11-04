@@ -104,7 +104,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
       ].slice(0, 20)
       return { settings: { ...state.settings, recentVoiceIds } }
     }),
-  resetSettings: () => ({ settings: structuredClone(defaultSettings) }),
+  resetSettings: () => set({ settings: structuredClone(defaultSettings) }),
 }))
 
 useSettingsStore.subscribe((state) => {

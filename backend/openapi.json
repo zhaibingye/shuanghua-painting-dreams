@@ -764,10 +764,10 @@
         "properties": {
           "duration": {
             "type": "integer",
-            "maximum": 15.0,
+            "maximum": 30.0,
             "minimum": -1.0,
             "title": "Duration",
-            "default": 5
+            "default": -1
           },
           "resolution": {
             "type": "string",
@@ -797,7 +797,7 @@
           "generateAudio": {
             "type": "boolean",
             "title": "Generateaudio",
-            "default": false
+            "default": true
           },
           "watermark": {
             "type": "boolean",
@@ -1382,7 +1382,7 @@
             "minLength": 3,
             "title": "尺寸",
             "description": "auto 或 WIDTHxHEIGHT",
-            "default": "auto"
+            "default": "1024x1024"
           },
           "quality": {
             "type": "string",
@@ -1424,6 +1424,19 @@
             ],
             "title": "背景",
             "default": "auto"
+          },
+          "safetyIdentifier": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "安全标识（可选）",
+            "description": "最多 128 字符；请使用用户标识的哈希值。"
           },
           "count": {
             "type": "integer",
@@ -1584,7 +1597,7 @@
             "minLength": 3,
             "title": "尺寸",
             "description": "auto 或 WIDTHxHEIGHT",
-            "default": "auto"
+            "default": "1024x1024"
           },
           "quality": {
             "type": "string",
@@ -1626,6 +1639,19 @@
             ],
             "title": "背景",
             "default": "auto"
+          },
+          "safetyIdentifier": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "安全标识（可选）",
+            "description": "最多 128 字符；请使用用户标识的哈希值。"
           },
           "count": {
             "type": "integer",
@@ -1663,7 +1689,7 @@
             "minLength": 3,
             "title": "尺寸",
             "description": "auto 或 WIDTHxHEIGHT",
-            "default": "auto"
+            "default": "1024x1024"
           },
           "quality": {
             "type": "string",
@@ -1705,6 +1731,19 @@
             ],
             "title": "背景",
             "default": "auto"
+          },
+          "safetyIdentifier": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "安全标识（可选）",
+            "description": "最多 128 字符；请使用用户标识的哈希值。"
           },
           "count": {
             "type": "integer",
@@ -1855,7 +1894,6 @@
             "maxLength": 32,
             "minLength": 3,
             "title": "尺寸",
-            "description": "auto 或 WIDTHxHEIGHT",
             "default": "auto"
           },
           "quality": {
@@ -1899,13 +1937,26 @@
             "title": "背景",
             "default": "auto"
           },
+          "safetyIdentifier": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "安全标识（可选）",
+            "description": "最多 128 字符；请使用用户标识的哈希值。"
+          },
           "imageModel": {
             "type": "string",
             "maxLength": 256,
             "minLength": 1,
             "title": "生图工具模型",
             "description": "auto 使用上游默认值，也可填写 gpt-image-2 等生图模型 ID。",
-            "default": "auto"
+            "default": "gpt-image-2.5-sunburst"
           },
           "action": {
             "type": "string",

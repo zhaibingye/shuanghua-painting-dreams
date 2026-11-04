@@ -1,5 +1,6 @@
 import pytest
 from app.application.image_service import ImageService
+from app.domain.errors import ApplicationError
 from app.infrastructure.config import Settings
 from app.infrastructure.safe_http import DownloadedContent, UpstreamResponse, UpstreamSseEvent
 from app.providers.google_gemini_image import GoogleGeminiImageAdapter
@@ -19,7 +20,8 @@ from tests.conftest import FakeTransport
 
 
 @pytest.mark.asyncio
-async def test_openai_generation_payload_and_response(settings: Settings) -> None:
+@pytest.mark.parametrize("model_id", ["gpt-image-2", "gpt-image-2.5-sunburst"])
+async def test_openai_generation_payload_and_response(settings: Settings, model_id: str) -> None:
     transport = FakeTransport(
         [
             UpstreamResponse(
@@ -38,7 +40,7 @@ async def test_openai_generation_payload_and_response(settings: Settings) -> Non
         {
             "apiFormat": "openaiImage",
             "baseUrl": "https://shapi.vip/proxy",
-            "modelId": "gpt-image-2",
+            "modelId": model_id,
             "prompt": "snow flower",
             "options": {"count": 2, "quality": "high"},
         }
@@ -50,8 +52,10 @@ async def test_openai_generation_payload_and_response(settings: Settings) -> Non
     assert str(call.url) == "https://shapi.vip/proxy/v1/images/generations"
     assert call.headers["Authorization"] == "Bearer secret"
     assert call.payload is not None
+    assert call.payload["model"] == model_id
     assert "response_format" not in call.payload
     assert call.payload["n"] == 2
+    assert "output_compression" not in call.payload
     assert result.images[0].base64_data == "aW1hZ2U="
     assert result.usage is not None and result.usage.total_tokens == 3
 
@@ -180,9 +184,16 @@ async def test_openai_image_stream_emits_partial_and_final(settings: Settings) -
         {
             "apiFormat": "openaiImage",
             "baseUrl": "https://shapi.vip",
-            "modelId": "gpt-image-2",
+            "modelId": "gpt-image-2.5-sunburst",
             "prompt": "snow",
-            "options": {"partialImages": 2},
+            "options": {
+                "partialImages": 2,
+                "quality": "max",
+                "size": "3840x2160",
+                "outputFormat": "webp",
+                "outputCompression": 80,
+                "safetyIdentifier": "hashed-user",
+            },
         }
     )
 
@@ -192,6 +203,11 @@ async def test_openai_image_stream_emits_partial_and_final(settings: Settings) -
     assert transport.calls[0].payload is not None
     assert transport.calls[0].payload["stream"] is True
     assert transport.calls[0].payload["partial_images"] == 2
+    assert transport.calls[0].payload["quality"] == "max"
+    assert transport.calls[0].payload["size"] == "3840x2160"
+    assert transport.calls[0].payload["output_compression"] == 80
+    assert transport.calls[0].payload["safety_identifier"] == "hashed-user"
+    assert "response_format" not in transport.calls[0].payload
     assert chunks[1].image is not None and chunks[1].image.base64_data == "ZmluYWw="
 
 
@@ -216,7 +232,7 @@ async def test_openai_image_turn_with_reference_streams_edit(
         {
             "apiFormat": "openaiImage",
             "baseUrl": "https://shapi.vip",
-            "modelId": "gpt-image-2",
+            "modelId": "gpt-image-2.5-flare",
             "prompt": "make it blue",
             "sourceImages": [
                 {
@@ -225,7 +241,13 @@ async def test_openai_image_turn_with_reference_streams_edit(
                     "filename": "source.png",
                 }
             ],
-            "options": {"partialImages": 3, "inputFidelity": "auto"},
+            "options": {
+                "partialImages": 3,
+                "inputFidelity": "auto",
+                "quality": "max",
+                "moderation": "low",
+                "safetyIdentifier": "hashed-user",
+            },
         }
     )
 
@@ -238,6 +260,12 @@ async def test_openai_image_turn_with_reference_streams_edit(
     assert ("stream", "true") in call.form.fields
     assert ("partial_images", "3") in call.form.fields
     assert not any(name == "input_fidelity" for name, _ in call.form.fields)
+    assert ("quality", "max") in call.form.fields
+    assert ("moderation", "low") in call.form.fields
+    assert ("safety_identifier", "hashed-user") in call.form.fields
+    assert not any(
+        name in {"response_format", "output_compression"} for name, _ in call.form.fields
+    )
     assert len(call.form.files) == 1
     assert call.form.files[0].field_name == "image"
     assert call.form.files[0].filename == "source.png"
@@ -292,7 +320,7 @@ async def test_openai_image_edit_non_streaming_uses_multipart(settings: Settings
         {
             "apiFormat": "openaiImage",
             "baseUrl": "https://shapi.vip",
-            "modelId": "gpt-image-2",
+            "modelId": "gpt-image-1.5",
             "prompt": "combine",
             "images": [
                 {"kind": "dataUrl", "dataUrl": "data:image/png;base64,iVBORw0KGgo="},
@@ -400,7 +428,14 @@ async def test_openai_responses_is_stateless_and_replays_image_calls(
                     },
                 },
             ],
-            "options": {"partialImages": 3, "imageModel": "gpt-image-2", "action": "edit"},
+            "options": {
+                "partialImages": 3,
+                "imageModel": "gpt-image-2.5-flare",
+                "action": "edit",
+                "quality": "max",
+                "safetyIdentifier": "hashed-user",
+                "size": "2160x3840",
+            },
         }
     )
 
@@ -411,7 +446,11 @@ async def test_openai_responses_is_stateless_and_replays_image_calls(
     assert payload["store"] is False
     assert "previous_response_id" not in payload
     assert payload["tools"][0]["partial_images"] == 3
-    assert payload["tools"][0]["model"] == "gpt-image-2"
+    assert payload["tools"][0]["model"] == "gpt-image-2.5-flare"
+    assert payload["tools"][0]["quality"] == "max"
+    assert payload["tools"][0]["size"] == "2160x3840"
+    assert "output_compression" not in payload["tools"][0]
+    assert payload["safety_identifier"] == "hashed-user"
     assert payload["tools"][0]["action"] == "edit"
     assert payload["input"][1] == {
         "type": "image_generation_call",
@@ -424,3 +463,35 @@ async def test_openai_responses_is_stateless_and_replays_image_calls(
         "responseId": "resp_new",
         "store": False,
     }
+
+
+async def test_responses_rejects_truncated_stream_after_image_call(settings: Settings) -> None:
+    transport = FakeTransport(
+        stream_events=[
+            UpstreamSseEvent(
+                event="response.output_item.done",
+                data={
+                    "output_index": 0,
+                    "item": {
+                        "id": "ig_partial_response",
+                        "type": "image_generation_call",
+                        "result": "aW1hZ2U=",
+                    },
+                },
+            )
+        ]
+    )
+    adapter = OpenAIResponsesImageAdapter(transport, settings)
+    request = OpenAIResponsesImageTurnRequest.model_validate(
+        {
+            "apiFormat": "openaiResponsesImage",
+            "baseUrl": "https://www.shapi.vip",
+            "modelId": "gpt-5.6-luna",
+            "prompt": "snow",
+        }
+    )
+    chunks = []
+    with pytest.raises(ApplicationError, match="完整响应完成前"):
+        async for chunk in adapter.stream_turn(request, "key"):
+            chunks.append(chunk)
+    assert [chunk.kind for chunk in chunks] == ["completed"]

@@ -3,6 +3,7 @@ from typing import Annotated, Literal, Self
 from pydantic import Field, field_validator, model_validator
 
 from app.domain.enums import ApiFormat
+from app.domain.openai_images import validate_image_size
 from app.schemas.common import (
     ApiModel,
     DataUrlImageAsset,
@@ -41,7 +42,7 @@ class GeminiImageOptions(ApiModel):
 
 class OpenAIImageOutputOptions(ApiModel):
     size: str = Field(
-        default="auto",
+        default="1024x1024",
         min_length=3,
         max_length=32,
         title="尺寸",
@@ -54,15 +55,17 @@ class OpenAIImageOutputOptions(ApiModel):
     output_compression: int = Field(default=100, ge=0, le=100, title="输出压缩")
     background: Literal["auto", "opaque", "transparent"] = Field(default="auto", title="背景")
 
+    safety_identifier: str | None = Field(
+        default=None,
+        max_length=128,
+        title="安全标识（可选）",
+        description="最多 128 字符；请使用用户标识的哈希值。",
+    )
+
     @field_validator("size")
     @classmethod
     def validate_size(cls, value: str) -> str:
-        if value == "auto":
-            return value
-        parts = value.lower().split("x", maxsplit=1)
-        if len(parts) != 2 or not all(part.isdigit() and int(part) > 0 for part in parts):
-            raise ValueError("图片尺寸必须是 auto 或 WIDTHxHEIGHT")
-        return value.lower()
+        return validate_image_size(value)
 
     @model_validator(mode="after")
     def validate_output_options(self) -> Self:

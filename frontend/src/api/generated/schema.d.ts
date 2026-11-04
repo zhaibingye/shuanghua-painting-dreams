@@ -303,7 +303,7 @@ export interface components {
         ByteDanceVideoOptions: {
             /**
              * Duration
-             * @default 5
+             * @default -1
              */
             duration: number;
             /**
@@ -320,7 +320,7 @@ export interface components {
             aspectRatio: "16:9" | "4:3" | "1:1" | "3:4" | "9:16" | "21:9" | "adaptive";
             /**
              * Generateaudio
-             * @default false
+             * @default true
              */
             generateAudio: boolean;
             /**
@@ -544,7 +544,7 @@ export interface components {
             /**
              * 尺寸
              * @description auto 或 WIDTHxHEIGHT
-             * @default auto
+             * @default 1024x1024
              */
             size: string;
             /**
@@ -571,6 +571,11 @@ export interface components {
              * @enum {string}
              */
             background: "auto" | "opaque" | "transparent";
+            /**
+             * 安全标识（可选）
+             * @description 最多 128 字符；请使用用户标识的哈希值。
+             */
+            safetyIdentifier?: string | null;
             /**
              * 生成数量
              * @default 1
@@ -633,7 +638,7 @@ export interface components {
             /**
              * 尺寸
              * @description auto 或 WIDTHxHEIGHT
-             * @default auto
+             * @default 1024x1024
              */
             size: string;
             /**
@@ -660,6 +665,11 @@ export interface components {
              * @enum {string}
              */
             background: "auto" | "opaque" | "transparent";
+            /**
+             * 安全标识（可选）
+             * @description 最多 128 字符；请使用用户标识的哈希值。
+             */
+            safetyIdentifier?: string | null;
             /**
              * 生成数量
              * @default 1
@@ -682,7 +692,7 @@ export interface components {
             /**
              * 尺寸
              * @description auto 或 WIDTHxHEIGHT
-             * @default auto
+             * @default 1024x1024
              */
             size: string;
             /**
@@ -709,6 +719,11 @@ export interface components {
              * @enum {string}
              */
             background: "auto" | "opaque" | "transparent";
+            /**
+             * 安全标识（可选）
+             * @description 最多 128 字符；请使用用户标识的哈希值。
+             */
+            safetyIdentifier?: string | null;
             /**
              * 生成数量
              * @default 1
@@ -772,7 +787,6 @@ export interface components {
         OpenAIResponsesImageOptions: {
             /**
              * 尺寸
-             * @description auto 或 WIDTHxHEIGHT
              * @default auto
              */
             size: string;
@@ -801,9 +815,14 @@ export interface components {
              */
             background: "auto" | "opaque" | "transparent";
             /**
+             * 安全标识（可选）
+             * @description 最多 128 字符；请使用用户标识的哈希值。
+             */
+            safetyIdentifier?: string | null;
+            /**
              * 生图工具模型
              * @description auto 使用上游默认值，也可填写 gpt-image-2 等生图模型 ID。
-             * @default auto
+             * @default gpt-image-2.5-sunburst
              */
             imageModel: string;
             /**

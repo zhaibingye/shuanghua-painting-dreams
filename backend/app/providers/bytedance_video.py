@@ -212,10 +212,11 @@ class ByteDanceVideoAdapter:
             "ratio": options.aspect_ratio,
             "generate_audio": options.generate_audio,
             "watermark": options.watermark,
-            "seed": options.seed,
             "return_last_frame": options.return_last_frame,
         }
         capabilities = byte_dance_model_capabilities(request.model_id)
+        if capabilities.get("seed") is True:
+            payload["seed"] = options.seed
         if capabilities.get("serviceTierParameter") is True:
             payload["service_tier"] = options.service_tier
         if options.camera_fixed:
@@ -242,7 +243,9 @@ class ByteDanceVideoAdapter:
 
         output = None
         content = data.get("content")
-        if status == TaskStatus.SUCCEEDED and isinstance(content, Mapping):
+        if status == TaskStatus.SUCCEEDED:
+            if not isinstance(content, Mapping):
+                raise invalid_response_error(self.api_format, "成功任务缺少 content 视频结果。")
             video_url = content.get("video_url")
             if not isinstance(video_url, str) or not video_url:
                 raise invalid_response_error(self.api_format, "成功任务缺少 video_url。")

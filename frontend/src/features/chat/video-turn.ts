@@ -5,7 +5,12 @@ import type {
 import type { StoredConversation } from '../../storage/db'
 import { isPublicHttpUrl } from '../../utils/url'
 import { draftToApiAsset, type DraftImage } from './image-turn'
-import { clampByteDanceResolution, XAI_VIDEO_RESOLUTIONS } from './model-capabilities'
+import {
+  clampByteDanceResolution,
+  normalizeByteDanceOptions,
+  resolveByteDanceVideoCapabilities,
+  XAI_VIDEO_RESOLUTIONS,
+} from './model-capabilities'
 
 export type ByteVideoMode =
   | 'textToVideo'
@@ -107,6 +112,10 @@ export function buildVideoGenerationRequest(options: {
 }): VideoGenerationRequest {
   const { conversation, prompt, draft, images, turnOptions } = options
   if (conversation.apiFormat === 'byteDanceVideo') {
+    const byteOptions = normalizeByteDanceOptions(turnOptions, conversation.modelId)
+    const capabilities = resolveByteDanceVideoCapabilities(conversation.modelId)
+    const frameMode = draft.byteMode === 'firstFrameToVideo' || draft.byteMode === 'firstLastFrameToVideo'
+
     return {
       apiFormat: 'byteDanceVideo',
       baseUrl: conversation.baseUrl,
@@ -137,15 +146,15 @@ export function buildVideoGenerationRequest(options: {
             : null,
       },
       options: {
-        duration: numberOption(turnOptions, 'duration', 5),
+        duration: numberOption(byteOptions, 'duration', 5),
         resolution: clampByteDanceResolution(turnOptions.resolution, conversation.modelId),
-        aspectRatio: enumOption(
+        aspectRatio: frameMode && capabilities.frameAspectRatios ? 'adaptive' : enumOption(
           turnOptions,
           'aspectRatio',
           ['16:9', '4:3', '1:1', '3:4', '9:16', '21:9', 'adaptive'],
-          'adaptive',
+          conversation.modelId.startsWith('doubao-seedance-1-0-') && draft.byteMode === 'textToVideo' ? '16:9' : 'adaptive',
         ),
-        generateAudio: booleanOption(turnOptions, 'generateAudio', false),
+        generateAudio: booleanOption(byteOptions, 'generateAudio', false),
         watermark: booleanOption(turnOptions, 'watermark', false),
         seed: numberOption(turnOptions, 'seed', -1),
         returnLastFrame: booleanOption(turnOptions, 'returnLastFrame', false),
