@@ -10,7 +10,7 @@ from app.domain.enums import ApiFormat, ErrorCategory
 from app.domain.errors import ApplicationError
 from app.domain.models import GeneratedImage, ImageResult, ImageStreamChunk, Usage
 from app.infrastructure.config import Settings
-from app.infrastructure.safe_http import MultipartFile, MultipartForm
+from app.infrastructure.safe_http import MultipartFile, MultipartForm, UpstreamSseEvent
 from app.infrastructure.upstream_errors import build_upstream_error
 from app.infrastructure.url_builder import build_upstream_url
 from app.providers.base import (
@@ -20,6 +20,8 @@ from app.providers.base import (
     invalid_response_error,
     split_data_url,
 )
+from app.providers.image_content import detect_image_mime_type
+from app.providers.image_response import parse_base64_images
 from app.schemas.common import DataUrlImageAsset, ImageAsset, UrlImageAsset
 from app.schemas.image_turns import OpenAIImageTurnRequest
 from app.schemas.images import (
@@ -29,12 +31,13 @@ from app.schemas.images import (
     OpenAIImageGenerationRequest,
 )
 
-_PARTIAL_EVENTS = {"image_generation.partial_image"}
-_COMPLETED_EVENTS = {"image_generation.completed"}
+_PARTIAL_EVENTS = {"image_generation.partial_image", "image_edit.partial_image"}
+_COMPLETED_EVENTS = {"image_generation.completed", "image_edit.completed"}
 _FAILED_EVENTS = {
     "error",
     "upstream_error",
     "image_generation.failed",
+    "image_edit.failed",
 }
 _SUPPORTED_IMAGE_MIME_TYPES = {"image/png", "image/jpeg", "image/webp"}
 
@@ -50,7 +53,6 @@ class OpenAIImageAdapter:
         payload: dict[str, Any] = {
             "model": request.model_id,
             "prompt": request.prompt,
-            "response_format": "b64_json",
             "moderation": request.options.moderation,
             **self._generation_options(request.options),
         }
@@ -92,7 +94,6 @@ class OpenAIImageAdapter:
         payload: dict[str, Any] = {
             "model": request.model_id,
             "prompt": request.prompt,
-            "response_format": "b64_json",
             "stream": True,
             "partial_images": request.options.partial_images,
             "moderation": request.options.moderation,
@@ -107,6 +108,41 @@ class OpenAIImageAdapter:
             api_format=self.api_format,
         )
 
+        async for chunk in self._stream_chunks(events, request.options.output_format):
+            yield chunk
+
+    async def stream_edit(
+        self, request: OpenAIImageTurnRequest, api_key: str
+    ) -> AsyncIterator[ImageStreamChunk]:
+        form = await self._edit_form(
+            model_id=request.model_id,
+            prompt=request.prompt,
+            images=request.source_images,
+            mask=request.mask,
+            options=request.options,
+        )
+        form = MultipartForm(
+            fields=(
+                *form.fields,
+                ("stream", "true"),
+                ("partial_images", str(request.options.partial_images)),
+            ),
+            files=form.files,
+        )
+        events = self._transport.stream_multipart_sse(
+            method="POST",
+            url=build_upstream_url(request.base_url, "/v1/images/edits"),
+            headers=bearer_headers(api_key, stream=True),
+            form=form,
+            read_timeout=self._settings.image_read_timeout_seconds,
+            api_format=self.api_format,
+        )
+        async for chunk in self._stream_chunks(events, request.options.output_format):
+            yield chunk
+
+    async def _stream_chunks(
+        self, events: AsyncIterator[UpstreamSseEvent], output_format: str
+    ) -> AsyncIterator[ImageStreamChunk]:
         completed_count = 0
         final_usage: Usage | None = None
         async for event in events:
@@ -123,7 +159,7 @@ class OpenAIImageAdapter:
                 )
 
             if not event_type and isinstance(data.get("data"), list):
-                result = self._parse_response(data, request.options.output_format)
+                result = self._parse_response(data, output_format)
                 final_usage = result.usage or final_usage
                 for image in result.images:
                     yield ImageStreamChunk(
@@ -142,7 +178,7 @@ class OpenAIImageAdapter:
                         kind="partial",
                         image=GeneratedImage(
                             mime_type=_mime_type(
-                                _string(data.get("output_format")) or request.options.output_format
+                                _string(data.get("output_format")) or output_format
                             ),
                             base64_data=encoded,
                         ),
@@ -165,9 +201,7 @@ class OpenAIImageAdapter:
                 yield ImageStreamChunk(
                     kind="completed",
                     image=GeneratedImage(
-                        mime_type=_mime_type(
-                            _string(data.get("output_format")) or request.options.output_format
-                        ),
+                        mime_type=_mime_type(_string(data.get("output_format")) or output_format),
                         base64_data=encoded,
                         revised_prompt=_string(data.get("revised_prompt")),
                     ),
@@ -190,7 +224,11 @@ class OpenAIImageAdapter:
             "size": options.size,
             "quality": options.quality,
             "output_format": options.output_format,
-            "output_compression": options.output_compression,
+            **(
+                {"output_compression": options.output_compression}
+                if options.output_format != "png"
+                else {}
+            ),
             "background": options.background,
         }
 
@@ -234,9 +272,13 @@ class OpenAIImageAdapter:
             ("size", options.size),
             ("quality", options.quality),
             ("output_format", options.output_format),
-            ("output_compression", str(options.output_compression)),
+            *(
+                [("output_compression", str(options.output_compression))]
+                if options.output_format != "png"
+                else []
+            ),
             ("background", options.background),
-            ("response_format", "b64_json"),
+            ("moderation", options.moderation),
         ]
         if options.input_fidelity != "auto":
             fields.append(("input_fidelity", options.input_fidelity))
@@ -260,7 +302,7 @@ class OpenAIImageAdapter:
             suggested_filename = image.filename
         elif isinstance(image, UrlImageAsset):
             downloaded = await self._transport.download(
-                url=URL(str(image.url)),
+                url=URL(str(image.url), encoded=True),
                 read_timeout=self._settings.image_read_timeout_seconds,
                 max_bytes=self._settings.max_image_input_bytes,
                 api_format=self.api_format,
@@ -276,7 +318,7 @@ class OpenAIImageAdapter:
         if len(data) > self._settings.max_image_input_bytes:
             raise _invalid_image_input("参考图片超过 50MB 大小限制。")
 
-        detected_mime_type = _detect_image_mime_type(data)
+        detected_mime_type = detect_image_mime_type(data)
         if detected_mime_type is None:
             raise _invalid_image_input("参考图片不是有效的 PNG、JPEG 或 WebP 文件。")
         if (
@@ -313,31 +355,11 @@ class OpenAIImageAdapter:
         return self._parse_response(data, requested_format)
 
     def _parse_response(self, data: Mapping[str, Any], requested_format: str) -> ImageResult:
-        raw_images = data.get("data")
-        if not isinstance(raw_images, list):
-            raise invalid_response_error(self.api_format, "OpenAI 响应缺少 data 图片列表。")
-
         actual_format = data.get("output_format")
         output_format = actual_format if isinstance(actual_format, str) else requested_format
-        mime_type = _mime_type(output_format)
-        images: list[GeneratedImage] = []
-        for item in raw_images:
-            if not isinstance(item, Mapping):
-                continue
-            encoded = item.get("b64_json")
-            revised_prompt = item.get("revised_prompt")
-            if isinstance(encoded, str) and encoded:
-                images.append(
-                    GeneratedImage(
-                        mime_type=mime_type,
-                        base64_data=encoded,
-                        revised_prompt=revised_prompt if isinstance(revised_prompt, str) else None,
-                    )
-                )
-        if not images:
-            raise invalid_response_error(self.api_format, "OpenAI 响应中没有 Base64 图片。")
-
-        return ImageResult(images=images, usage=_usage(data.get("usage")))
+        return parse_base64_images(
+            data, api_format=self.api_format, default_mime_type=_mime_type(output_format)
+        )
 
 
 def _event_type(event_name: str | None, data: Mapping[str, Any]) -> str:
@@ -353,16 +375,6 @@ def _mime_type(output_format: str) -> str:
     if output_format == "webp":
         return "image/webp"
     return "image/png"
-
-
-def _detect_image_mime_type(data: bytes) -> str | None:
-    if data.startswith(b"\x89PNG\r\n\x1a\n"):
-        return "image/png"
-    if data.startswith(b"\xff\xd8\xff"):
-        return "image/jpeg"
-    if len(data) >= 12 and data[:4] == b"RIFF" and data[8:12] == b"WEBP":
-        return "image/webp"
-    return None
 
 
 def _safe_filename(value: str | None, fallback: str, mime_type: str) -> str:

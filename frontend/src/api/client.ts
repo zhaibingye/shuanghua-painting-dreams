@@ -16,17 +16,20 @@ export type ImageGenerationRequest =
   | components['schemas']['GeminiImageGenerationRequest']
   | components['schemas']['OpenAIImageGenerationRequest']
   | components['schemas']['XAIImageGenerationRequest']
+  | components['schemas']['ByteDanceImageGenerationRequest']
 
 export type ImageEditRequest =
   | components['schemas']['GeminiImageEditRequest']
   | components['schemas']['OpenAIImageEditRequest']
   | components['schemas']['XAIImageEditRequest']
+  | components['schemas']['ByteDanceImageEditRequest']
 
 export type ImageConversationTurnRequest =
   | components['schemas']['OpenAIImageTurnRequest']
   | components['schemas']['OpenAIResponsesImageTurnRequest']
   | components['schemas']['GeminiImageTurnRequest']
   | components['schemas']['XAIImageTurnRequest']
+  | components['schemas']['ByteDanceImageTurnRequest']
 
 export type VideoGenerationRequest =
   | components['schemas']['ByteDanceVideoGenerationRequest']

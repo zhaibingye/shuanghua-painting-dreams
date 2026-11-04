@@ -165,7 +165,103 @@ export interface components {
          * ApiFormat
          * @enum {string}
          */
-        ApiFormat: "googleGeminiImage" | "openaiImage" | "openaiResponsesImage" | "xaiImage" | "byteDanceVideo" | "xaiVideo";
+        ApiFormat: "googleGeminiImage" | "openaiImage" | "openaiResponsesImage" | "xaiImage" | "byteDanceImage" | "byteDanceVideo" | "xaiVideo";
+        /** ByteDanceImageEditRequest */
+        ByteDanceImageEditRequest: {
+            /**
+             * Apiformat
+             * @constant
+             */
+            apiFormat: "byteDanceImage";
+            /** Baseurl */
+            baseUrl: string;
+            /** Modelid */
+            modelId: string;
+            /** Prompt */
+            prompt: string;
+            options?: components["schemas"]["ByteDanceImageOptions"];
+            /** Images */
+            images: (components["schemas"]["DataUrlImageAsset"] | components["schemas"]["UrlImageAsset"])[];
+        };
+        /** ByteDanceImageGenerationRequest */
+        ByteDanceImageGenerationRequest: {
+            /**
+             * Apiformat
+             * @constant
+             */
+            apiFormat: "byteDanceImage";
+            /** Baseurl */
+            baseUrl: string;
+            /** Modelid */
+            modelId: string;
+            /** Prompt */
+            prompt: string;
+            options?: components["schemas"]["ByteDanceImageOptions"];
+        };
+        /** ByteDanceImageOptions */
+        ByteDanceImageOptions: {
+            /**
+             * 尺寸
+             * @description 分辨率档位或 WIDTHxHEIGHT，取值范围取决于 Seedream 模型。
+             * @default 2K
+             */
+            size: string;
+            /**
+             * 添加水印
+             * @default true
+             */
+            watermark: boolean;
+            /**
+             * 组图模式
+             * @description 5.0 pro / flash 不支持组图。
+             * @default disabled
+             * @enum {string}
+             */
+            sequentialImageGeneration: "disabled" | "auto";
+            /**
+             * 最大生成数量
+             * @description 组图模式下生效；参考图与输出图合计不超过 15 张。
+             * @default 15
+             */
+            maxImages: number;
+            /**
+             * 输出格式
+             * @description 仅 Seedream 5.0 支持选择输出格式。
+             * @default jpeg
+             * @enum {string}
+             */
+            outputFormat: "jpeg" | "png";
+            /**
+             * 提示词优化
+             * @description fast 仅支持 4.0 / 5.0 pro。
+             * @default standard
+             * @enum {string}
+             */
+            optimizePromptMode: "standard" | "fast";
+            /**
+             * 联网搜索
+             * @description 仅 Seedream 5.0 lite 支持。
+             * @default false
+             */
+            webSearch: boolean;
+        };
+        /** ByteDanceImageTurnRequest */
+        ByteDanceImageTurnRequest: {
+            /**
+             * Apiformat
+             * @constant
+             */
+            apiFormat: "byteDanceImage";
+            /** Baseurl */
+            baseUrl: string;
+            /** Modelid */
+            modelId: string;
+            /** Prompt */
+            prompt: string;
+            options?: components["schemas"]["ByteDanceImageOptions"];
+            /** Sourceimages */
+            sourceImages?: (components["schemas"]["DataUrlImageAsset"] | components["schemas"]["UrlImageAsset"])[];
+        };
         /** ByteDanceVideoGenerationRequest */
         ByteDanceVideoGenerationRequest: {
             /**
@@ -324,30 +420,32 @@ export interface components {
         /** GeminiImageOptions */
         GeminiImageOptions: {
             /**
-             * Aspectratio
+             * 宽高比
              * @default 1:1
+             * @enum {string}
              */
-            aspectRatio: string;
+            aspectRatio: "1:1" | "1:4" | "4:1" | "1:8" | "8:1" | "2:3" | "3:2" | "3:4" | "4:3" | "4:5" | "5:4" | "9:16" | "16:9" | "21:9";
             /**
-             * Imagesize
+             * 图片大小
              * @default 1K
              * @enum {string}
              */
             imageSize: "512" | "1K" | "2K" | "4K";
             /**
-             * Responsemodalities
+             * 输出模态
              * @default IMAGE
              * @enum {string}
              */
             responseModalities: "IMAGE" | "TEXT_AND_IMAGE";
             /**
-             * Thinkinglevel
-             * @default High
+             * Thinking Level
+             * @description 思考等级是否可用取决于模型。
+             * @default HIGH
              * @enum {string}
              */
-            thinkingLevel: "High" | "Low" | "Off";
+            thinkingLevel: "MINIMAL" | "LOW" | "MEDIUM" | "HIGH";
             /**
-             * Includethoughts
+             * 返回思考内容
              * @default false
              */
             includeThoughts: boolean;
@@ -444,40 +542,54 @@ export interface components {
         /** OpenAIImageEditOptions */
         OpenAIImageEditOptions: {
             /**
-             * Count
-             * @default 1
-             */
-            count: number;
-            /**
-             * Size
-             * @default 1024x1024
+             * 尺寸
+             * @description auto 或 WIDTHxHEIGHT
+             * @default auto
              */
             size: string;
             /**
-             * Quality
+             * 质量
+             * @description xhigh / max 需要 GPT Image 2.5。
              * @default auto
              * @enum {string}
              */
-            quality: "auto" | "low" | "medium" | "high";
+            quality: "auto" | "low" | "medium" | "high" | "xhigh" | "max";
             /**
-             * Outputformat
+             * 输出格式
              * @default png
              * @enum {string}
              */
             outputFormat: "png" | "jpeg" | "webp";
             /**
-             * Outputcompression
+             * 输出压缩
              * @default 100
              */
             outputCompression: number;
             /**
-             * Background
+             * 背景
              * @default auto
              * @enum {string}
              */
             background: "auto" | "opaque" | "transparent";
             /**
-             * Inputfidelity
+             * 生成数量
+             * @default 1
+             */
+            count: number;
+            /**
+             * Moderation
+             * @default auto
+             * @enum {string}
+             */
+            moderation: "auto" | "low";
+            /**
+             * 渐进预览数量
+             * @default 2
+             */
+            partialImages: number;
+            /**
+             * 输入保真度
+             * @description auto 表示不发送该参数；GPT Image 2 请使用 auto。
              * @default auto
              * @enum {string}
              */
@@ -519,38 +631,40 @@ export interface components {
         /** OpenAIImageOptions */
         OpenAIImageOptions: {
             /**
-             * Count
-             * @default 1
-             */
-            count: number;
-            /**
-             * Size
-             * @default 1024x1024
+             * 尺寸
+             * @description auto 或 WIDTHxHEIGHT
+             * @default auto
              */
             size: string;
             /**
-             * Quality
+             * 质量
+             * @description xhigh / max 需要 GPT Image 2.5。
              * @default auto
              * @enum {string}
              */
-            quality: "auto" | "low" | "medium" | "high";
+            quality: "auto" | "low" | "medium" | "high" | "xhigh" | "max";
             /**
-             * Outputformat
+             * 输出格式
              * @default png
              * @enum {string}
              */
             outputFormat: "png" | "jpeg" | "webp";
             /**
-             * Outputcompression
+             * 输出压缩
              * @default 100
              */
             outputCompression: number;
             /**
-             * Background
+             * 背景
              * @default auto
              * @enum {string}
              */
             background: "auto" | "opaque" | "transparent";
+            /**
+             * 生成数量
+             * @default 1
+             */
+            count: number;
             /**
              * Moderation
              * @default auto
@@ -558,7 +672,7 @@ export interface components {
              */
             moderation: "auto" | "low";
             /**
-             * Partialimages
+             * 渐进预览数量
              * @default 2
              */
             partialImages: number;
@@ -566,38 +680,40 @@ export interface components {
         /** OpenAIImageTurnOptions */
         OpenAIImageTurnOptions: {
             /**
-             * Count
-             * @default 1
-             */
-            count: number;
-            /**
-             * Size
-             * @default 1024x1024
+             * 尺寸
+             * @description auto 或 WIDTHxHEIGHT
+             * @default auto
              */
             size: string;
             /**
-             * Quality
+             * 质量
+             * @description xhigh / max 需要 GPT Image 2.5。
              * @default auto
              * @enum {string}
              */
-            quality: "auto" | "low" | "medium" | "high";
+            quality: "auto" | "low" | "medium" | "high" | "xhigh" | "max";
             /**
-             * Outputformat
+             * 输出格式
              * @default png
              * @enum {string}
              */
             outputFormat: "png" | "jpeg" | "webp";
             /**
-             * Outputcompression
+             * 输出压缩
              * @default 100
              */
             outputCompression: number;
             /**
-             * Background
+             * 背景
              * @default auto
              * @enum {string}
              */
             background: "auto" | "opaque" | "transparent";
+            /**
+             * 生成数量
+             * @default 1
+             */
+            count: number;
             /**
              * Moderation
              * @default auto
@@ -605,16 +721,17 @@ export interface components {
              */
             moderation: "auto" | "low";
             /**
-             * Inputfidelity
+             * 渐进预览数量
+             * @default 2
+             */
+            partialImages: number;
+            /**
+             * 输入保真度
+             * @description auto 表示不发送该参数；GPT Image 2 请使用 auto。
              * @default auto
              * @enum {string}
              */
             inputFidelity: "auto" | "low" | "high";
-            /**
-             * Partialimages
-             * @default 2
-             */
-            partialImages: number;
         };
         /** OpenAIImageTurnRequest */
         OpenAIImageTurnRequest: {
@@ -654,33 +771,47 @@ export interface components {
         /** OpenAIResponsesImageOptions */
         OpenAIResponsesImageOptions: {
             /**
-             * Size
+             * 尺寸
+             * @description auto 或 WIDTHxHEIGHT
              * @default auto
              */
             size: string;
             /**
-             * Quality
+             * 质量
+             * @description xhigh / max 需要 GPT Image 2.5。
              * @default auto
              * @enum {string}
              */
-            quality: "auto" | "low" | "medium" | "high";
+            quality: "auto" | "low" | "medium" | "high" | "xhigh" | "max";
             /**
-             * Outputformat
+             * 输出格式
              * @default png
              * @enum {string}
              */
             outputFormat: "png" | "jpeg" | "webp";
             /**
-             * Outputcompression
+             * 输出压缩
              * @default 100
              */
             outputCompression: number;
             /**
-             * Background
+             * 背景
              * @default auto
              * @enum {string}
              */
             background: "auto" | "opaque" | "transparent";
+            /**
+             * 生图工具模型
+             * @description auto 使用上游默认值，也可填写 gpt-image-2 等生图模型 ID。
+             * @default auto
+             */
+            imageModel: string;
+            /**
+             * 生图动作
+             * @default auto
+             * @enum {string}
+             */
+            action: "auto" | "generate" | "edit";
             /**
              * Moderation
              * @default auto
@@ -688,13 +819,13 @@ export interface components {
              */
             moderation: "auto" | "low";
             /**
-             * Inputfidelity
+             * 输入保真度
              * @default auto
              * @enum {string}
              */
             inputFidelity: "auto" | "low" | "high";
             /**
-             * Partialimages
+             * 渐进预览数量
              * @default 2
              */
             partialImages: number;
@@ -907,23 +1038,24 @@ export interface components {
         /** XAIImageOptions */
         XAIImageOptions: {
             /**
-             * Count
+             * 生成数量
              * @default 1
              */
             count: number;
             /**
-             * Aspectratio
+             * 宽高比
              * @default 1:1
+             * @enum {string}
              */
-            aspectRatio: string;
+            aspectRatio: "1:1" | "16:9" | "9:16" | "4:3" | "3:4" | "3:2" | "2:3" | "2:1" | "1:2" | "auto";
             /**
-             * Resolution
+             * 分辨率
              * @default 1k
              * @enum {string}
              */
             resolution: "1k" | "2k";
             /**
-             * Quality
+             * 质量
              * @default medium
              * @enum {string}
              */
@@ -1101,7 +1233,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["GeminiImageGenerationRequest"] | components["schemas"]["OpenAIImageGenerationRequest"] | components["schemas"]["XAIImageGenerationRequest"];
+                "application/json": components["schemas"]["GeminiImageGenerationRequest"] | components["schemas"]["OpenAIImageGenerationRequest"] | components["schemas"]["XAIImageGenerationRequest"] | components["schemas"]["ByteDanceImageGenerationRequest"];
             };
         };
         responses: {
@@ -1134,7 +1266,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["GeminiImageEditRequest"] | components["schemas"]["OpenAIImageEditRequest"] | components["schemas"]["XAIImageEditRequest"];
+                "application/json": components["schemas"]["GeminiImageEditRequest"] | components["schemas"]["OpenAIImageEditRequest"] | components["schemas"]["XAIImageEditRequest"] | components["schemas"]["ByteDanceImageEditRequest"];
             };
         };
         responses: {
@@ -1167,7 +1299,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["OpenAIImageTurnRequest"] | components["schemas"]["OpenAIResponsesImageTurnRequest"] | components["schemas"]["GeminiImageTurnRequest"] | components["schemas"]["XAIImageTurnRequest"];
+                "application/json": components["schemas"]["OpenAIImageTurnRequest"] | components["schemas"]["OpenAIResponsesImageTurnRequest"] | components["schemas"]["GeminiImageTurnRequest"] | components["schemas"]["XAIImageTurnRequest"] | components["schemas"]["ByteDanceImageTurnRequest"];
             };
         };
         responses: {

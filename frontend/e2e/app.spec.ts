@@ -47,7 +47,7 @@ test('OpenAI Responses 默认启用可配置的渐进式图片', async ({ page }
   await expect(page.getByLabel('渐进预览数量')).toHaveValue('2')
   await page.getByLabel('渐进预览数量').fill('3')
   await expect(page.getByLabel('渐进预览数量')).toHaveValue('3')
-  await expect(page.getByText('gpt-5.6-luna', { exact: true })).toBeVisible()
+  await expect(page.getByRole('dialog').getByText('gpt-5.6-luna', { exact: true })).toBeVisible()
 })
 
 test('切换对话不会中断正在运行的图片任务', async ({ page }) => {
@@ -148,12 +148,20 @@ async function createConversation(
   format: string,
   modelId?: string,
 ): Promise<void> {
+  if (modelId) {
+    await openSettings(page)
+    await page.getByLabel('API 格式配置').selectOption(format)
+    await page.getByLabel('添加模型 ID').fill(modelId)
+    await page.getByRole('button', { name: '添加', exact: true }).click()
+    await page.getByLabel('默认模型', { exact: true }).selectOption(modelId)
+    await page.getByRole('button', { name: '关闭设置' }).click()
+  }
   const name = kind === 'image' ? /图片对话/ : /视频对话/
   await page.getByRole('button', { name }).first().click()
   const dialog = page.getByRole('dialog')
   if (kind === 'video') await dialog.getByRole('button', { name: '视频对话' }).click()
   await dialog.getByLabel('API 格式').selectOption(format)
-  if (modelId) await dialog.getByLabel('模型 ID').fill(modelId)
+  await expect(dialog.getByLabel('模型 ID', { exact: true })).toHaveCount(0)
   await dialog.getByRole('button', { name: '创建对话' }).click()
 }
 
@@ -183,3 +191,35 @@ async function openSettings(page: Page): Promise<void> {
   await openSidebarIfNeeded(page)
   await page.locator('aside').getByRole('button', { name: '设置', exact: true }).click()
 }
+
+
+test('按格式管理模型，新对话无需填写模型，且可切换并持久化', async ({ page }) => {
+  await ignoreKeyGate(page)
+  await createConversation(page, 'image', 'byteDanceImage', 'ep-custom-image')
+  await expect(page.getByLabel('当前模型')).toHaveValue('ep-custom-image')
+  await page.getByLabel('消息', { exact: true }).fill('保留的草稿')
+  await page.getByLabel('当前模型').selectOption('doubao-seedream-5-0-pro-260628')
+  await expect(page.getByLabel('消息', { exact: true })).toHaveValue('保留的草稿')
+  await page.getByRole('button', { name: '参数', exact: true }).click()
+  await expect(page.getByLabel('尺寸', { exact: true })).toHaveValue('2K')
+  await expect(page.getByLabel('添加水印')).toBeChecked()
+  await page.getByRole('button', { name: '关闭参数面板' }).click()
+  await page.screenshot({ path: test.info().outputPath('chat-models.png'), fullPage: true })
+  await page.reload()
+  await expect(page.getByLabel('当前模型').locator('option[value="ep-custom-image"]')).toHaveCount(1)
+  await expect(page.getByLabel('当前模型')).toHaveValue('doubao-seedream-5-0-pro-260628')
+})
+
+test('独立 Key 不会改写全局 Key 或其他格式', async ({ page }) => {
+  await ignoreKeyGate(page)
+  await openSettings(page)
+  await page.getByLabel('API 格式配置').selectOption('byteDanceImage')
+  await page.getByLabel('使用独立 Key').check()
+  await page.getByLabel('独立 Key', { exact: true }).fill('seedream-only')
+  await expect(page.getByLabel('全局 Key', { exact: true })).toHaveValue('')
+  await page.getByLabel('API 格式配置').selectOption('openaiImage')
+  await expect(page.getByLabel('使用独立 Key')).not.toBeChecked()
+  await page.getByLabel('API 格式配置').selectOption('byteDanceImage')
+  await expect(page.getByLabel('独立 Key', { exact: true })).toHaveValue('seedream-only')
+  await page.screenshot({ path: test.info().outputPath('settings.png'), fullPage: true })
+})

@@ -1,10 +1,14 @@
 import { z } from 'zod'
 
+import catalog from '../api/generated/provider-catalog.json'
+import { defaultImageOptions } from '../api/image-options'
+
 export const imageApiFormats = [
   'googleGeminiImage',
   'openaiImage',
   'openaiResponsesImage',
   'xaiImage',
+  'byteDanceImage',
 ] as const
 export const videoApiFormats = ['byteDanceVideo', 'xaiVideo'] as const
 export const apiFormats = [...imageApiFormats, ...videoApiFormats] as const
@@ -15,24 +19,20 @@ export type ApiFormat = (typeof apiFormats)[number]
 export type ThemeMode = 'system' | 'light' | 'dark'
 export type MediaKind = 'image' | 'video'
 
-export const apiFormatLabels: Record<ApiFormat, string> = {
-  googleGeminiImage: 'Google Gemini 图像',
-  openaiImage: 'OpenAI Images',
-  openaiResponsesImage: 'OpenAI Responses 图像',
-  xaiImage: 'xAI 图像',
-  byteDanceVideo: '字节 Seedance 视频',
-  xaiVideo: 'xAI Grok 视频',
-}
+export const apiFormatLabels = Object.fromEntries(
+  catalog.providers.map((provider) => [provider.apiFormat, provider.displayName]),
+) as Record<ApiFormat, string>
 
 export type FormatSettings = {
   baseUrl: string
   modelId: string
+  models: string[]
   keyOverride: string | null
   defaults: Record<string, unknown>
 }
 
 export type StoredSettings = {
-  schemaVersion: 2
+  schemaVersion: 3
   appearance: { theme: ThemeMode }
   globalApiKey: string
   activeImageFormat: ImageApiFormat
@@ -42,121 +42,37 @@ export type StoredSettings = {
 }
 
 export const defaultSettings: StoredSettings = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   appearance: { theme: 'system' },
   globalApiKey: '',
   activeImageFormat: 'openaiResponsesImage',
   activeVideoFormat: 'byteDanceVideo',
   recentVoiceIds: [],
-  formats: {
-    googleGeminiImage: {
-      baseUrl: 'https://shapi.vip',
-      modelId: 'nano-banana-2',
-      keyOverride: null,
-      defaults: {
-        aspectRatio: '1:1',
-        imageSize: '1K',
-        responseModalities: 'IMAGE',
-        thinkingLevel: 'High',
-        includeThoughts: false,
-      },
-    },
-    openaiImage: {
-      baseUrl: 'https://shapi.vip',
-      modelId: 'gpt-image-2',
-      keyOverride: null,
-      defaults: {
-        count: 1,
-        size: '1024x1024',
-        quality: 'auto',
-        outputFormat: 'png',
-        outputCompression: 100,
-        background: 'auto',
-        moderation: 'auto',
-        inputFidelity: 'auto',
-        partialImages: 2,
-      },
-    },
-    openaiResponsesImage: {
-      baseUrl: 'https://shapi.vip',
-      modelId: 'gpt-5.6-luna',
-      keyOverride: null,
-      defaults: {
-        size: 'auto',
-        quality: 'auto',
-        outputFormat: 'png',
-        outputCompression: 100,
-        background: 'auto',
-        moderation: 'auto',
-        inputFidelity: 'auto',
-        partialImages: 2,
-      },
-    },
-    xaiImage: {
-      baseUrl: 'https://shapi.vip',
-      modelId: 'grok-imagine-image-2.0',
-      keyOverride: null,
-      defaults: {
-        count: 1,
-        aspectRatio: '1:1',
-        resolution: '1k',
-        quality: 'medium',
-      },
-    },
-    byteDanceVideo: {
-      baseUrl: 'https://shapi.vip',
-      modelId: 'doubao-seedance-2-0-260128',
-      keyOverride: null,
-      defaults: {
-        duration: 5,
-        resolution: '720p',
-        aspectRatio: 'adaptive',
-        generateAudio: false,
-        watermark: false,
-        seed: -1,
-        returnLastFrame: false,
-        cameraFixed: false,
-        serviceTier: 'default',
-        webSearch: false,
-      },
-    },
-    xaiVideo: {
-      baseUrl: 'https://shapi.vip',
-      modelId: 'grok-imagine-video-1.5',
-      keyOverride: null,
-      defaults: {
-        duration: 8,
-        resolution: '720p',
-        aspectRatio: '16:9',
-        voiceIds: [],
-        extensionDuration: 6,
-      },
-    },
-  },
+  formats: Object.fromEntries(catalog.providers.map((provider): [string, FormatSettings] => [provider.apiFormat, {
+    baseUrl: provider.defaultBaseUrl,
+    modelId: provider.defaultModelId,
+    models: [provider.defaultModelId],
+    keyOverride: null,
+    defaults: provider.defaultOptions,
+  }])) as Record<ApiFormat, FormatSettings>,
 }
 
 const formatSettingsSchema = z.object({
   baseUrl: z.string().min(1),
   modelId: z.string().min(1),
+  models: z.array(z.string().trim().min(1)).min(1).optional(),
   keyOverride: z.string().nullable(),
   defaults: z.record(z.string(), z.unknown()),
 })
 
 const settingsSchema = z.object({
-  schemaVersion: z.literal(2),
+  schemaVersion: z.union([z.literal(2), z.literal(3)]),
   appearance: z.object({ theme: z.enum(['system', 'light', 'dark']) }),
   globalApiKey: z.string(),
   activeImageFormat: z.enum(imageApiFormats),
   activeVideoFormat: z.enum(videoApiFormats),
   recentVoiceIds: z.array(z.string()).max(20).default([]),
-  formats: z.object({
-    googleGeminiImage: formatSettingsSchema,
-    openaiImage: formatSettingsSchema,
-    openaiResponsesImage: formatSettingsSchema,
-    xaiImage: formatSettingsSchema,
-    byteDanceVideo: formatSettingsSchema,
-    xaiVideo: formatSettingsSchema,
-  }),
+  formats: z.partialRecord(z.enum(apiFormats), formatSettingsSchema),
 })
 
 const storageKey = 'shuanghua.settings.v2'
@@ -164,14 +80,33 @@ const storageKey = 'shuanghua.settings.v2'
 export function loadSettings(): StoredSettings {
   const raw = localStorage.getItem(storageKey)
   if (raw === null) return structuredClone(defaultSettings)
-  try {
-    const parsed: unknown = JSON.parse(raw)
-    const result = settingsSchema.safeParse(parsed)
-    if (result.success) return result.data
-  } catch {
-    // 未上线版本不迁移损坏或旧版设置，直接恢复新默认值。
+  let parsed: unknown
+  try { parsed = JSON.parse(raw) } catch { return structuredClone(defaultSettings) }
+  const result = settingsSchema.safeParse(parsed)
+  if (!result.success) return structuredClone(defaultSettings)
+  const stored = result.data
+  const settings = { ...structuredClone(defaultSettings), ...stored, schemaVersion: 3 as const,
+    formats: structuredClone(defaultSettings.formats) }
+  for (const format of apiFormats) {
+    const current = stored.formats[format]
+    if (!current) continue
+    const defaults = { ...settings.formats[format].defaults, ...current.defaults }
+    if (stored.schemaVersion === 2 && format === 'googleGeminiImage') {
+      const legacy: Record<string, string> = { High: 'HIGH', Low: 'LOW', Off: 'MINIMAL' }
+      const level = String(defaults.thinkingLevel)
+      defaults.thinkingLevel = legacy[level] ?? level
+    }
+    settings.formats[format] = { ...current, defaults,
+      models: [...new Set([...(current.models ?? []), current.modelId])] }
   }
-  return structuredClone(defaultSettings)
+  return settings
+}
+
+export function optionsForFormat(settings: StoredSettings, format: ApiFormat): Record<string, unknown> {
+  const stored = settings.formats[format].defaults
+  if (!isImageFormat(format)) return { ...stored }
+  const defaults = defaultImageOptions(format)
+  return Object.fromEntries(Object.keys(defaults).map((key) => [key, stored[key] ?? defaults[key]]))
 }
 
 export function saveSettings(settings: StoredSettings): void {
@@ -179,8 +114,7 @@ export function saveSettings(settings: StoredSettings): void {
 }
 
 export function effectiveKey(settings: StoredSettings, format: ApiFormat): string {
-  const override = settings.formats[format].keyOverride?.trim() ?? ''
-  return override.length > 0 ? override : settings.globalApiKey.trim()
+  return settings.formats[format].keyOverride?.trim() ?? settings.globalApiKey.trim()
 }
 
 export function hasAnyKey(settings: StoredSettings): boolean {
@@ -188,6 +122,10 @@ export function hasAnyKey(settings: StoredSettings): boolean {
   return apiFormats.some((format) => Boolean(settings.formats[format].keyOverride?.trim()))
 }
 
+export function isImageFormat(format: ApiFormat): format is ImageApiFormat {
+  return (imageApiFormats as readonly string[]).includes(format)
+}
+
 export function mediaKindForFormat(format: ApiFormat): MediaKind {
-  return imageApiFormats.includes(format as ImageApiFormat) ? 'image' : 'video'
+  return isImageFormat(format) ? 'image' : 'video'
 }

@@ -211,17 +211,23 @@ class OpenAIResponsesImageAdapter:
     def _tool(options: OpenAIResponsesImageOptions) -> dict[str, Any]:
         tool: dict[str, Any] = {
             "type": "image_generation",
-            "action": "auto",
+            "action": options.action,
             "quality": options.quality,
             "size": options.size,
             "output_format": options.output_format,
-            "output_compression": options.output_compression,
+            **(
+                {"output_compression": options.output_compression}
+                if options.output_format != "png"
+                else {}
+            ),
             "background": options.background,
             "partial_images": options.partial_images,
             "moderation": options.moderation,
         }
         if options.input_fidelity != "auto":
             tool["input_fidelity"] = options.input_fidelity
+        if options.image_model != "auto":
+            tool["model"] = options.image_model
         return tool
 
 

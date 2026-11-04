@@ -39,7 +39,7 @@ async def test_byte_video_payload_and_status(settings: Settings) -> None:
     request = ByteDanceVideoGenerationRequest.model_validate(
         {
             "apiFormat": "byteDanceVideo",
-            "baseUrl": "https://shapi.vip",
+            "baseUrl": "https://ark.cn-beijing.volces.com/api/v3",
             "modelId": "doubao-seedance-2-0-260128",
             "mode": "firstLastFrameToVideo",
             "prompt": "move",
@@ -55,6 +55,14 @@ async def test_byte_video_payload_and_status(settings: Settings) -> None:
     status = await adapter.get_status(request.base_url, created.task_id, "key")
 
     create_payload = transport.calls[0].payload
+    assert (
+        str(transport.calls[0].url)
+        == "https://ark.cn-beijing.volces.com/api/v3/contents/generations/tasks"
+    )
+    assert (
+        str(transport.calls[1].url)
+        == "https://ark.cn-beijing.volces.com/api/v3/contents/generations/tasks/cgt-1"
+    )
     assert create_payload is not None
     assert create_payload["content"][1]["role"] == "first_frame"
     assert create_payload["return_last_frame"] is True

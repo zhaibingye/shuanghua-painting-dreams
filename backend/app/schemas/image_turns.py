@@ -1,12 +1,14 @@
 from typing import Annotated, Literal
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, model_validator
 
 from app.domain.enums import ApiFormat
 from app.schemas.common import ApiModel, DataUrlImageAsset, ImageAsset, UpstreamRequest
 from app.schemas.images import (
+    ByteDanceImageGenerationRequest,
     GeminiImageOptions,
-    OpenAIImageBaseOptions,
+    OpenAIImageEditOptions,
+    OpenAIImageOutputOptions,
     XAIImageOptions,
 )
 
@@ -55,37 +57,26 @@ OpenAIResponsesHistoryItem = Annotated[
 ]
 
 
-class OpenAIResponsesImageOptions(ApiModel):
-    size: str = Field(default="auto", min_length=3, max_length=32)
-    quality: Literal["auto", "low", "medium", "high"] = "auto"
-    output_format: Literal["png", "jpeg", "webp"] = "png"
-    output_compression: int = Field(default=100, ge=0, le=100)
-    background: Literal["auto", "opaque", "transparent"] = "auto"
-    moderation: Literal["auto", "low"] = "auto"
-    input_fidelity: Literal["auto", "low", "high"] = "auto"
-    partial_images: int = Field(default=2, ge=0, le=3)
-
-    @field_validator("size")
-    @classmethod
-    def validate_size(cls, value: str) -> str:
-        if value == "auto":
-            return value
-        parts = value.lower().split("x", maxsplit=1)
-        if len(parts) != 2 or not all(part.isdigit() for part in parts):
-            raise ValueError("图片尺寸必须是 auto 或 WIDTHxHEIGHT")
-        return value.lower()
-
-    @model_validator(mode="after")
-    def validate_output_options(self) -> "OpenAIResponsesImageOptions":
-        if self.background == "transparent" and self.output_format == "jpeg":
-            raise ValueError("透明背景不能使用 JPEG 输出格式")
-        return self
+class OpenAIResponsesImageOptions(OpenAIImageOutputOptions):
+    image_model: str = Field(
+        default="auto",
+        min_length=1,
+        max_length=256,
+        title="生图工具模型",
+        description="auto 使用上游默认值，也可填写 gpt-image-2 等生图模型 ID。",
+    )
+    action: Literal["auto", "generate", "edit"] = Field(default="auto", title="生图动作")
+    moderation: Literal["auto", "low"] = Field(default="auto", title="Moderation")
+    input_fidelity: Literal["auto", "low", "high"] = Field(default="auto", title="输入保真度")
+    partial_images: int = Field(default=2, ge=0, le=3, title="渐进预览数量")
 
 
-class OpenAIImageTurnOptions(OpenAIImageBaseOptions):
-    moderation: Literal["auto", "low"] = "auto"
-    input_fidelity: Literal["auto", "low", "high"] = "auto"
-    partial_images: int = Field(default=2, ge=0, le=3)
+class OpenAIImageTurnOptions(OpenAIImageEditOptions):
+    pass
+
+
+class ByteDanceImageTurnRequest(ByteDanceImageGenerationRequest):
+    source_images: list[ImageAsset] = Field(default_factory=list, max_length=14)
 
 
 class OpenAIImageTurnRequest(UpstreamRequest):
@@ -129,6 +120,7 @@ ImageConversationTurnRequest = Annotated[
     OpenAIImageTurnRequest
     | OpenAIResponsesImageTurnRequest
     | GeminiImageTurnRequest
-    | XAIImageTurnRequest,
+    | XAIImageTurnRequest
+    | ByteDanceImageTurnRequest,
     Field(discriminator="api_format"),
 ]

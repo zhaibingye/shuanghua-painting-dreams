@@ -17,7 +17,7 @@ from app.domain.errors import ApplicationError, SecurityError
 from app.infrastructure.config import Settings
 from app.infrastructure.safe_resolver import PublicNetworkResolver, validate_literal_host
 from app.infrastructure.upstream_errors import raise_for_upstream_status
-from app.infrastructure.url_builder import validate_base_url
+from app.infrastructure.url_builder import validate_http_url
 
 logger = logging.getLogger(__name__)
 
@@ -423,7 +423,9 @@ class SafeHttpTransport:
                 upstream_status=response.status,
             )
         try:
-            return self._validate_full_url(current_url.join(URL(response.headers["Location"])))
+            return self._validate_full_url(
+                current_url.join(URL(response.headers["Location"], encoded=True))
+            )
         except ValueError as exc:
             raise SecurityError("参考图片返回了无效重定向地址。") from exc
 
@@ -536,14 +538,14 @@ class SafeHttpTransport:
         yield UpstreamSseEvent(event=None, data=data)
 
     def _validate_full_url(self, url: URL) -> URL:
-        validated = validate_base_url(str(url))
+        validated = validate_http_url(url)
         if validated.host is not None:
             validate_literal_host(validated.host)
         return validated
 
     def _validate_redirect(self, current_url: URL, location: str) -> URL:
         try:
-            redirect_url = current_url.join(URL(location))
+            redirect_url = current_url.join(URL(location, encoded=True))
         except ValueError as exc:
             raise SecurityError("上游返回了无效重定向地址。") from exc
         validated = self._validate_full_url(redirect_url)

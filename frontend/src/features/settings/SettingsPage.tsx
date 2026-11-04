@@ -1,5 +1,5 @@
 import * as Dialog from '@radix-ui/react-dialog'
-import { Database, KeyRound, RotateCcw, Settings, Trash2, X } from 'lucide-react'
+import { Database, KeyRound, Plus, RotateCcw, Settings, Trash2, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
@@ -26,19 +26,17 @@ export function SettingsDialog({
   const setGlobalApiKey = useSettingsStore((state) => state.setGlobalApiKey)
   const setFormatKeyOverride = useSettingsStore((state) => state.setFormatKeyOverride)
   const updateFormat = useSettingsStore((state) => state.updateFormat)
+  const addModel = useSettingsStore((state) => state.addModel)
+  const removeModel = useSettingsStore((state) => state.removeModel)
+  const setDefaultModel = useSettingsStore((state) => state.setDefaultModel)
   const setTheme = useSettingsStore((state) => state.setTheme)
   const resetSettings = useSettingsStore((state) => state.resetSettings)
   const [format, setFormat] = useState<ApiFormat>('openaiResponsesImage')
-  const [overrideEnabled, setOverrideEnabled] = useState(
-    settings.formats[format].keyOverride !== null,
-  )
+  const [modelInput, setModelInput] = useState('')
+  const overrideEnabled = settings.formats[format].keyOverride !== null
   const [storage, setStorage] = useState<{ usage: number; quota: number } | null>(null)
   const selected = settings.formats[format]
   const inherited = effectiveKey(settings, format)
-
-  useEffect(() => {
-    setOverrideEnabled(settings.formats[format].keyOverride !== null)
-  }, [format, settings.formats])
 
   useEffect(() => {
     if (!open) return
@@ -85,7 +83,7 @@ export function SettingsDialog({
                 </div>
               </div>
               <FieldShell label="全局 Key">
-                <Input aria-label="全局 Key" autoComplete="off" type="password" value={settings.globalApiKey} onChange={(event) => setGlobalApiKey(event.target.value)} placeholder="填写从 shapi.vip 获取的 Key" />
+                <Input aria-label="全局 Key" autoComplete="off" type="password" value={settings.globalApiKey} onChange={(event) => setGlobalApiKey(event.target.value)} placeholder="填写 API 服务商提供的 Key" />
               </FieldShell>
             </section>
 
@@ -95,20 +93,41 @@ export function SettingsDialog({
               <div className="flex flex-wrap items-end justify-between gap-3">
                 <div>
                   <h2 className="font-semibold">API 格式配置</h2>
-                  <p className="mt-1 text-xs text-[var(--ds-text-secondary)]">新对话会读取这里的连接信息和模型。</p>
+                  <p className="mt-1 text-xs text-[var(--ds-text-secondary)]">为每种格式维护模型列表和默认模型，新对话只需选择格式。</p>
                 </div>
-                <Select className="w-auto min-w-52" value={format} onChange={(event) => setFormat(event.target.value as ApiFormat)}>
+                <Select aria-label="API 格式配置" className="w-auto min-w-52" value={format} onChange={(event) => { setFormat(event.target.value as ApiFormat); setModelInput('') }}>
                   {apiFormats.map((item) => <option key={item} value={item}>{apiFormatLabels[item]}</option>)}
                 </Select>
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
-                <FieldShell label="Base URL" hint="自动追加 API 路径">
-                  <Input value={selected.baseUrl} onChange={(event) => updateFormat(format, { baseUrl: event.target.value })} />
+                <FieldShell label="Base URL" hint={format === 'byteDanceImage' || format === 'byteDanceVideo' ? '官方地址走 /api/v3，其他走 /v1' : '自动追加 API 路径'}>
+                  <Input aria-label="Base URL" value={selected.baseUrl} onChange={(event) => updateFormat(format, { baseUrl: event.target.value })} />
                 </FieldShell>
-                <FieldShell label="默认模型 ID">
-                  <Input value={selected.modelId} onChange={(event) => updateFormat(format, { modelId: event.target.value })} />
+                <FieldShell label="默认模型">
+                  <Select aria-label="默认模型" value={selected.modelId} onChange={(event) => setDefaultModel(format, event.target.value)}>
+                    {selected.models.map((model) => <option key={model} value={model}>{model}</option>)}
+                  </Select>
                 </FieldShell>
+              </div>
+
+              <div className="rounded-xl border border-[var(--ds-border-default)] p-4">
+                <h3 className="mb-3 text-sm font-medium">模型列表</h3>
+                <form className="flex gap-2" onSubmit={(event) => {
+                  event.preventDefault()
+                  try { addModel(format, modelInput); setModelInput('') }
+                  catch (error) { toast.error(error instanceof Error ? error.message : '添加模型失败') }
+                }}>
+                  <Input aria-label="添加模型 ID" value={modelInput} onChange={(event) => setModelInput(event.target.value)} placeholder="输入模型 ID 或 Endpoint ID" />
+                  <Button type="submit" disabled={!modelInput.trim()} icon={<Plus className="size-4" />}>添加</Button>
+                </form>
+                <ul className="mt-3 grid gap-2">
+                  {selected.models.map((model) => <li key={model} className="flex min-w-0 items-center gap-2 rounded-lg bg-[var(--ds-bg-hover)] px-3 py-2">
+                    <span className="min-w-0 flex-1 break-all text-sm">{model}</span>
+                    {selected.modelId === model ? <Badge>默认</Badge> : <Button size="sm" variant="ghost" onClick={() => setDefaultModel(format, model)}>设为默认</Button>}
+                    <Button size="icon" variant="ghost" aria-label={`删除模型 ${model}`} disabled={selected.models.length === 1} icon={<Trash2 className="size-4" />} onClick={() => removeModel(format, model)} />
+                  </li>)}
+                </ul>
               </div>
 
               <div className="rounded-xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-hover)] p-4">
@@ -122,13 +141,12 @@ export function SettingsDialog({
                     type="checkbox"
                     checked={overrideEnabled}
                     onChange={(event) => {
-                      setOverrideEnabled(event.target.checked)
-                      if (!event.target.checked) setFormatKeyOverride(format, null)
+                      setFormatKeyOverride(format, event.target.checked ? '' : null)
                     }}
                   />
                 </label>
                 {overrideEnabled ? (
-                  <Input className="mt-4" autoComplete="off" type="password" value={selected.keyOverride ?? ''} onChange={(event) => setFormatKeyOverride(format, event.target.value)} placeholder="填写该格式独立 Key" />
+                  <Input aria-label="独立 Key" className="mt-4" autoComplete="off" type="password" value={selected.keyOverride ?? ''} onChange={(event) => setFormatKeyOverride(format, event.target.value)} placeholder="填写该格式独立 Key" />
                 ) : (
                   <div className="mt-4"><Badge tone={inherited ? 'success' : 'warning'}>{inherited ? '正在使用全局 Key' : '当前没有可用 Key'}</Badge></div>
                 )}
@@ -170,5 +188,5 @@ function formatBytes(value: number): string {
   if (value <= 0) return '0 B'
   const units = ['B', 'KB', 'MB', 'GB'] as const
   const index = Math.min(Math.floor(Math.log(value) / Math.log(1024)), units.length - 1)
-  return `${(value / 1024 ** index).toFixed(index === 0 ? 0 : 1)} ${units[index] ?? 'B'}`
+  return `${(value / 1024 ** index).toFixed(index === 0 ? 0 : 1)} ${units[index]}`
 }

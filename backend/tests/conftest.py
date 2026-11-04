@@ -36,6 +36,14 @@ class RecordedMultipartCall:
     retryable: bool
 
 
+@dataclass(slots=True, frozen=True)
+class RecordedDownload:
+    url: URL
+    read_timeout: float
+    max_bytes: int
+    api_format: ApiFormat
+
+
 @dataclass(slots=True)
 class FakeTransport:
     responses: list[UpstreamResponse] = field(default_factory=list)
@@ -45,6 +53,7 @@ class FakeTransport:
     multipart_stream_events: list[UpstreamSseEvent] = field(default_factory=list)
     multipart_calls: list[RecordedMultipartCall] = field(default_factory=list)
     downloaded_contents: list[DownloadedContent] = field(default_factory=list)
+    downloads: list[RecordedDownload] = field(default_factory=list)
 
     async def request_json(
         self,
@@ -148,7 +157,7 @@ class FakeTransport:
         max_bytes: int,
         api_format: ApiFormat,
     ) -> DownloadedContent:
-        del url, read_timeout, max_bytes, api_format
+        self.downloads.append(RecordedDownload(url, read_timeout, max_bytes, api_format))
         if not self.downloaded_contents:
             raise AssertionError("FakeTransport 没有更多下载响应")
         return self.downloaded_contents.pop(0)

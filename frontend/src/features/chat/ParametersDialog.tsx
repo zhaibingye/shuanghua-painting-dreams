@@ -4,6 +4,8 @@ import { SlidersHorizontal, X } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { FieldShell, Input, Select, Textarea } from '../../components/ui/Field'
 import type { StoredConversation } from '../../storage/db'
+import { isImageFormat } from '../../storage/settings'
+import { ImageParameters } from './ImageParameters'
 import type { VideoDraft } from './video-turn'
 
 export function ParametersDialog({
@@ -12,7 +14,6 @@ export function ParametersDialog({
   options,
   videoDraft,
   modelCapabilities,
-  openAIImageEditing,
   onOpenChange,
   onOption,
   onVideoDraft,
@@ -22,7 +23,6 @@ export function ParametersDialog({
   options: Record<string, unknown>
   videoDraft: VideoDraft
   modelCapabilities: Record<string, unknown> | undefined
-  openAIImageEditing: boolean
   onOpenChange: (open: boolean) => void
   onOption: (key: string, value: unknown) => void
   onVideoDraft: (patch: Partial<VideoDraft>) => void
@@ -45,13 +45,12 @@ export function ParametersDialog({
             <div className="mb-5 rounded-xl bg-[var(--ds-bg-hover)] p-3 text-xs text-[var(--ds-text-secondary)]">
               <p className="font-medium text-[var(--ds-text-primary)]">{conversation.modelId}</p>
               <p className="mt-1 break-all">{conversation.baseUrl}</p>
-              <p className="mt-2">参数只影响本轮；修改后同时成为该格式的新默认值。</p>
+              <p className="mt-2">修改后会用于本轮，并保存为该格式的默认参数。</p>
             </div>
-            {conversation.mediaKind === 'image' ? (
+            {isImageFormat(conversation.apiFormat) ? (
               <ImageParameters
                 format={conversation.apiFormat}
                 options={options}
-                openAIImageEditing={openAIImageEditing}
                 onOption={onOption}
               />
             ) : (
@@ -68,64 +67,6 @@ export function ParametersDialog({
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
-  )
-}
-
-function ImageParameters({
-  format,
-  options,
-  openAIImageEditing,
-  onOption,
-}: {
-  format: StoredConversation['apiFormat']
-  options: Record<string, unknown>
-  openAIImageEditing: boolean
-  onOption: (key: string, value: unknown) => void
-}) {
-  if (format === 'googleGeminiImage') {
-    return (
-      <ParameterGrid>
-        <SelectField label="宽高比" value={text(options, 'aspectRatio', '1:1')} values={['1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3', '21:9']} onChange={(value) => onOption('aspectRatio', value)} />
-        <SelectField label="图片大小" value={text(options, 'imageSize', '1K')} values={['512', '1K', '2K', '4K']} onChange={(value) => onOption('imageSize', value)} />
-        <SelectField label="输出模态" value={text(options, 'responseModalities', 'IMAGE')} values={['IMAGE', 'TEXT_AND_IMAGE']} onChange={(value) => onOption('responseModalities', value)} />
-        <SelectField label="Thinking Level" value={text(options, 'thinkingLevel', 'High')} values={['High', 'Low', 'Off']} onChange={(value) => onOption('thinkingLevel', value)} />
-        <CheckField label="返回思考内容" checked={bool(options, 'includeThoughts', false)} onChange={(value) => onOption('includeThoughts', value)} />
-      </ParameterGrid>
-    )
-  }
-
-  if (format === 'xaiImage') {
-    return (
-      <ParameterGrid>
-        <NumberField label="生成数量" value={num(options, 'count', 1)} min={1} max={10} onChange={(value) => onOption('count', value)} />
-        <SelectField label="宽高比" value={text(options, 'aspectRatio', '1:1')} values={['1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3', '2:1', '1:2', 'auto']} onChange={(value) => onOption('aspectRatio', value)} />
-        <SelectField label="分辨率" value={text(options, 'resolution', '1k')} values={['1k', '2k']} onChange={(value) => onOption('resolution', value)} />
-        <SelectField label="质量" value={text(options, 'quality', 'medium')} values={['low', 'medium']} onChange={(value) => onOption('quality', value)} />
-      </ParameterGrid>
-    )
-  }
-
-  const responses = format === 'openaiResponsesImage'
-  return (
-    <ParameterGrid>
-      {!responses ? <NumberField label="生成数量" value={num(options, 'count', 1)} min={1} max={10} onChange={(value) => onOption('count', value)} /> : null}
-      <FieldShell label="尺寸" hint="支持 WIDTHxHEIGHT">
-        <Input value={text(options, 'size', responses ? 'auto' : '1024x1024')} onChange={(event) => onOption('size', event.target.value)} />
-      </FieldShell>
-      <SelectField label="质量" value={text(options, 'quality', 'auto')} values={['auto', 'low', 'medium', 'high']} onChange={(value) => onOption('quality', value)} />
-      <SelectField label="输出格式" value={text(options, 'outputFormat', 'png')} values={['png', 'jpeg', 'webp']} onChange={(value) => onOption('outputFormat', value)} />
-      <NumberField label="输出压缩" value={num(options, 'outputCompression', 100)} min={0} max={100} onChange={(value) => onOption('outputCompression', value)} />
-      <SelectField label="背景" value={text(options, 'background', 'auto')} values={responses ? ['auto', 'opaque', 'transparent'] : ['auto', 'opaque']} onChange={(value) => onOption('background', value)} />
-      {responses || !openAIImageEditing ? <SelectField label="Moderation" value={text(options, 'moderation', 'auto')} values={['auto', 'low']} onChange={(value) => onOption('moderation', value)} /> : null}
-      {responses || openAIImageEditing ? <SelectField label="输入保真度" value={text(options, 'inputFidelity', 'auto')} values={['auto', 'low', 'high']} onChange={(value) => onOption('inputFidelity', value)} /> : null}
-      {!responses && openAIImageEditing ? (
-        <div className="rounded-xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-hover)] px-3 py-3 text-xs leading-5 text-[var(--ds-text-secondary)]">
-          参考图与遮罩编辑使用非流式上游请求，完成后一次性返回最终图片；渐进预览数量仅用于无参考图的文生图。
-        </div>
-      ) : (
-        <NumberField label="渐进预览数量" value={num(options, 'partialImages', 2)} min={0} max={3} onChange={(value) => onOption('partialImages', value)} />
-      )}
-    </ParameterGrid>
   )
 }
 

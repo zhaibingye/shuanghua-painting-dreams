@@ -96,6 +96,10 @@ function imageLimit(conversation: StoredConversation, draft: VideoDraft): number
     return draft.xaiMode === 'referenceToVideo' ? 8 : 0
   }
   if (conversation.apiFormat === 'googleGeminiImage') return 14
+  if (conversation.apiFormat === 'byteDanceImage') {
+    const limit = /doubao-seedream-5-0-(pro|flash)-/.test(conversation.modelId) ? 10 : 14
+    return limit - (conversation.activeImageAssetId ? 1 : 0)
+  }
   if (conversation.apiFormat === 'openaiResponsesImage') return 16
   if (conversation.apiFormat === 'openaiImage') {
     return conversation.activeImageAssetId ? 15 : 16
@@ -105,7 +109,7 @@ function imageLimit(conversation: StoredConversation, draft: VideoDraft): number
 
 function placeholder(conversation: StoredConversation, draft: VideoDraft): string {
   if (conversation.mediaKind === 'image') {
-    if (conversation.activeImageAssetId && ['openaiImage', 'xaiImage'].includes(conversation.apiFormat)) {
+    if (conversation.activeImageAssetId && ['openaiImage', 'xaiImage', 'byteDanceImage'].includes(conversation.apiFormat)) {
       return '描述如何修改最新图片…'
     }
     return '描述你想生成或编辑的画面…'

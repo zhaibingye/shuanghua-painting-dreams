@@ -3,7 +3,7 @@ import { Image, MessageSquarePlus, Video, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { Button } from '../../components/ui/Button'
-import { FieldShell, Input, Select } from '../../components/ui/Field'
+import { FieldShell, Select } from '../../components/ui/Field'
 import { putConversation, type StoredConversation } from '../../storage/db'
 import {
   apiFormatLabels,
@@ -31,7 +31,6 @@ export function CreateConversationDialog({
   const [kind, setKind] = useState<MediaKind>(initialKind)
   const [format, setFormat] = useState<ApiFormat>(settings.activeImageFormat)
   const selectedSettings = settings.formats[format]
-  const [modelId, setModelId] = useState(selectedSettings.modelId)
 
   useEffect(() => {
     if (!open) return
@@ -39,7 +38,6 @@ export function CreateConversationDialog({
     const nextFormat =
       initialKind === 'image' ? settings.activeImageFormat : settings.activeVideoFormat
     setFormat(nextFormat)
-    setModelId(settings.formats[nextFormat].modelId)
   }, [initialKind, open, settings])
 
   const changeKind = (nextKind: MediaKind) => {
@@ -47,12 +45,10 @@ export function CreateConversationDialog({
     const nextFormat =
       nextKind === 'image' ? settings.activeImageFormat : settings.activeVideoFormat
     setFormat(nextFormat)
-    setModelId(settings.formats[nextFormat].modelId)
   }
 
   const changeFormat = (nextFormat: ApiFormat) => {
     setFormat(nextFormat)
-    setModelId(settings.formats[nextFormat].modelId)
   }
 
   const create = async () => {
@@ -64,7 +60,7 @@ export function CreateConversationDialog({
       mediaKind: kind,
       apiFormat: format,
       baseUrl: connection.baseUrl,
-      modelId: modelId.trim() || connection.modelId,
+      modelId: connection.modelId,
       activeImageAssetId: null,
       createdAt: now,
       updatedAt: now,
@@ -90,7 +86,7 @@ export function CreateConversationDialog({
                 开启新对话
               </Dialog.Title>
               <Dialog.Description className="mt-1 text-sm text-[var(--ds-text-secondary)]">
-                API 格式和模型会固定在当前对话中。
+                选择 API 格式即可开始，将使用设置中的默认模型。
               </Dialog.Description>
             </div>
             <Dialog.Close asChild>
@@ -109,10 +105,8 @@ export function CreateConversationDialog({
                 {formats.map((item) => <option key={item} value={item}>{apiFormatLabels[item]}</option>)}
               </Select>
             </FieldShell>
-            <FieldShell label="模型 ID">
-              <Input value={modelId} onChange={(event) => setModelId(event.target.value)} />
-            </FieldShell>
             <div className="rounded-xl bg-[var(--ds-bg-hover)] p-3 text-xs text-[var(--ds-text-secondary)]">
+              默认模型：{selectedSettings.modelId}<br />
               Base URL：<span className="break-all">{selectedSettings.baseUrl}</span>
             </div>
           </div>

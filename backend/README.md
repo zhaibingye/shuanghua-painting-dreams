@@ -15,7 +15,7 @@ npm run check
 
 ```bash
 uv sync
-uv run uvicorn app.main:app --host 127.0.0.1 --port 3001 --reload
+uv run python -m uvicorn app.main:app --host 127.0.0.1 --port 3001 --reload
 ```
 
 ## 单独启动后端生产服务
@@ -43,6 +43,10 @@ uv run mypy app tests
 ```
 
 ## 导出 OpenAPI
+
+从项目根目录运行 `npm run api:generate --prefix frontend`，统一生成后端 OpenAPI、前端 TypeScript 类型以及 `provider-catalog.json`。图片参数字段、默认值、枚举和限制以 Pydantic 请求模型为准，前端表单和提交校验共用导出的 JSON Schema。
+
+仅导出 OpenAPI 和参数目录时，在 backend 目录运行：
 
 ```bash
 uv run python scripts/export_openapi.py

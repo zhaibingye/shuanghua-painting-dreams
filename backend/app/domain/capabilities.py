@@ -3,6 +3,7 @@ from typing import Any
 
 from app.domain.enums import ApiFormat, ErrorCategory, MediaKind
 from app.domain.errors import ApplicationError
+from app.domain.image_options import IMAGE_OPTION_MODELS
 from app.schemas.image_turns import OpenAIImageTurnRequest
 from app.schemas.images import OpenAIImageEditRequest, OpenAIImageGenerationRequest
 from app.schemas.metadata import ProviderMetadata, ProviderMetadataResponse
@@ -31,13 +32,7 @@ _PROVIDER_DATA: tuple[ProviderMetadata, ...] = (
                 "maxReferenceImages": 14,
             }
         },
-        default_options={
-            "aspectRatio": "1:1",
-            "imageSize": "1K",
-            "responseModalities": "IMAGE",
-            "thinkingLevel": "High",
-            "includeThoughts": False,
-        },
+        default_options={},
     ),
     ProviderMetadata(
         api_format=ApiFormat.OPENAI_IMAGE,
@@ -54,27 +49,18 @@ _PROVIDER_DATA: tuple[ProviderMetadata, ...] = (
             "qualityControl": True,
             "generationStreaming": True,
             "generationPartialImages": True,
-            "editStreaming": False,
-            "editPartialImages": False,
+            "editStreaming": True,
+            "editPartialImages": True,
         },
         known_models={
             "gpt-image-2": {
                 "maskEditing": True,
-                "transparentBackground": False,
+                "transparentBackground": True,
                 "customImageSize": True,
                 "maxReferenceImages": 16,
             }
         },
-        default_options={
-            "count": 1,
-            "size": "1024x1024",
-            "quality": "auto",
-            "outputFormat": "png",
-            "outputCompression": 100,
-            "background": "auto",
-            "moderation": "auto",
-            "partialImages": 2,
-        },
+        default_options={},
     ),
     ProviderMetadata(
         api_format=ApiFormat.OPENAI_RESPONSES_IMAGE,
@@ -100,16 +86,7 @@ _PROVIDER_DATA: tuple[ProviderMetadata, ...] = (
                 "statelessConversation": True,
             }
         },
-        default_options={
-            "size": "auto",
-            "quality": "auto",
-            "outputFormat": "png",
-            "outputCompression": 100,
-            "background": "auto",
-            "moderation": "auto",
-            "inputFidelity": "auto",
-            "partialImages": 2,
-        },
+        default_options={},
     ),
     ProviderMetadata(
         api_format=ApiFormat.XAI_IMAGE,
@@ -133,12 +110,30 @@ _PROVIDER_DATA: tuple[ProviderMetadata, ...] = (
                 "maxReferenceImages": 3,
             }
         },
-        default_options={
-            "count": 1,
-            "aspectRatio": "1:1",
-            "resolution": "1k",
-            "quality": "medium",
+        default_options={},
+    ),
+    ProviderMetadata(
+        api_format=ApiFormat.BYTE_DANCE_IMAGE,
+        media_kind=MediaKind.IMAGE,
+        display_name="字节 Seedream 图像",
+        default_base_url=_DEFAULT_BASE_URL,
+        default_model_id="doubao-seedream-5-0-pro-260628",
+        generic_capabilities={
+            "textToImage": True,
+            "imageEditing": True,
+            "maskEditing": False,
+            "maxReferenceImages": 14,
+            "nativeBatchCount": True,
+            "responseFormat": "b64_json",
         },
+        known_models={
+            "doubao-seedream-5-0-pro-260628": {
+                "maxReferenceImages": 10,
+                "imageSizes": ["1K", "1.5K", "2K"],
+                "sequentialImageGeneration": False,
+            },
+        },
+        default_options={},
     ),
     ProviderMetadata(
         api_format=ApiFormat.BYTE_DANCE_VIDEO,
@@ -224,9 +219,13 @@ _PROVIDER_DATA: tuple[ProviderMetadata, ...] = (
 
 
 def provider_metadata() -> ProviderMetadataResponse:
+    providers = [provider.model_copy(deep=True) for provider in _PROVIDER_DATA]
+    for provider in providers:
+        if model := IMAGE_OPTION_MODELS.get(provider.api_format):
+            provider.default_options = model().model_dump(by_alias=True)
     return ProviderMetadataResponse(
-        schema_version=3,
-        providers=[provider.model_copy(deep=True) for provider in _PROVIDER_DATA],
+        schema_version=4,
+        providers=providers,
     )
 
 
@@ -244,8 +243,18 @@ def _capability_error(message: str, api_format: ApiFormat) -> ApplicationError:
 def validate_openai_image_request(
     request: OpenAIImageGenerationRequest | OpenAIImageEditRequest | OpenAIImageTurnRequest,
 ) -> None:
-    if request.model_id == "gpt-image-2" and request.options.background == "transparent":
-        raise _capability_error("gpt-image-2 当前不支持透明背景。", request.api_format)
+    if (
+        request.options.quality in {"xhigh", "max"}
+        and request.model_id.startswith("gpt-image-")
+        and not request.model_id.startswith("gpt-image-2.5-")
+    ):
+        raise _capability_error("xhigh / max 质量需要 GPT Image 2.5。", request.api_format)
+    if (
+        isinstance(request, (OpenAIImageEditRequest, OpenAIImageTurnRequest))
+        and request.options.input_fidelity != "auto"
+        and request.model_id.startswith("gpt-image-2")
+    ):
+        raise _capability_error("GPT Image 2 的输入保真度请使用 auto。", request.api_format)
 
 
 _SEEDANCE_2_0_MODEL_ID = "doubao-seedance-2-0-260128"

@@ -89,6 +89,9 @@
                   },
                   {
                     "$ref": "#/components/schemas/XAIImageGenerationRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ByteDanceImageGenerationRequest"
                   }
                 ],
                 "title": "Request"
@@ -146,6 +149,9 @@
                   },
                   {
                     "$ref": "#/components/schemas/XAIImageEditRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ByteDanceImageEditRequest"
                   }
                 ],
                 "title": "Request"
@@ -206,6 +212,9 @@
                   },
                   {
                     "$ref": "#/components/schemas/XAIImageTurnRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ByteDanceImageTurnRequest"
                   }
                 ],
                 "title": "Request"
@@ -397,10 +406,238 @@
           "openaiImage",
           "openaiResponsesImage",
           "xaiImage",
+          "byteDanceImage",
           "byteDanceVideo",
           "xaiVideo"
         ],
         "title": "ApiFormat"
+      },
+      "ByteDanceImageEditRequest": {
+        "properties": {
+          "apiFormat": {
+            "type": "string",
+            "const": "byteDanceImage",
+            "title": "Apiformat"
+          },
+          "baseUrl": {
+            "type": "string",
+            "maxLength": 2048,
+            "minLength": 8,
+            "title": "Baseurl"
+          },
+          "modelId": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Modelid"
+          },
+          "prompt": {
+            "type": "string",
+            "maxLength": 32000,
+            "minLength": 1,
+            "title": "Prompt"
+          },
+          "options": {
+            "$ref": "#/components/schemas/ByteDanceImageOptions"
+          },
+          "images": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/DataUrlImageAsset"
+                },
+                {
+                  "$ref": "#/components/schemas/UrlImageAsset"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "kind",
+                "mapping": {
+                  "dataUrl": "#/components/schemas/DataUrlImageAsset",
+                  "url": "#/components/schemas/UrlImageAsset"
+                }
+              }
+            },
+            "type": "array",
+            "maxItems": 14,
+            "minItems": 1,
+            "title": "Images"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "apiFormat",
+          "baseUrl",
+          "modelId",
+          "prompt",
+          "images"
+        ],
+        "title": "ByteDanceImageEditRequest"
+      },
+      "ByteDanceImageGenerationRequest": {
+        "properties": {
+          "apiFormat": {
+            "type": "string",
+            "const": "byteDanceImage",
+            "title": "Apiformat"
+          },
+          "baseUrl": {
+            "type": "string",
+            "maxLength": 2048,
+            "minLength": 8,
+            "title": "Baseurl"
+          },
+          "modelId": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Modelid"
+          },
+          "prompt": {
+            "type": "string",
+            "maxLength": 32000,
+            "minLength": 1,
+            "title": "Prompt"
+          },
+          "options": {
+            "$ref": "#/components/schemas/ByteDanceImageOptions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "apiFormat",
+          "baseUrl",
+          "modelId",
+          "prompt"
+        ],
+        "title": "ByteDanceImageGenerationRequest"
+      },
+      "ByteDanceImageOptions": {
+        "properties": {
+          "size": {
+            "type": "string",
+            "maxLength": 32,
+            "minLength": 2,
+            "title": "尺寸",
+            "description": "分辨率档位或 WIDTHxHEIGHT，取值范围取决于 Seedream 模型。",
+            "default": "2K"
+          },
+          "watermark": {
+            "type": "boolean",
+            "title": "添加水印",
+            "default": true
+          },
+          "sequentialImageGeneration": {
+            "type": "string",
+            "enum": [
+              "disabled",
+              "auto"
+            ],
+            "title": "组图模式",
+            "description": "5.0 pro / flash 不支持组图。",
+            "default": "disabled"
+          },
+          "maxImages": {
+            "type": "integer",
+            "maximum": 15.0,
+            "minimum": 1.0,
+            "title": "最大生成数量",
+            "description": "组图模式下生效；参考图与输出图合计不超过 15 张。",
+            "default": 15
+          },
+          "outputFormat": {
+            "type": "string",
+            "enum": [
+              "jpeg",
+              "png"
+            ],
+            "title": "输出格式",
+            "description": "仅 Seedream 5.0 支持选择输出格式。",
+            "default": "jpeg"
+          },
+          "optimizePromptMode": {
+            "type": "string",
+            "enum": [
+              "standard",
+              "fast"
+            ],
+            "title": "提示词优化",
+            "description": "fast 仅支持 4.0 / 5.0 pro。",
+            "default": "standard"
+          },
+          "webSearch": {
+            "type": "boolean",
+            "title": "联网搜索",
+            "description": "仅 Seedream 5.0 lite 支持。",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ByteDanceImageOptions"
+      },
+      "ByteDanceImageTurnRequest": {
+        "properties": {
+          "apiFormat": {
+            "type": "string",
+            "const": "byteDanceImage",
+            "title": "Apiformat"
+          },
+          "baseUrl": {
+            "type": "string",
+            "maxLength": 2048,
+            "minLength": 8,
+            "title": "Baseurl"
+          },
+          "modelId": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Modelid"
+          },
+          "prompt": {
+            "type": "string",
+            "maxLength": 32000,
+            "minLength": 1,
+            "title": "Prompt"
+          },
+          "options": {
+            "$ref": "#/components/schemas/ByteDanceImageOptions"
+          },
+          "sourceImages": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/DataUrlImageAsset"
+                },
+                {
+                  "$ref": "#/components/schemas/UrlImageAsset"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "kind",
+                "mapping": {
+                  "dataUrl": "#/components/schemas/DataUrlImageAsset",
+                  "url": "#/components/schemas/UrlImageAsset"
+                }
+              }
+            },
+            "type": "array",
+            "maxItems": 14,
+            "title": "Sourceimages"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "apiFormat",
+          "baseUrl",
+          "modelId",
+          "prompt"
+        ],
+        "title": "ByteDanceImageTurnRequest"
       },
       "ByteDanceVideoGenerationRequest": {
         "properties": {
@@ -810,7 +1047,23 @@
         "properties": {
           "aspectRatio": {
             "type": "string",
-            "title": "Aspectratio",
+            "enum": [
+              "1:1",
+              "1:4",
+              "4:1",
+              "1:8",
+              "8:1",
+              "2:3",
+              "3:2",
+              "3:4",
+              "4:3",
+              "4:5",
+              "5:4",
+              "9:16",
+              "16:9",
+              "21:9"
+            ],
+            "title": "宽高比",
             "default": "1:1"
           },
           "imageSize": {
@@ -821,7 +1074,7 @@
               "2K",
               "4K"
             ],
-            "title": "Imagesize",
+            "title": "图片大小",
             "default": "1K"
           },
           "responseModalities": {
@@ -830,22 +1083,24 @@
               "IMAGE",
               "TEXT_AND_IMAGE"
             ],
-            "title": "Responsemodalities",
+            "title": "输出模态",
             "default": "IMAGE"
           },
           "thinkingLevel": {
             "type": "string",
             "enum": [
-              "High",
-              "Low",
-              "Off"
+              "MINIMAL",
+              "LOW",
+              "MEDIUM",
+              "HIGH"
             ],
-            "title": "Thinkinglevel",
-            "default": "High"
+            "title": "Thinking Level",
+            "description": "思考等级是否可用取决于模型。",
+            "default": "HIGH"
           },
           "includeThoughts": {
             "type": "boolean",
-            "title": "Includethoughts",
+            "title": "返回思考内容",
             "default": false
           }
         },
@@ -1121,19 +1376,13 @@
       },
       "OpenAIImageEditOptions": {
         "properties": {
-          "count": {
-            "type": "integer",
-            "maximum": 10.0,
-            "minimum": 1.0,
-            "title": "Count",
-            "default": 1
-          },
           "size": {
             "type": "string",
             "maxLength": 32,
             "minLength": 3,
-            "title": "Size",
-            "default": "1024x1024"
+            "title": "尺寸",
+            "description": "auto 或 WIDTHxHEIGHT",
+            "default": "auto"
           },
           "quality": {
             "type": "string",
@@ -1141,9 +1390,12 @@
               "auto",
               "low",
               "medium",
-              "high"
+              "high",
+              "xhigh",
+              "max"
             ],
-            "title": "Quality",
+            "title": "质量",
+            "description": "xhigh / max 需要 GPT Image 2.5。",
             "default": "auto"
           },
           "outputFormat": {
@@ -1153,14 +1405,14 @@
               "jpeg",
               "webp"
             ],
-            "title": "Outputformat",
+            "title": "输出格式",
             "default": "png"
           },
           "outputCompression": {
             "type": "integer",
             "maximum": 100.0,
             "minimum": 0.0,
-            "title": "Outputcompression",
+            "title": "输出压缩",
             "default": 100
           },
           "background": {
@@ -1170,8 +1422,31 @@
               "opaque",
               "transparent"
             ],
-            "title": "Background",
+            "title": "背景",
             "default": "auto"
+          },
+          "count": {
+            "type": "integer",
+            "maximum": 10.0,
+            "minimum": 1.0,
+            "title": "生成数量",
+            "default": 1
+          },
+          "moderation": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "low"
+            ],
+            "title": "Moderation",
+            "default": "auto"
+          },
+          "partialImages": {
+            "type": "integer",
+            "maximum": 3.0,
+            "minimum": 0.0,
+            "title": "渐进预览数量",
+            "default": 2
           },
           "inputFidelity": {
             "type": "string",
@@ -1180,7 +1455,8 @@
               "low",
               "high"
             ],
-            "title": "Inputfidelity",
+            "title": "输入保真度",
+            "description": "auto 表示不发送该参数；GPT Image 2 请使用 auto。",
             "default": "auto"
           }
         },
@@ -1302,19 +1578,13 @@
       },
       "OpenAIImageOptions": {
         "properties": {
-          "count": {
-            "type": "integer",
-            "maximum": 10.0,
-            "minimum": 1.0,
-            "title": "Count",
-            "default": 1
-          },
           "size": {
             "type": "string",
             "maxLength": 32,
             "minLength": 3,
-            "title": "Size",
-            "default": "1024x1024"
+            "title": "尺寸",
+            "description": "auto 或 WIDTHxHEIGHT",
+            "default": "auto"
           },
           "quality": {
             "type": "string",
@@ -1322,9 +1592,12 @@
               "auto",
               "low",
               "medium",
-              "high"
+              "high",
+              "xhigh",
+              "max"
             ],
-            "title": "Quality",
+            "title": "质量",
+            "description": "xhigh / max 需要 GPT Image 2.5。",
             "default": "auto"
           },
           "outputFormat": {
@@ -1334,14 +1607,14 @@
               "jpeg",
               "webp"
             ],
-            "title": "Outputformat",
+            "title": "输出格式",
             "default": "png"
           },
           "outputCompression": {
             "type": "integer",
             "maximum": 100.0,
             "minimum": 0.0,
-            "title": "Outputcompression",
+            "title": "输出压缩",
             "default": 100
           },
           "background": {
@@ -1351,8 +1624,15 @@
               "opaque",
               "transparent"
             ],
-            "title": "Background",
+            "title": "背景",
             "default": "auto"
+          },
+          "count": {
+            "type": "integer",
+            "maximum": 10.0,
+            "minimum": 1.0,
+            "title": "生成数量",
+            "default": 1
           },
           "moderation": {
             "type": "string",
@@ -1367,7 +1647,7 @@
             "type": "integer",
             "maximum": 3.0,
             "minimum": 0.0,
-            "title": "Partialimages",
+            "title": "渐进预览数量",
             "default": 2
           }
         },
@@ -1377,19 +1657,13 @@
       },
       "OpenAIImageTurnOptions": {
         "properties": {
-          "count": {
-            "type": "integer",
-            "maximum": 10.0,
-            "minimum": 1.0,
-            "title": "Count",
-            "default": 1
-          },
           "size": {
             "type": "string",
             "maxLength": 32,
             "minLength": 3,
-            "title": "Size",
-            "default": "1024x1024"
+            "title": "尺寸",
+            "description": "auto 或 WIDTHxHEIGHT",
+            "default": "auto"
           },
           "quality": {
             "type": "string",
@@ -1397,9 +1671,12 @@
               "auto",
               "low",
               "medium",
-              "high"
+              "high",
+              "xhigh",
+              "max"
             ],
-            "title": "Quality",
+            "title": "质量",
+            "description": "xhigh / max 需要 GPT Image 2.5。",
             "default": "auto"
           },
           "outputFormat": {
@@ -1409,14 +1686,14 @@
               "jpeg",
               "webp"
             ],
-            "title": "Outputformat",
+            "title": "输出格式",
             "default": "png"
           },
           "outputCompression": {
             "type": "integer",
             "maximum": 100.0,
             "minimum": 0.0,
-            "title": "Outputcompression",
+            "title": "输出压缩",
             "default": 100
           },
           "background": {
@@ -1426,8 +1703,15 @@
               "opaque",
               "transparent"
             ],
-            "title": "Background",
+            "title": "背景",
             "default": "auto"
+          },
+          "count": {
+            "type": "integer",
+            "maximum": 10.0,
+            "minimum": 1.0,
+            "title": "生成数量",
+            "default": 1
           },
           "moderation": {
             "type": "string",
@@ -1438,6 +1722,13 @@
             "title": "Moderation",
             "default": "auto"
           },
+          "partialImages": {
+            "type": "integer",
+            "maximum": 3.0,
+            "minimum": 0.0,
+            "title": "渐进预览数量",
+            "default": 2
+          },
           "inputFidelity": {
             "type": "string",
             "enum": [
@@ -1445,15 +1736,9 @@
               "low",
               "high"
             ],
-            "title": "Inputfidelity",
+            "title": "输入保真度",
+            "description": "auto 表示不发送该参数；GPT Image 2 请使用 auto。",
             "default": "auto"
-          },
-          "partialImages": {
-            "type": "integer",
-            "maximum": 3.0,
-            "minimum": 0.0,
-            "title": "Partialimages",
-            "default": 2
           }
         },
         "additionalProperties": false,
@@ -1569,7 +1854,8 @@
             "type": "string",
             "maxLength": 32,
             "minLength": 3,
-            "title": "Size",
+            "title": "尺寸",
+            "description": "auto 或 WIDTHxHEIGHT",
             "default": "auto"
           },
           "quality": {
@@ -1578,9 +1864,12 @@
               "auto",
               "low",
               "medium",
-              "high"
+              "high",
+              "xhigh",
+              "max"
             ],
-            "title": "Quality",
+            "title": "质量",
+            "description": "xhigh / max 需要 GPT Image 2.5。",
             "default": "auto"
           },
           "outputFormat": {
@@ -1590,14 +1879,14 @@
               "jpeg",
               "webp"
             ],
-            "title": "Outputformat",
+            "title": "输出格式",
             "default": "png"
           },
           "outputCompression": {
             "type": "integer",
             "maximum": 100.0,
             "minimum": 0.0,
-            "title": "Outputcompression",
+            "title": "输出压缩",
             "default": 100
           },
           "background": {
@@ -1607,7 +1896,25 @@
               "opaque",
               "transparent"
             ],
-            "title": "Background",
+            "title": "背景",
+            "default": "auto"
+          },
+          "imageModel": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "生图工具模型",
+            "description": "auto 使用上游默认值，也可填写 gpt-image-2 等生图模型 ID。",
+            "default": "auto"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "generate",
+              "edit"
+            ],
+            "title": "生图动作",
             "default": "auto"
           },
           "moderation": {
@@ -1626,14 +1933,14 @@
               "low",
               "high"
             ],
-            "title": "Inputfidelity",
+            "title": "输入保真度",
             "default": "auto"
           },
           "partialImages": {
             "type": "integer",
             "maximum": 3.0,
             "minimum": 0.0,
-            "title": "Partialimages",
+            "title": "渐进预览数量",
             "default": 2
           }
         },
@@ -2310,14 +2617,24 @@
             "type": "integer",
             "maximum": 10.0,
             "minimum": 1.0,
-            "title": "Count",
+            "title": "生成数量",
             "default": 1
           },
           "aspectRatio": {
             "type": "string",
-            "maxLength": 16,
-            "minLength": 3,
-            "title": "Aspectratio",
+            "enum": [
+              "1:1",
+              "16:9",
+              "9:16",
+              "4:3",
+              "3:4",
+              "3:2",
+              "2:3",
+              "2:1",
+              "1:2",
+              "auto"
+            ],
+            "title": "宽高比",
             "default": "1:1"
           },
           "resolution": {
@@ -2326,7 +2643,7 @@
               "1k",
               "2k"
             ],
-            "title": "Resolution",
+            "title": "分辨率",
             "default": "1k"
           },
           "quality": {
@@ -2335,7 +2652,7 @@
               "low",
               "medium"
             ],
-            "title": "Quality",
+            "title": "质量",
             "default": "medium"
           }
         },

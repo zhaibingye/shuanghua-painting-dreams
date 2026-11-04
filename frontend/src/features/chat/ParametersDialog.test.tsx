@@ -31,15 +31,14 @@ const options = {
   partialImages: 2,
 }
 
-function renderDialog(openAIImageEditing: boolean) {
+function renderDialog(format: StoredConversation['apiFormat'] = 'openaiImage', values: Record<string, unknown> = options) {
   render(
     <ParametersDialog
       open
-      conversation={conversation}
-      options={options}
+      conversation={{ ...conversation, apiFormat: format }}
+      options={values}
       videoDraft={defaultVideoDraft}
       modelCapabilities={undefined}
-      openAIImageEditing={openAIImageEditing}
       onOpenChange={vi.fn()}
       onOption={vi.fn()}
       onVideoDraft={vi.fn()}
@@ -66,7 +65,6 @@ describe('ParametersDialog ByteDance video resolutions', () => {
           generateAudio: true,
           webSearch: true,
         }}
-        openAIImageEditing={false}
         onOpenChange={vi.fn()}
         onOption={vi.fn()}
         onVideoDraft={vi.fn()}
@@ -80,21 +78,19 @@ describe('ParametersDialog ByteDance video resolutions', () => {
 })
 
 describe('ParametersDialog OpenAI Images mode', () => {
-  it('shows generation-only streaming controls without a reference image', () => {
-    renderDialog(false)
+  it('uses one form for generation and editing controls', () => {
+    renderDialog()
 
     expect(screen.getByText('渐进预览数量')).toBeInTheDocument()
     expect(screen.getByText('Moderation')).toBeInTheDocument()
-    expect(screen.queryByText('输入保真度')).not.toBeInTheDocument()
+    expect(screen.getByText('输入保真度')).toBeInTheDocument()
     expect(screen.queryByText(/参考图与遮罩编辑使用非流式/)).not.toBeInTheDocument()
   })
 
-  it('explains non-streaming editing and hides generation-only controls', () => {
-    renderDialog(true)
-
-    expect(screen.getByText('输入保真度')).toBeInTheDocument()
-    expect(screen.getByText(/参考图与遮罩编辑使用非流式/)).toBeInTheDocument()
-    expect(screen.queryByText('渐进预览数量')).not.toBeInTheDocument()
-    expect(screen.queryByText('Moderation')).not.toBeInTheDocument()
+  it('shows standard Gemini thinking levels without the obsolete Off option', () => {
+    renderDialog('googleGeminiImage', {})
+    expect(screen.getByLabelText('Thinking Level')).toHaveValue('HIGH')
+    expect(screen.getByRole('option', { name: 'MINIMAL' })).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'Off' })).not.toBeInTheDocument()
   })
 })
