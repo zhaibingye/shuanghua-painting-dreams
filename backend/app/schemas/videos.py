@@ -53,7 +53,7 @@ class ByteDanceVideoGenerationRequest(UpstreamRequest):
     options: ByteDanceVideoOptions = Field(default_factory=ByteDanceVideoOptions)
 
     @model_validator(mode="after")
-    def validate_mode(self) -> "ByteDanceVideoGenerationRequest":
+    def validate_mode(self) -> ByteDanceVideoGenerationRequest:
         capabilities = byte_dance_model_capabilities(self.model_id)
         defaults = {
             "duration": capabilities["defaultDuration"],
@@ -127,7 +127,7 @@ class XAIVideoGenerationRequest(UpstreamRequest):
     options: XAIVideoOptions = Field(default_factory=XAIVideoOptions)
 
     @model_validator(mode="after")
-    def validate_mode(self) -> "XAIVideoGenerationRequest":
+    def validate_mode(self) -> XAIVideoGenerationRequest:
         if self.inputs.first_frame is not None and self.inputs.reference_images:
             raise ValueError("xAI 首帧图片与参考图片严格互斥")
         if self.mode == "textToVideo" and not self.prompt:

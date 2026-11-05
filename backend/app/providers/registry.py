@@ -22,7 +22,7 @@ class ProviderRegistry:
     xai_video: XAIVideoAdapter
 
     @classmethod
-    def create(cls, transport: ProviderTransport, settings: Settings) -> "ProviderRegistry":
+    def create(cls, transport: ProviderTransport, settings: Settings) -> ProviderRegistry:
         return cls(
             google_gemini_image=GoogleGeminiImageAdapter(transport, settings),
             openai_image=OpenAIImageAdapter(transport, settings),

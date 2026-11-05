@@ -15,12 +15,14 @@ export default defineConfig({
     },
   },
   build: {
-    rollupOptions: {
+    rolldownOptions: {
       output: {
-        manualChunks: {
-          react: ['react', 'react-dom', 'react-router-dom'],
-          ui: ['@radix-ui/react-dialog', 'lucide-react', 'sonner'],
-          data: ['@tanstack/react-query', 'idb', 'zustand', 'zod', 'openapi-fetch'],
+        codeSplitting: {
+          groups: [
+            { name: 'react', test: /node_modules[\\/]react(?:-dom|-router|-router-dom)?[\\/]/ },
+            { name: 'ui', test: /node_modules[\\/](?:@radix-ui|lucide-react|sonner)[\\/]/ },
+            { name: 'data', test: /node_modules[\\/](?:@tanstack|idb|zustand|zod|openapi-fetch)[\\/]/ },
+          ],
         },
       },
     },

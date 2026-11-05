@@ -94,7 +94,7 @@ class OpenAIImageTurnRequest(UpstreamRequest):
     options: OpenAIImageTurnOptions = Field(default_factory=OpenAIImageTurnOptions)
 
     @model_validator(mode="after")
-    def validate_mask_inputs(self) -> "OpenAIImageTurnRequest":
+    def validate_mask_inputs(self) -> OpenAIImageTurnRequest:
         if self.markup is not None:
             if self.mask is not None:
                 raise ValueError("标注图不能与遮罩同时使用")

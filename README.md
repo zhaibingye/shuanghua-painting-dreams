@@ -81,9 +81,13 @@ Seedance 2.5 默认自动时长（`-1`，模型选择 4～30 秒）、`adaptive`
 
 ## 环境要求
 
-- Node.js 20+
-- Python 3.12
-- uv
+- Node.js 26.13.0+（26 LTS）
+- Python 3.15.2
+- uv 0.13.7+、npm 12.2.2
+
+Node.js 版本记录在 `.node-version` / `.nvmrc`，Python 版本记录在 `backend/.python-version`。依赖由 lock 文件固定，安装时使用 `npm ci` 和 `uv sync --frozen`。
+
+类型检查使用 TypeScript 7。按 TypeScript 官方并行安装方案，ESLint 使用 TypeScript 6 编译器 API；`frontend/tools/openapi` 独立工具包保留最新版 OpenAPI 生成器所要求的 TypeScript 5 API。两者只用于开发工具，不进入浏览器产物。
 
 ## 项目命令
 

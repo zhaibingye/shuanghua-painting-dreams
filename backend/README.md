@@ -51,3 +51,5 @@ uv run mypy app tests
 ```bash
 uv run python scripts/export_openapi.py
 ```
+
+后端使用 `backend/.python-version` 指定的 Python 3.15.2，建议使用 uv 0.13.7 或更高版本安装和管理解释器。

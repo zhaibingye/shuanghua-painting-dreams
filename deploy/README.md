@@ -20,10 +20,10 @@ FastAPI API + frontend/dist
 
 服务器需要安装：
 
-- Python 3.12；
-- uv；
-- Node.js 20 或更高版本；
-- npm；
+- Python 3.15.2；
+- uv 0.13.7 或更高版本；
+- Node.js 26.13.0 或更高的 26 LTS 版本；
+- npm 12.2.2；
 - PM2；
 - Nginx，或带 Nginx 的宝塔面板。
 
@@ -114,7 +114,8 @@ npm run setup
 该命令会执行：
 
 - `uv sync --frozen`，安装后端运行、开发和检查依赖；
-- `npm ci`，安装前端运行、构建和检查依赖。
+- `npm ci`，安装前端运行、构建和检查依赖；
+- 在 `frontend/tools/openapi` 执行 `npm ci`，安装隔离的 OpenAPI 类型生成工具。
 
 `npm start` 不会自动安装依赖。更新 lock 文件后应重新执行 `npm run setup`。
 
@@ -367,8 +368,8 @@ pm2 logs shuanghua --lines 200
 
 重点检查：
 
-- Node.js 是否至少为 20；
-- Python 是否为 3.12；
+- Node.js 是否为 26.13.0 或更高的 26 LTS 版本；
+- Python 是否为 3.15.2；
 - `uv` 是否可被 PM2 运行用户从 `PATH` 找到；
 - `npm run setup` 是否执行成功；
 - 3002 是否被其他进程占用；

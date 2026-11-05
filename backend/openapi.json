@@ -80,7 +80,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "anyOf": [
+                "oneOf": [
                   {
                     "$ref": "#/components/schemas/GeminiImageGenerationRequest"
                   },
@@ -94,7 +94,16 @@
                     "$ref": "#/components/schemas/ByteDanceImageGenerationRequest"
                   }
                 ],
-                "title": "Request"
+                "title": "Request",
+                "discriminator": {
+                  "propertyName": "apiFormat",
+                  "mapping": {
+                    "googleGeminiImage": "#/components/schemas/GeminiImageGenerationRequest",
+                    "openaiImage": "#/components/schemas/OpenAIImageGenerationRequest",
+                    "xaiImage": "#/components/schemas/XAIImageGenerationRequest",
+                    "byteDanceImage": "#/components/schemas/ByteDanceImageGenerationRequest"
+                  }
+                }
               }
             }
           },
@@ -140,7 +149,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "anyOf": [
+                "oneOf": [
                   {
                     "$ref": "#/components/schemas/GeminiImageEditRequest"
                   },
@@ -154,7 +163,16 @@
                     "$ref": "#/components/schemas/ByteDanceImageEditRequest"
                   }
                 ],
-                "title": "Request"
+                "title": "Request",
+                "discriminator": {
+                  "propertyName": "apiFormat",
+                  "mapping": {
+                    "googleGeminiImage": "#/components/schemas/GeminiImageEditRequest",
+                    "openaiImage": "#/components/schemas/OpenAIImageEditRequest",
+                    "xaiImage": "#/components/schemas/XAIImageEditRequest",
+                    "byteDanceImage": "#/components/schemas/ByteDanceImageEditRequest"
+                  }
+                }
               }
             }
           },
@@ -200,7 +218,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "anyOf": [
+                "oneOf": [
                   {
                     "$ref": "#/components/schemas/OpenAIImageTurnRequest"
                   },
@@ -217,7 +235,17 @@
                     "$ref": "#/components/schemas/ByteDanceImageTurnRequest"
                   }
                 ],
-                "title": "Request"
+                "title": "Request",
+                "discriminator": {
+                  "propertyName": "apiFormat",
+                  "mapping": {
+                    "openaiImage": "#/components/schemas/OpenAIImageTurnRequest",
+                    "openaiResponsesImage": "#/components/schemas/OpenAIResponsesImageTurnRequest",
+                    "googleGeminiImage": "#/components/schemas/GeminiImageTurnRequest",
+                    "xaiImage": "#/components/schemas/XAIImageTurnRequest",
+                    "byteDanceImage": "#/components/schemas/ByteDanceImageTurnRequest"
+                  }
+                }
               }
             }
           },
@@ -261,7 +289,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "anyOf": [
+                "oneOf": [
                   {
                     "$ref": "#/components/schemas/ByteDanceVideoGenerationRequest"
                   },
@@ -269,7 +297,14 @@
                     "$ref": "#/components/schemas/XAIVideoGenerationRequest"
                   }
                 ],
-                "title": "Request"
+                "title": "Request",
+                "discriminator": {
+                  "propertyName": "apiFormat",
+                  "mapping": {
+                    "byteDanceVideo": "#/components/schemas/ByteDanceVideoGenerationRequest",
+                    "xaiVideo": "#/components/schemas/XAIVideoGenerationRequest"
+                  }
+                }
               }
             }
           },

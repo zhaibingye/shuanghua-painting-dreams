@@ -15,3 +15,7 @@
 
 - Seedance 模型家族、匹配优先级和能力值统一维护于 `backend/app/domain/seedance.py`，随 `api:generate` 导出到参数目录的 `byteDanceVideoFamilies`，前端直接读取；不要再在前端复制家族表或给已生成的能力值逐层兜底。持久化选项的模型切换归一化仍属于必要边界。
 - HTTP 的 JSON、multipart、SSE 和媒体下载共用 `SafeHttpTransport._request`，API 重定向保持同源，媒体下载不带 Key。SSE 按 Content-Type 解析，不再将声称 SSE 的裸 JSON 猜测修复；正确声明的 JSON 响应仍可桥接为图片结果。
+
+- TypeScript 7.0 无稳定编译器 API。2026-11-05 验证的安装结构：`@typescript/native` 别名使用正式 `typescript@7`，提供应用的 `tsc`；根 `typescript` 别名为微软 `@typescript/typescript6`，供 typescript-eslint 使用。openapi-typescript 7.13 仍要求 TypeScript 5，独立安装于 `frontend/tools/openapi`，由根 `setup` 安装、`api:generate` 调用；不要将其提升到前端根目录造成 peer 冲突，或使用 force/legacy-peer-deps 掩盖问题。上游 API 支持变化后再核实能否合并。
+- Vite 8 使用 Rolldown，分包配置采用 `build.rolldownOptions.output.codeSplitting.groups`，不再使用已移除的对象式 `manualChunks`。
+- 2026-11-05 的 npm audit 确认 ESLint/typescript-eslint 间接依赖的 minimatch <11.0.1 有已披露漏洞，前端显式 override 至 ^11.0.4；该覆盖已通过严格 lint、211 项后端测试、131 项前端测试、42 项桌面/手机 E2E 和生产构建验证。上游升级后可重新评估并移除覆盖。

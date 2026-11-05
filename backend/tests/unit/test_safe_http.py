@@ -17,7 +17,7 @@ class RedirectResponse:
     def __init__(self) -> None:
         self.headers = {"Location": "/same-target"}
 
-    async def __aenter__(self) -> "RedirectResponse":
+    async def __aenter__(self) -> RedirectResponse:
         return self
 
     async def __aexit__(

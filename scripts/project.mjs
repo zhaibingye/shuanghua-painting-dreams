@@ -31,9 +31,9 @@ function log(message) {
 }
 
 function assertSupportedNodeVersion() {
-  const majorVersion = Number.parseInt(process.versions.node.split('.')[0], 10)
-  if (!Number.isFinite(majorVersion) || majorVersion < 20) {
-    throw new Error(`需要 Node.js 20 或更高版本，当前版本为 ${process.version}`)
+  const [majorVersion, minorVersion] = process.versions.node.split('.').map(Number)
+  if (majorVersion !== 26 || minorVersion < 13) {
+    throw new Error(`需要 Node.js 26.13 或更高的 26 LTS 版本，当前版本为 ${process.version}`)
   }
 }
 
@@ -173,6 +173,11 @@ async function setup() {
   await runProcess(npmCommand, npmArguments(['ci']), {
     cwd: frontendDirectory,
     label: '前端依赖安装',
+  })
+  log('安装 OpenAPI 生成工具依赖……')
+  await runProcess(npmCommand, npmArguments(['ci']), {
+    cwd: path.join(frontendDirectory, 'tools', 'openapi'),
+    label: 'OpenAPI 工具依赖安装',
   })
   log('依赖安装完成。')
 }

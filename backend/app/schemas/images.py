@@ -239,7 +239,7 @@ class OpenAIImageEditRequest(UpstreamRequest):
     options: OpenAIImageEditOptions = Field(default_factory=OpenAIImageEditOptions)
 
     @model_validator(mode="after")
-    def validate_mask_inputs(self) -> "OpenAIImageEditRequest":
+    def validate_mask_inputs(self) -> OpenAIImageEditRequest:
         if self.markup is not None and self.mask is not None:
             raise ValueError("标注图不能与遮罩同时使用")
         if self.mask is not None and len(self.images) != 1:

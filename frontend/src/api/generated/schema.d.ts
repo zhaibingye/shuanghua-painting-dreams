@@ -169,8 +169,8 @@ export interface components {
         /** ByteDanceImageEditRequest */
         ByteDanceImageEditRequest: {
             /**
-             * Apiformat
-             * @constant
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
             apiFormat: "byteDanceImage";
             /** Baseurl */
@@ -186,8 +186,8 @@ export interface components {
         /** ByteDanceImageGenerationRequest */
         ByteDanceImageGenerationRequest: {
             /**
-             * Apiformat
-             * @constant
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
             apiFormat: "byteDanceImage";
             /** Baseurl */
@@ -248,8 +248,8 @@ export interface components {
         /** ByteDanceImageTurnRequest */
         ByteDanceImageTurnRequest: {
             /**
-             * Apiformat
-             * @constant
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
             apiFormat: "byteDanceImage";
             /** Baseurl */
@@ -265,8 +265,8 @@ export interface components {
         /** ByteDanceVideoGenerationRequest */
         ByteDanceVideoGenerationRequest: {
             /**
-             * Apiformat
-             * @constant
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
             apiFormat: "byteDanceVideo";
             /** Baseurl */
@@ -388,8 +388,8 @@ export interface components {
         /** GeminiImageEditRequest */
         GeminiImageEditRequest: {
             /**
-             * Apiformat
-             * @constant
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
             apiFormat: "googleGeminiImage";
             /** Baseurl */
@@ -405,8 +405,8 @@ export interface components {
         /** GeminiImageGenerationRequest */
         GeminiImageGenerationRequest: {
             /**
-             * Apiformat
-             * @constant
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
             apiFormat: "googleGeminiImage";
             /** Baseurl */
@@ -470,8 +470,8 @@ export interface components {
         /** GeminiImageTurnRequest */
         GeminiImageTurnRequest: {
             /**
-             * Apiformat
-             * @constant
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
             apiFormat: "googleGeminiImage";
             /** Baseurl */
@@ -635,8 +635,8 @@ export interface components {
         /** OpenAIImageEditRequest */
         OpenAIImageEditRequest: {
             /**
-             * Apiformat
-             * @constant
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
             apiFormat: "openaiImage";
             /** Baseurl */
@@ -655,8 +655,8 @@ export interface components {
         /** OpenAIImageGenerationRequest */
         OpenAIImageGenerationRequest: {
             /**
-             * Apiformat
-             * @constant
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
             apiFormat: "openaiImage";
             /** Baseurl */
@@ -849,8 +849,8 @@ export interface components {
         /** OpenAIImageTurnRequest */
         OpenAIImageTurnRequest: {
             /**
-             * Apiformat
-             * @constant
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
             apiFormat: "openaiImage";
             /** Baseurl */
@@ -952,8 +952,8 @@ export interface components {
         /** OpenAIResponsesImageTurnRequest */
         OpenAIResponsesImageTurnRequest: {
             /**
-             * Apiformat
-             * @constant
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
             apiFormat: "openaiResponsesImage";
             /** Baseurl */
@@ -1125,8 +1125,8 @@ export interface components {
         /** XAIImageEditRequest */
         XAIImageEditRequest: {
             /**
-             * Apiformat
-             * @constant
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
             apiFormat: "xaiImage";
             /** Baseurl */
@@ -1142,8 +1142,8 @@ export interface components {
         /** XAIImageGenerationRequest */
         XAIImageGenerationRequest: {
             /**
-             * Apiformat
-             * @constant
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
             apiFormat: "xaiImage";
             /** Baseurl */
@@ -1183,8 +1183,8 @@ export interface components {
         /** XAIImageTurnRequest */
         XAIImageTurnRequest: {
             /**
-             * Apiformat
-             * @constant
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
             apiFormat: "xaiImage";
             /** Baseurl */
@@ -1224,8 +1224,8 @@ export interface components {
         /** XAIVideoGenerationRequest */
         XAIVideoGenerationRequest: {
             /**
-             * Apiformat
-             * @constant
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
             apiFormat: "xaiVideo";
             /** Baseurl */

@@ -18,6 +18,7 @@ SHUANGHUA_DEV_API_TARGET=http://127.0.0.1:4000 npm run dev
 
 ```bash
 npm ci
+npm ci --prefix tools/openapi
 npm run dev
 npm run lint
 npm run typecheck
@@ -34,3 +35,5 @@ npm run api:generate
 ```
 
 生产构建输出到 `frontend/dist`，由 FastAPI 统一提供，不需要单独启动静态文件服务器。
+
+开发环境使用 Node.js 26 LTS（至少 26.13.0）和 npm 12.2.2。`tsc` 为 TypeScript 7；`typescript` 的 TypeScript 6 官方兼容包供 ESLint 使用。OpenAPI 生成器及其 TypeScript 5 API 隔离在 `frontend/tools/openapi` 独立工具包，由根目录 `npm run setup` 安装。
