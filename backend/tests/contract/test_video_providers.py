@@ -19,6 +19,7 @@ async def test_byte_video_payload_and_status(settings: Settings) -> None:
     transport = FakeTransport(
         [
             UpstreamResponse(status=200, data={"id": "cgt-1"}, headers={}),
+            UpstreamResponse(status=200, data={"status": "running", "content": {}}, headers={}),
             UpstreamResponse(
                 status=200,
                 data={
@@ -53,6 +54,8 @@ async def test_byte_video_payload_and_status(settings: Settings) -> None:
     )
 
     created = await adapter.create(request, "key")
+    processing = await adapter.get_status(request.base_url, created.task_id, "key")
+    assert processing.status == TaskStatus.PROCESSING and processing.output is None
     status = await adapter.get_status(request.base_url, created.task_id, "key")
 
     create_payload = transport.calls[0].payload
@@ -72,6 +75,8 @@ async def test_byte_video_payload_and_status(settings: Settings) -> None:
     assert status.status == TaskStatus.SUCCEEDED
     assert status.output is not None
     assert status.output.last_frame_url == "https://example.com/last.png"
+    assert status.output.duration == 5
+    assert status.usage is not None and status.usage.total_tokens == 100
 
 
 @pytest.mark.asyncio
@@ -80,6 +85,17 @@ async def test_xai_video_generation_and_extension(settings: Settings) -> None:
         [
             UpstreamResponse(status=200, data={"request_id": "video-1"}, headers={}),
             UpstreamResponse(status=200, data={"request_id": "video-2"}, headers={}),
+            UpstreamResponse(
+                status=200,
+                data={
+                    "status": "done",
+                    "progress": 100,
+                    "model": "grok-imagine-video-1.5",
+                    "video": {"url": "https://example.com/result.mp4", "duration": 8},
+                    "usage": {"total_tokens": 100},
+                },
+                headers={},
+            ),
         ]
     )
     adapter = XAIVideoAdapter(transport, settings)
@@ -116,6 +132,12 @@ async def test_xai_video_generation_and_extension(settings: Settings) -> None:
     assert generation_payload["reference_audios"] == [{"voice_id": "eve"}]
     assert extension_payload is not None
     assert extension_payload["video"]["url"] == "https://example.com/source.mp4"
+    result = await adapter.get_status(generation.base_url, "video-1", "key")
+    assert result.status == TaskStatus.SUCCEEDED
+    assert result.progress == 100
+    assert result.output is not None and result.output.duration == 8
+    assert result.output.video_url == "https://example.com/result.mp4"
+    assert result.usage is not None and result.usage.total_tokens == 100
 
 
 @pytest.mark.asyncio
@@ -142,29 +164,34 @@ async def test_xai_moderated_done_task_becomes_failed(settings: Settings) -> Non
     assert status.error.code == "moderationBlocked"
 
 
-@pytest.mark.parametrize("content", [None, [], {}, {"video_url": ""}])
-async def test_byte_success_without_video_is_not_terminal(
-    settings: Settings, content: object
+@pytest.mark.parametrize(
+    ("adapter_type", "base_url", "data"),
+    [
+        (ByteDanceVideoAdapter, "https://ark.cn-beijing.volces.com", {"status": "succeeded"}),
+        (XAIVideoAdapter, "https://example.com", {"status": "done", "video": {}}),
+        (ByteDanceVideoAdapter, "https://ark.cn-beijing.volces.com", {"status": "unknown"}),
+        (XAIVideoAdapter, "https://example.com", {"status": "pending", "progress": "invalid"}),
+        (
+            ByteDanceVideoAdapter,
+            "https://ark.cn-beijing.volces.com",
+            {"status": "running", "usage": {"total_tokens": "invalid"}},
+        ),
+        (
+            XAIVideoAdapter,
+            "https://example.com",
+            {"status": "done", "video": {"url": "http://127.0.0.1/private"}},
+        ),
+    ],
+)
+async def test_video_rejects_invalid_upstream_response(
+    settings: Settings,
+    adapter_type: type[ByteDanceVideoAdapter] | type[XAIVideoAdapter],
+    base_url: str,
+    data: dict[str, object],
 ) -> None:
-    transport = FakeTransport(
-        [UpstreamResponse(status=200, data={"status": "succeeded", "content": content}, headers={})]
-    )
-    adapter = ByteDanceVideoAdapter(transport, settings)
+    transport = FakeTransport([UpstreamResponse(status=200, data=data, headers={})])
     with pytest.raises(ApplicationError) as error:
-        await adapter.get_status("https://ark.cn-beijing.volces.com", "task-1", "key")
-    assert error.value.code == "invalidUpstreamResponse"
-
-
-@pytest.mark.parametrize("video", [None, [], {}, {"url": ""}])
-async def test_xai_success_without_video_is_not_misreported_as_success_or_moderation(
-    settings: Settings, video: object
-) -> None:
-    transport = FakeTransport(
-        [UpstreamResponse(status=200, data={"status": "done", "video": video}, headers={})]
-    )
-    adapter = XAIVideoAdapter(transport, settings)
-    with pytest.raises(ApplicationError) as error:
-        await adapter.get_status("https://www.shapi.vip", "task-1", "key")
+        await adapter_type(transport, settings).get_status(base_url, "task-1", "key")
     assert error.value.code == "invalidUpstreamResponse"
 
 

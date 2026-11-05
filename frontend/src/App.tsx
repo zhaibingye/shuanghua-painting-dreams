@@ -8,7 +8,6 @@ import { WelcomePage } from './features/chat/WelcomePage'
 import { KeyGate } from './features/key-gate/KeyGate'
 import { SettingsDialog } from './features/settings/SettingsPage'
 import { VideoTaskPoller } from './features/video-workbench/VideoTaskPoller'
-import { useProviderMetadata } from './hooks/use-provider-metadata'
 import { useTheme } from './hooks/use-theme'
 import { useViewport } from './hooks/use-viewport'
 import { markInterruptedImageMessages } from './storage/db'
@@ -17,7 +16,6 @@ import type { MediaKind } from './storage/settings'
 export default function App() {
   useTheme()
   useViewport()
-  useProviderMetadata()
   useEffect(() => {
     void markInterruptedImageMessages()
   }, [])

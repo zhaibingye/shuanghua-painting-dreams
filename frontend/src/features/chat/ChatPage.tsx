@@ -15,7 +15,6 @@ import { Select } from '../../components/ui/Field'
 import { Spinner } from '../../components/ui/Spinner'
 import { useChatScroll } from '../../hooks/use-chat-scroll'
 import { useConversation, useMessages } from '../../hooks/use-history'
-import { useProviderMetadata } from '../../hooks/use-provider-metadata'
 import {
   createTurn,
   getAssets,
@@ -44,7 +43,7 @@ import {
   type DraftImage,
 } from './image-turn'
 import { MessageList } from './MessageList'
-import { normalizeByteDanceOptions, resolveModelCapabilities } from './model-capabilities'
+import { normalizeByteDanceOptions } from './model-capabilities'
 import {
   openAIResponsesImageModel,
   openAIImageSizeError,
@@ -67,7 +66,6 @@ export function ChatPage({ onOpenSidebar }: { onOpenSidebar: () => void }) {
   const settings = useSettingsStore((state) => state.settings)
   const updateFormat = useSettingsStore((state) => state.updateFormat)
   const addRecentVoiceId = useSettingsStore((state) => state.addRecentVoiceId)
-  const metadata = useProviderMetadata().data
   const [prompt, setPrompt] = useState('')
   const [images, setImages] = useState<DraftImage[]>([])
   const imagesRef = useRef(images)
@@ -149,18 +147,6 @@ export function ChatPage({ onOpenSidebar }: { onOpenSidebar: () => void }) {
   }), [messages, activeImageTask?.partials, activeImageTask?.text])
   const { scrollRef, contentRef, atBottom, scrollToBottom } = useChatScroll(
     conversationId, scrollRevision, !loading && Boolean(conversation),
-  )
-
-  const capabilities = useMemo(
-    () =>
-      resolveModelCapabilities({
-        apiFormat: conversation?.apiFormat,
-        modelId: conversation?.modelId,
-        provider: metadata?.providers.find(
-          (provider) => provider.apiFormat === conversation?.apiFormat,
-        ),
-      }),
-    [conversation?.apiFormat, conversation?.modelId, metadata?.providers],
   )
 
   if (loading) {
@@ -586,7 +572,6 @@ export function ChatPage({ onOpenSidebar }: { onOpenSidebar: () => void }) {
         conversation={conversation}
         options={turnOptions}
         videoDraft={videoDraft}
-        modelCapabilities={capabilities}
         onOpenChange={setParametersOpen}
         onOption={setOption}
         onVideoDraft={(patch) => setVideoDraft((current) => ({ ...current, ...patch }))}

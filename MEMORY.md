@@ -1,6 +1,6 @@
 # 项目记忆
 
-- 图片参数以 `backend/app/schemas/images.py`、`image_turns.py` 的 Pydantic 模型为源，`domain/image_options.py` 注册各格式。运行根目录命令 `npm run api:generate --prefix frontend` 同步 OpenAPI、TypeScript 类型和 `provider-catalog.json`；前端表单、默认值与基本提交校验读取该目录。`test_provider_catalog.py` 检查生成文件是否过期，修改契约后必须重新生成。
+- 图片、视频与视频续写参数以 `backend/app/schemas/` 的 Pydantic 模型为源，`domain/options.py` 注册各格式。运行根目录命令 `npm run api:generate --prefix frontend` 同步 OpenAPI、TypeScript 类型和 `provider-catalog.json`；前端 `api/options.ts` 统一提供字段、默认值和提交校验，表单直接读取生成目录，不再请求运行时元数据。`test_provider_catalog.py` 检查生成文件是否过期，修改契约后必须重新生成。
 - OpenAI Images 与 Responses 是两个真实端点，保留两个 API 格式；图片输出字段共用基础模型和一套表单。普通 Images 生成与参考图/遮罩/标注编辑走上游 SSE（JSON / multipart）；GPT Image 请求不发送旧 `response_format`，仅 JPEG / WebP 发送压缩参数，`inputFidelity=auto` 表示省略该字段。
 - GPT Image 2.6（2026-11-05 官方 image-generation 指南）：Images 支持 complexity、markup、SVG、GIF。SVG / GIF 只能文生图，必须用非流式上游请求，再桥接为本站 completed / done 事件；SVG 限 n=1，MIME 为 image/svg+xml，下载扩展名 svg；可选 svg.model / svg.reasoning.effort 仅在填写编写模型时发送，需上游开通模型选择。GIF 帧尺寸不应用静态图片的最小总像素限制；帧数 2～64、时长 20～2000ms 取自 2.6 指南，部分 API 参考页仍列旧预览 2～16 帧。模型的动画总像素预算留给上游校验。markup 是与第一张输入图同尺寸的独立透明 PNG，不能与 mask 共用；前端复用绘图编辑器产生透明图层。不要把这些新增 Images 参数直接发给 Responses。
 - Gemini 当前采用 `/v1beta/models/{model}:generateContent` 与 `generationConfig.imageConfig`，思考等级使用标准大写枚举。2026-11-04 官方 GenerateContent 文档也列有 `responseFormat`；本项目选择统一使用 `imageConfig`，不要据此推断另一个字段无效。v2 设置里的 High/Low/Off 在迁移时映射为 HIGH/LOW/MINIMAL。
@@ -14,9 +14,10 @@
 - Windows 上启动 Python 工具优先 `uv run python -m ...`。本次环境的 `uv run uvicorn ...` 出现 `Failed to canonicalize script path`，`python -m uvicorn` 可正常启动，Playwright 配置已统一使用模块入口。
 
 - Seedance 模型家族、匹配优先级和能力值统一维护于 `backend/app/domain/seedance.py`，随 `api:generate` 导出到参数目录的 `byteDanceVideoFamilies`，前端直接读取；不要再在前端复制家族表或给已生成的能力值逐层兜底。持久化选项的模型切换归一化仍属于必要边界。
+- 视频上游响应在适配器边界通过 Pydantic 模型解析，共用 `providers/base.py` 的 `parse_response` 转为 `invalidUpstreamResponse`；不要把畸形可选字段静默丢弃。字节官方响应仍接受数值字符串；xAI 数值字段保持严格类型。请求构建只补缺省值并校验，模型切换时的参数归一化不再重复放进提交逻辑。
 - HTTP 的 JSON、multipart、SSE 和媒体下载共用 `SafeHttpTransport._request`，API 重定向保持同源，媒体下载不带 Key。SSE 按 Content-Type 解析，不再将声称 SSE 的裸 JSON 猜测修复；正确声明的 JSON 响应仍可桥接为图片结果。
 
-- 前端只安装正式 `typescript@7`。Oxlint / oxlint-tsgolint 提供原生类型感知 lint，`scripts/generate-api.ts` 用 json-schema-to-typescript 从 OpenAPI 3.1 的组件生成模型，不依赖旧编译器 API。Pydantic 有默认值的字段在传输类型中可选；`parseImageOptions` 经 Zod 补齐默认值后返回 `Required` 类型。数组数量由后端与表单校验，不生成固定长度 tuple。
+- 前端只安装正式 `typescript@7`。Oxlint / oxlint-tsgolint 提供原生类型感知 lint，`scripts/generate-api.ts` 用 json-schema-to-typescript 从 OpenAPI 3.1 的组件生成模型，不依赖旧编译器 API。Pydantic 有默认值的字段在传输类型中可选；`parseOptions` 经 Zod 补齐默认值后返回 `Required` 类型。数组数量由后端与表单校验，不生成固定长度 tuple。
 - Vite 8 使用 Rolldown，分包配置采用 `build.rolldownOptions.output.codeSplitting.groups`，不再使用已移除的对象式 `manualChunks`。
 - 创建按钮 click 不代表 IndexedDB 写入与 ChatPage 载入完成。E2E 创建辅助函数等待弹窗关闭和消息输入框可见，再操作侧边栏；侧边栏辅助函数用界面断言等待状态，不用固定 sleep 或瞬时检查后静默跳过。
 - 模型 ID 允许 `/`（如 `vendor/model`），前后端校验保持一致；JSON 请求原样发送，Gemini URL 对整个模型名做单次路径段编码，不把模型名当作路由层级或重复编码。

@@ -1,7 +1,7 @@
 import catalog from '../../api/generated/provider-catalog.json'
 import type * as schemas from '../../api/generated/models'
+import { defaultOptions, type Options } from '../../api/options'
 
-type ProviderMetadata = schemas.ProviderMetadata
 type ByteDanceVideoOptions = schemas.ByteDanceVideoOptions
 type ByteDanceVideoResolution = NonNullable<ByteDanceVideoOptions['resolution']>
 
@@ -31,17 +31,14 @@ const modelCatalog = catalog.byteDanceVideoFamilies as {
   defaultCapabilities: ByteDanceVideoCapabilities
 }
 
-export const XAI_VIDEO_RESOLUTIONS = ['480p', '720p', '1080p'] as const
+type XAIVideoCapabilities = { resolutions: readonly string[] }
+const xaiCatalog = catalog.providers.find((provider) => provider.apiFormat === 'xaiVideo') as {
+  genericCapabilities: XAIVideoCapabilities
+  knownModels: Partial<Record<string, XAIVideoCapabilities>>
+}
 
-export function resolveModelCapabilities(options: {
-  apiFormat: string | undefined
-  modelId: string | undefined
-  provider: ProviderMetadata | undefined
-}): Record<string, unknown> | undefined {
-  const { apiFormat, modelId, provider } = options
-  if (!modelId) return undefined
-  if (apiFormat === 'byteDanceVideo') return resolveByteDanceVideoCapabilities(modelId)
-  return provider?.knownModels?.[modelId]
+export function xaiVideoResolutions(modelId: string): readonly string[] {
+  return xaiCatalog.knownModels[modelId]?.resolutions ?? xaiCatalog.genericCapabilities.resolutions
 }
 
 export function resolveByteDanceVideoCapabilities(modelId: string): ByteDanceVideoCapabilities {
@@ -49,6 +46,16 @@ export function resolveByteDanceVideoCapabilities(modelId: string): ByteDanceVid
     prefixes.some((prefix) => modelId.startsWith(prefix)),
   )
   return family?.capabilities ?? modelCatalog.defaultCapabilities
+}
+
+export function byteDanceVideoDefaults(modelId: string): Options<'byteDanceVideo'> {
+  const capabilities = resolveByteDanceVideoCapabilities(modelId)
+  return {
+    ...defaultOptions('byteDanceVideo'),
+    duration: capabilities.defaultDuration,
+    resolution: capabilities.defaultResolution,
+    generateAudio: capabilities.defaultGenerateAudio,
+  }
 }
 
 export function normalizeByteDanceOptions(

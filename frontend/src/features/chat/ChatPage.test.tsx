@@ -15,7 +15,6 @@ vi.mock('../../hooks/use-history', () => ({
   useConversation: () => ({ conversation: conversation(route.id), loading: false }),
   useMessages: () => ({ messages: [] }),
 }))
-vi.mock('../../hooks/use-provider-metadata', () => ({ useProviderMetadata: () => ({ data: undefined }) }))
 vi.mock('./MessageList', () => ({ MessageList: () => null }))
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 vi.mock('../../api/client', async (importOriginal) => ({

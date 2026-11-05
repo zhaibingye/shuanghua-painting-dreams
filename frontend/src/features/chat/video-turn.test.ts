@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import type { StoredConversation } from '../../storage/db'
-import { buildVideoGenerationRequest, defaultVideoDraft, validateVideoTurn } from './video-turn'
+import { normalizeByteDanceOptions } from './model-capabilities'
+import { buildVideoExtensionRequest, buildVideoGenerationRequest, defaultVideoDraft, validateVideoTurn } from './video-turn'
 
 function conversation(modelId: string): StoredConversation {
   return {
@@ -29,42 +30,7 @@ describe('buildVideoGenerationRequest resolution', () => {
     expect(request.apiFormat).toBe('byteDanceVideo')
     expect(request.options?.resolution).toBe('4k')
   })
-
-  it('does not infer 1080p support from a custom suffix', () => {
-    const request = buildVideoGenerationRequest({
-      conversation: conversation('doubao-seedance-2-0-fast-260128-se'),
-      prompt: 'snow',
-      draft: defaultVideoDraft,
-      images: [],
-      turnOptions: { resolution: '1080p' },
-    })
-    expect(request.apiFormat).toBe('byteDanceVideo')
-    expect(request.options?.resolution).toBe('720p')
-  })
-
-  it('falls back when the current model cannot use 4k or 1080p', () => {
-    const request = buildVideoGenerationRequest({
-      conversation: conversation('doubao-seedance-2-0-fast-260128'),
-      prompt: 'snow',
-      draft: defaultVideoDraft,
-      images: [],
-      turnOptions: { resolution: '4k' },
-    })
-    expect(request.apiFormat).toBe('byteDanceVideo')
-    expect(request.options?.resolution).toBe('720p')
-
-    const lite = buildVideoGenerationRequest({
-      conversation: conversation('doubao-seedance-1-0-lite-250128'),
-      prompt: 'snow',
-      draft: defaultVideoDraft,
-      images: [],
-      turnOptions: { resolution: '1080p' },
-    })
-    expect(lite.apiFormat).toBe('byteDanceVideo')
-    expect(lite.options?.resolution).toBe('720p')
-  })
 })
-
 
 describe('Seedance model defaults', () => {
   it.each([
@@ -79,13 +45,13 @@ describe('Seedance model defaults', () => {
     expect(request.options).toMatchObject({ duration, resolution, generateAudio })
   })
 
-  it('preserves explicit audio and duration choices and fixes stale 4k for 2.5', () => {
+  it('preserves explicit audio and duration choices', () => {
     const request = buildVideoGenerationRequest({
       conversation: conversation('doubao-seedance-2-5-260628'), prompt: 'snow',
       draft: defaultVideoDraft, images: [],
-      turnOptions: { duration: 30, resolution: '4k', generateAudio: false },
+      turnOptions: { duration: 30, resolution: '1080p', generateAudio: false },
     })
-    expect(request.options).toMatchObject({ duration: 30, resolution: '720p', generateAudio: false })
+    expect(request.options).toMatchObject({ duration: 30, resolution: '1080p', generateAudio: false })
   })
 
   it('uses adaptive ratio for 2.5 frame generation', () => {
@@ -109,4 +75,31 @@ it('rejects excess voice IDs without silently discarding submitted values', () =
   expect(validateVideoTurn(values)).toContain('最多支持 3 个音色')
   const request = buildVideoGenerationRequest(values)
   expect(request).toMatchObject({ inputs: { voiceIds: ['a', 'b', 'c', 'd'] } })
+})
+
+describe('video option boundaries', () => {
+  it.each([
+    ['doubao-seedance-2-0-fast-260128-se', '1080p'],
+    ['doubao-seedance-2-0-fast-260128', '4k'],
+    ['doubao-seedance-1-0-lite-250128', '1080p'],
+    ['doubao-seedance-2-5-260628', '4k'],
+  ])('normalizes saved resolutions when selecting %s', (modelId, resolution) => {
+    expect(normalizeByteDanceOptions({ resolution }, modelId).resolution).toBe('720p')
+  })
+
+  it.each(['byteDanceVideo', 'xaiVideo'] as const)('rejects invalid submitted %s options', (apiFormat) => {
+    expect(() => buildVideoGenerationRequest({
+      conversation: { ...conversation('custom-model'), apiFormat },
+      prompt: 'snow', draft: defaultVideoDraft, images: [], turnOptions: { duration: '8' },
+    })).toThrow('Duration')
+  })
+
+  it('validates extension duration and supplies its schema default', () => {
+    const values = {
+      conversation: { ...conversation('grok-imagine-video'), apiFormat: 'xaiVideo' as const },
+      prompt: 'continue', draft: { ...defaultVideoDraft, extensionVideoUrl: 'https://example.com/source.mp4' },
+    }
+    expect(buildVideoExtensionRequest({ ...values, turnOptions: {} }).duration).toBe(6)
+    expect(() => buildVideoExtensionRequest({ ...values, turnOptions: { extensionDuration: 11 } })).toThrow('Duration')
+  })
 })

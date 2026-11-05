@@ -2,13 +2,13 @@ import type {
   VideoExtensionRequest,
   VideoGenerationRequest,
 } from '../../api/client'
+import { parseOptions } from '../../api/options'
 import type { StoredConversation } from '../../storage/db'
 import { isPublicHttpUrl } from '../../utils/url'
 import { draftToApiAsset, type DraftImage } from './image-turn'
 import {
-  normalizeByteDanceOptions,
+  byteDanceVideoDefaults,
   resolveByteDanceVideoCapabilities,
-  XAI_VIDEO_RESOLUTIONS,
 } from './model-capabilities'
 
 export type ByteVideoMode =
@@ -114,7 +114,11 @@ export function buildVideoGenerationRequest(options: {
 }): VideoGenerationRequest {
   const { conversation, prompt, draft, images, turnOptions } = options
   if (conversation.apiFormat === 'byteDanceVideo') {
-    const byteOptions = normalizeByteDanceOptions(turnOptions, conversation.modelId)
+    const byteOptions = parseOptions('byteDanceVideo', {
+      ...byteDanceVideoDefaults(conversation.modelId),
+      aspectRatio: conversation.modelId.startsWith('doubao-seedance-1-0-') && draft.byteMode === 'textToVideo' ? '16:9' : 'adaptive',
+      ...turnOptions,
+    })
     const capabilities = resolveByteDanceVideoCapabilities(conversation.modelId)
     const frameMode = draft.byteMode === 'firstFrameToVideo' || draft.byteMode === 'firstLastFrameToVideo'
 
@@ -148,26 +152,8 @@ export function buildVideoGenerationRequest(options: {
             : null,
       },
       options: {
-        duration: byteOptions.duration,
-        resolution: byteOptions.resolution,
-        aspectRatio: frameMode && capabilities.frameAspectRatios ? 'adaptive' : enumOption(
-          turnOptions,
-          'aspectRatio',
-          ['16:9', '4:3', '1:1', '3:4', '9:16', '21:9', 'adaptive'],
-          conversation.modelId.startsWith('doubao-seedance-1-0-') && draft.byteMode === 'textToVideo' ? '16:9' : 'adaptive',
-        ),
-        generateAudio: byteOptions.generateAudio,
-        watermark: booleanOption(turnOptions, 'watermark', false),
-        seed: numberOption(turnOptions, 'seed', -1),
-        returnLastFrame: booleanOption(turnOptions, 'returnLastFrame', false),
-        cameraFixed: booleanOption(turnOptions, 'cameraFixed', false),
-        serviceTier: enumOption(
-          turnOptions,
-          'serviceTier',
-          ['default', 'flex'],
-          'default',
-        ),
-        webSearch: booleanOption(turnOptions, 'webSearch', false),
+        ...byteOptions,
+        aspectRatio: frameMode && capabilities.frameAspectRatios ? 'adaptive' : byteOptions.aspectRatio,
       },
     }
   }
@@ -185,21 +171,7 @@ export function buildVideoGenerationRequest(options: {
       voiceIds:
         draft.xaiMode === 'referenceToVideo' ? parseList(draft.voiceIds) : [],
     },
-    options: {
-      duration: numberOption(turnOptions, 'duration', 8),
-      resolution: enumOption(
-        turnOptions,
-        'resolution',
-        XAI_VIDEO_RESOLUTIONS,
-        '720p',
-      ),
-      aspectRatio: enumOption(
-        turnOptions,
-        'aspectRatio',
-        ['16:9', '9:16', '1:1', '4:3', '3:4', '3:2', '2:3'],
-        '16:9',
-      ),
-    },
+    options: parseOptions('xaiVideo', turnOptions),
   }
 }
 
@@ -215,7 +187,7 @@ export function buildVideoExtensionRequest(options: {
     modelId: options.conversation.modelId,
     prompt: options.prompt.trim(),
     videoUrl: options.draft.extensionVideoUrl.trim(),
-    duration: numberOption(options.turnOptions, 'extensionDuration', 6),
+    ...parseOptions('xaiVideoExtension', { duration: options.turnOptions.extensionDuration }),
   }
 }
 
@@ -239,27 +211,4 @@ export function parseList(value: string): string[] {
     .split(/[\n,]/)
     .map((item) => item.trim())
     .filter(Boolean)
-}
-
-function numberOption(options: Record<string, unknown>, key: string, fallback: number): number {
-  const value = options[key]
-  return typeof value === 'number' && Number.isFinite(value) ? value : fallback
-}
-
-function booleanOption(
-  options: Record<string, unknown>,
-  key: string,
-  fallback: boolean,
-): boolean {
-  return typeof options[key] === 'boolean' ? options[key] : fallback
-}
-
-function enumOption<const T extends string>(
-  options: Record<string, unknown>,
-  key: string,
-  values: readonly T[],
-  fallback: T,
-): T {
-  const value = options[key]
-  return typeof value === 'string' && values.includes(value as T) ? (value as T) : fallback
 }

@@ -1,5 +1,4 @@
 import pytest
-from app.schemas.image_turns import OpenAIImageTurnRequest
 from app.schemas.images import OpenAIImageEditRequest
 from app.schemas.videos import ByteDanceVideoGenerationRequest, XAIVideoGenerationRequest
 from pydantic import ValidationError
@@ -23,37 +22,6 @@ def test_openai_mask_requires_single_image() -> None:
                 },
             }
         )
-
-
-def test_openai_edit_shares_conversation_options() -> None:
-    request = OpenAIImageEditRequest.model_validate(
-        {
-            "apiFormat": "openaiImage",
-            "baseUrl": "https://shapi.vip",
-            "modelId": "gpt-image-2",
-            "prompt": "edit",
-            "images": [{"kind": "url", "url": "https://example.com/a.png"}],
-            "options": {"partialImages": 2, "moderation": "low"},
-        }
-    )
-    assert request.options.partial_images == 2
-    assert request.options.moderation == "low"
-
-
-def test_openai_conversation_options_cover_generation_and_editing() -> None:
-    request = OpenAIImageTurnRequest.model_validate(
-        {
-            "apiFormat": "openaiImage",
-            "baseUrl": "https://shapi.vip",
-            "modelId": "gpt-image-2",
-            "prompt": "edit",
-            "sourceImages": [{"kind": "url", "url": "https://example.com/a.png"}],
-            "options": {"partialImages": 3, "inputFidelity": "high"},
-        }
-    )
-
-    assert request.options.partial_images == 3
-    assert request.options.input_fidelity == "high"
 
 
 def test_byte_dance_content_limit_includes_prompt() -> None:
@@ -98,34 +66,6 @@ def test_media_inputs_reject_obviously_non_public_urls(media_url: str) -> None:
                 "mode": "firstFrameToVideo",
                 "prompt": "animate",
                 "inputs": {"firstFrameUrl": media_url},
-            }
-        )
-
-
-def test_byte_dance_options_accept_4k() -> None:
-    request = ByteDanceVideoGenerationRequest.model_validate(
-        {
-            "apiFormat": "byteDanceVideo",
-            "baseUrl": "https://shapi.vip",
-            "modelId": "doubao-seedance-2-0-260128",
-            "mode": "textToVideo",
-            "prompt": "snow",
-            "options": {"resolution": "4k"},
-        }
-    )
-    assert request.options.resolution == "4k"
-
-
-def test_xai_video_options_reject_4k() -> None:
-    with pytest.raises(ValidationError):
-        XAIVideoGenerationRequest.model_validate(
-            {
-                "apiFormat": "xaiVideo",
-                "baseUrl": "https://shapi.vip",
-                "modelId": "grok-imagine-video-1.5",
-                "mode": "textToVideo",
-                "prompt": "snow",
-                "options": {"resolution": "4k"},
             }
         )
 

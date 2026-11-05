@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 import catalog from '../api/generated/provider-catalog.json'
-import { defaultImageOptions } from '../api/image-options'
+import { defaultOptions } from '../api/options'
 
 export const imageApiFormats = [
   'googleGeminiImage',
@@ -104,8 +104,8 @@ export function loadSettings(): StoredSettings {
 
 export function optionsForFormat(settings: StoredSettings, format: ApiFormat): Record<string, unknown> {
   const stored = settings.formats[format].defaults
-  if (!isImageFormat(format)) return { ...stored }
-  const defaults = defaultImageOptions(format)
+  if (!isImageFormat(format)) return { ...defaultOptions(format), ...stored }
+  const defaults: Record<string, unknown> = defaultOptions(format)
   return Object.fromEntries(Object.keys(defaults).map((key) => [key, stored[key] ?? defaults[key]]))
 }
 

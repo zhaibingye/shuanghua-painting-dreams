@@ -1,7 +1,7 @@
 from app.domain.enums import ApiFormat, ErrorCategory, MediaKind
 from app.domain.errors import ApplicationError
-from app.domain.image_options import IMAGE_OPTION_MODELS
 from app.domain.openai_images import IMAGE_MODELS, STANDARD_SIZES, openai_image_capabilities
+from app.domain.options import OPTION_MODELS
 from app.domain.seedance import DEFAULT_BYTE_DANCE_MODEL_ID
 from app.domain.seedance import byte_dance_model_capabilities as byte_dance_model_capabilities
 from app.schemas.image_turns import OpenAIImageTurnRequest, OpenAIResponsesImageTurnRequest
@@ -153,18 +153,7 @@ _PROVIDER_DATA: tuple[ProviderMetadata, ...] = (
                 "doubao-seedance-2-0-mini-260615",
             )
         },
-        default_options={
-            "duration": -1,
-            "resolution": "720p",
-            "aspectRatio": "adaptive",
-            "generateAudio": True,
-            "watermark": False,
-            "seed": -1,
-            "returnLastFrame": False,
-            "cameraFixed": False,
-            "serviceTier": "default",
-            "webSearch": False,
-        },
+        default_options={},
     ),
     ProviderMetadata(
         api_format=ApiFormat.XAI_VIDEO,
@@ -179,6 +168,7 @@ _PROVIDER_DATA: tuple[ProviderMetadata, ...] = (
             "firstLastFrameToVideo": False,
             "voiceIds": True,
             "videoExtension": False,
+            "resolutions": ["480p", "720p"],
         },
         known_models={
             "grok-imagine-video-1.5": {
@@ -197,12 +187,7 @@ _PROVIDER_DATA: tuple[ProviderMetadata, ...] = (
                 "extensionDurationMax": 10,
             },
         },
-        default_options={
-            "duration": 8,
-            "resolution": "720p",
-            "aspectRatio": "16:9",
-            "voiceIds": [],
-        },
+        default_options={},
     ),
 )
 
@@ -210,8 +195,7 @@ _PROVIDER_DATA: tuple[ProviderMetadata, ...] = (
 def provider_metadata() -> ProviderMetadataResponse:
     providers = [provider.model_copy(deep=True) for provider in _PROVIDER_DATA]
     for provider in providers:
-        if model := IMAGE_OPTION_MODELS.get(provider.api_format):
-            provider.default_options = model().model_dump(by_alias=True)
+        provider.default_options = OPTION_MODELS[provider.api_format]().model_dump(by_alias=True)
     return ProviderMetadataResponse(
         schema_version=4,
         providers=providers,

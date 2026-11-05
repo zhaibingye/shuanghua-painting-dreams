@@ -3,13 +3,16 @@ import { z } from 'zod'
 import catalog from './generated/provider-catalog.json'
 import type * as models from './generated/models'
 
-export type ImageFormat = keyof typeof catalog.imageOptions
-export type ImageOptions<F extends ImageFormat> = Required<{
+export type OptionFormat = keyof typeof catalog.options
+export type Options<F extends OptionFormat> = Required<{
   googleGeminiImage: models.GeminiImageOptions
   openaiImage: models.OpenAIImageTurnOptions
   openaiResponsesImage: models.OpenAIResponsesImageOptions
   xaiImage: models.XAIImageOptions
   byteDanceImage: models.ByteDanceImageOptions
+  byteDanceVideo: models.ByteDanceVideoOptions
+  xaiVideo: models.XAIVideoOptions
+  xaiVideoExtension: Pick<models.XAIVideoExtensionRequest, 'duration'>
 }[F]>
 
 export type OptionField = {
@@ -25,13 +28,17 @@ export type OptionField = {
   maxLength?: number
 }
 
-export function imageOptionFields(format: ImageFormat): Record<string, OptionField> {
-  return catalog.imageOptions[format].properties
+type OptionFields<F extends OptionFormat> = {
+  [K in keyof (typeof catalog.options)[F]['properties']]: OptionField & (typeof catalog.options)[F]['properties'][K]
+} & Record<string, OptionField>
+
+export function optionFields<F extends OptionFormat>(format: F): OptionFields<F> {
+  return catalog.options[format].properties as OptionFields<F>
 }
 
 // 生成的 JSON Schema 是唯一的字段、默认值和枚举来源。
-function optionSchema(format: ImageFormat) {
-  const fields = imageOptionFields(format)
+function optionSchema(format: OptionFormat) {
+  const fields: Record<string, OptionField> = optionFields(format)
   const shape = Object.fromEntries(Object.entries(fields).map(([key, field]) => {
     let value: z.ZodType
     if (field.enum) value = z.enum(field.enum)
@@ -53,26 +60,22 @@ function optionSchema(format: ImageFormat) {
   return z.object(shape)
 }
 
-const schemas = {
-  googleGeminiImage: optionSchema('googleGeminiImage'),
-  openaiImage: optionSchema('openaiImage'),
-  openaiResponsesImage: optionSchema('openaiResponsesImage'),
-  xaiImage: optionSchema('xaiImage'),
-  byteDanceImage: optionSchema('byteDanceImage'),
-}
+const schemas = Object.fromEntries(
+  (Object.keys(catalog.options) as OptionFormat[]).map((format) => [format, optionSchema(format)]),
+) as Record<OptionFormat, ReturnType<typeof optionSchema>>
 
-export function parseImageOptions<F extends ImageFormat>(format: F, value: Record<string, unknown>): ImageOptions<F> {
+export function parseOptions<F extends OptionFormat>(format: F, value: Record<string, unknown>): Options<F> {
   const result = schemas[format].safeParse(value)
   if (!result.success) {
     const message = result.error.issues.map((issue) => {
-      const field = imageOptionFields(format)[String(issue.path[0])]
-      return `${field?.title ?? '图片参数'}无效：${issue.message}`
+      const field = optionFields(format)[String(issue.path[0])]
+      return `${field?.title ?? '生成参数'}无效：${issue.message}`
     }).join('；')
     throw new Error(message)
   }
-  return result.data as ImageOptions<F>
+  return result.data as Options<F>
 }
 
-export function defaultImageOptions(format: ImageFormat): Record<string, unknown> {
-  return Object.fromEntries(Object.entries(imageOptionFields(format)).map(([key, field]) => [key, field.default]))
+export function defaultOptions<F extends OptionFormat>(format: F): Options<F> {
+  return Object.fromEntries(Object.entries(optionFields(format)).map(([key, field]) => [key, field.default])) as Options<F>
 }

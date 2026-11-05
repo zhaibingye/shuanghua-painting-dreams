@@ -147,11 +147,14 @@ VideoGenerationRequest = Annotated[
 ]
 
 
-class XAIVideoExtensionRequest(UpstreamRequest):
+class XAIVideoExtensionOptions(ApiModel):
+    duration: int = Field(default=6, ge=2, le=10)
+
+
+class XAIVideoExtensionRequest(UpstreamRequest, XAIVideoExtensionOptions):
     api_format: Literal[ApiFormat.XAI_VIDEO]
     prompt: str = Field(min_length=1, max_length=32000)
     video_url: PublicHttpUrl
-    duration: int = Field(default=6, ge=2, le=10)
 
 
 class VideoTaskStatusRequest(ApiModel):

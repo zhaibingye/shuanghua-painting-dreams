@@ -7,7 +7,7 @@ project_root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(project_root))
 
 from app.domain.capabilities import provider_metadata  # noqa: E402
-from app.domain.image_options import image_option_schemas  # noqa: E402
+from app.domain.options import option_schemas  # noqa: E402
 from app.domain.seedance import byte_dance_model_families  # noqa: E402
 from app.main import app  # noqa: E402
 
@@ -19,7 +19,7 @@ catalog.write_bytes(
     orjson.dumps(
         {
             "providers": provider_metadata().model_dump(by_alias=True)["providers"],
-            "imageOptions": image_option_schemas(),
+            "options": option_schemas(),
             "byteDanceVideoFamilies": byte_dance_model_families(),
         },
         option=orjson.OPT_INDENT_2,

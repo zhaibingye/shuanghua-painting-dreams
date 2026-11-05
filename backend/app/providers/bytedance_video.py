@@ -1,7 +1,7 @@
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, Literal
 
-from pydantic import AliasChoices, BaseModel, Field, ValidationError
+from pydantic import AliasChoices, BaseModel, Field
 
 from app.domain.capabilities import byte_dance_model_capabilities
 from app.domain.enums import ApiFormat, TaskOperation, TaskStatus
@@ -18,6 +18,7 @@ from app.providers.base import (
     bearer_headers,
     ensure_success,
     invalid_response_error,
+    parse_response,
 )
 from app.providers.bytedance_endpoints import byte_dance_endpoints
 from app.schemas.common import PublicHttpUrl
@@ -45,13 +46,36 @@ class CompatibleVideoError(BaseModel):
 
 class CompatibleVideoTask(BaseModel):
     id: str = Field(min_length=1)
-    status: str
+    status: Literal["queued", "in_progress", "completed", "failed", "expired", "cancelled"]
     model: str | None = None
     progress: int | None = Field(default=None, ge=0, le=100)
     duration: float | None = Field(
         default=None, validation_alias=AliasChoices("seconds", "duration")
     )
     metadata: CompatibleVideoMetadata = Field(default_factory=CompatibleVideoMetadata)
+    error: CompatibleVideoError | None = None
+
+
+class ArkVideoCreation(BaseModel):
+    id: str = Field(min_length=1)
+
+
+class ArkVideoContent(BaseModel):
+    video_url: PublicHttpUrl | None = None
+    last_frame_url: PublicHttpUrl | None = None
+
+
+class ArkVideoUsage(BaseModel):
+    completion_tokens: int | None = None
+    total_tokens: int | None = None
+
+
+class ArkVideoTask(BaseModel):
+    status: Literal["queued", "running", "succeeded", "failed", "expired", "cancelled"]
+    model: str | None = None
+    duration: float | None = None
+    content: ArkVideoContent | None = None
+    usage: ArkVideoUsage | None = None
     error: CompatibleVideoError | None = None
 
 
@@ -86,18 +110,16 @@ class ByteDanceVideoAdapter:
         )
         data = ensure_success(response, api_format=self.api_format)
         if not endpoints.official:
-            compatible = self._compatible_task(data)
+            compatible = parse_response(CompatibleVideoTask, data, api_format=self.api_format)
             return CreatedVideoTask(
                 task_id=compatible.id,
                 api_format=self.api_format,
                 operation=TaskOperation.GENERATION,
                 status=_COMPATIBLE_STATUSES[compatible.status],
             )
-        task_id = data.get("id")
-        if not isinstance(task_id, str) or not task_id:
-            raise invalid_response_error(self.api_format, "字节视频响应缺少任务 ID。")
+        created = parse_response(ArkVideoCreation, data, api_format=self.api_format)
         return CreatedVideoTask(
-            task_id=task_id,
+            task_id=created.id,
             api_format=self.api_format,
             operation=TaskOperation.GENERATION,
             status=TaskStatus.QUEUED,
@@ -119,17 +141,8 @@ class ByteDanceVideoAdapter:
             return self._parse_compatible_status(task_id, data)
         return self._parse_status(task_id, data)
 
-    def _compatible_task(self, data: Mapping[str, Any]) -> CompatibleVideoTask:
-        try:
-            task = CompatibleVideoTask.model_validate(data)
-        except ValidationError as exc:
-            raise invalid_response_error(self.api_format, "兼容视频响应不符合接口契约。") from exc
-        if task.status not in _COMPATIBLE_STATUSES:
-            raise invalid_response_error(self.api_format, f"未知兼容视频状态：{task.status}")
-        return task
-
     def _parse_compatible_status(self, task_id: str, data: Mapping[str, Any]) -> VideoTaskResult:
-        task = self._compatible_task(data)
+        task = parse_response(CompatibleVideoTask, data, api_format=self.api_format)
         status = _COMPATIBLE_STATUSES[task.status]
         output = None
         if status == TaskStatus.SUCCEEDED:
@@ -226,9 +239,7 @@ class ByteDanceVideoAdapter:
         return payload
 
     def _parse_status(self, task_id: str, data: Mapping[str, Any]) -> VideoTaskResult:
-        raw_status = data.get("status")
-        if not isinstance(raw_status, str):
-            raise invalid_response_error(self.api_format, "字节视频任务响应缺少状态。")
+        task = parse_response(ArkVideoTask, data, api_format=self.api_format)
         status_map = {
             "queued": TaskStatus.QUEUED,
             "running": TaskStatus.PROCESSING,
@@ -237,69 +248,40 @@ class ByteDanceVideoAdapter:
             "expired": TaskStatus.EXPIRED,
             "cancelled": TaskStatus.CANCELLED,
         }
-        status = status_map.get(raw_status)
-        if status is None:
-            raise invalid_response_error(self.api_format, f"未知字节任务状态：{raw_status}")
+        status = status_map[task.status]
 
         output = None
-        content = data.get("content")
         if status == TaskStatus.SUCCEEDED:
-            if not isinstance(content, Mapping):
-                raise invalid_response_error(self.api_format, "成功任务缺少 content 视频结果。")
-            video_url = content.get("video_url")
-            if not isinstance(video_url, str) or not video_url:
+            if task.content is None or task.content.video_url is None:
                 raise invalid_response_error(self.api_format, "成功任务缺少 video_url。")
             output = VideoOutput(
-                video_url=video_url,
-                last_frame_url=_optional_str(content.get("last_frame_url")),
-                duration=_optional_float(data.get("duration")),
+                video_url=str(task.content.video_url),
+                last_frame_url=str(task.content.last_frame_url)
+                if task.content.last_frame_url
+                else None,
+                duration=task.duration,
             )
 
         task_error = None
-        error_data = data.get("error")
-        if status == TaskStatus.FAILED and isinstance(error_data, Mapping):
+        if status == TaskStatus.FAILED and task.error is not None:
             task_error = VideoTaskError(
-                code=_optional_str(error_data.get("code")) or "upstreamTaskFailed",
-                message=_optional_str(error_data.get("message")) or "字节视频任务失败。",
+                code=task.error.code,
+                message=task.error.message,
             )
 
-        usage_data = data.get("usage")
         usage = None
-        if isinstance(usage_data, Mapping):
+        if task.usage is not None:
             usage = Usage(
-                output_tokens=_optional_int(usage_data.get("completion_tokens")),
-                total_tokens=_optional_int(usage_data.get("total_tokens")),
+                output_tokens=task.usage.completion_tokens,
+                total_tokens=task.usage.total_tokens,
             )
 
         return VideoTaskResult(
             task_id=task_id,
             api_format=self.api_format,
             status=status,
-            model_id=_optional_str(data.get("model")),
+            model_id=task.model,
             output=output,
             usage=usage,
             error=task_error,
         )
-
-
-def _optional_str(value: object) -> str | None:
-    return value if isinstance(value, str) and value else None
-
-
-def _optional_int(value: object) -> int | None:
-    if isinstance(value, int) and not isinstance(value, bool):
-        return value
-    if isinstance(value, str) and value.isdigit():
-        return int(value)
-    return None
-
-
-def _optional_float(value: object) -> float | None:
-    if isinstance(value, int | float) and not isinstance(value, bool):
-        return float(value)
-    if isinstance(value, str):
-        try:
-            return float(value)
-        except ValueError:
-            return None
-    return None

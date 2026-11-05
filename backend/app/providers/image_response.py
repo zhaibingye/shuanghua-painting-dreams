@@ -2,14 +2,19 @@ import base64
 from collections.abc import Mapping
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, Field
 from yarl import URL
 
 from app.domain.enums import ApiFormat
 from app.domain.models import GeneratedImage, ImageResult, Usage
 from app.infrastructure.config import Settings
 from app.infrastructure.upstream_errors import build_upstream_error
-from app.providers.base import ProviderTransport, invalid_response_error
+from app.providers.base import (
+    ProviderTransport,
+    UpstreamUsage,
+    invalid_response_error,
+    parse_response,
+)
 from app.providers.image_content import detect_image_mime_type
 from app.schemas.common import PublicHttpUrl
 
@@ -36,17 +41,9 @@ class ImageFailure(BaseModel):
     error: ImageFailureDetail
 
 
-class ImageUsage(BaseModel):
-    model_config = ConfigDict(strict=True)
-    input_tokens: int | None = None
-    output_tokens: int | None = None
-    total_tokens: int | None = None
-    cost_in_usd_ticks: int | None = None
-
-
 class ImageResponse(BaseModel):
     data: list[ImageData | UrlImageData | ImageFailure] = Field(min_length=1)
-    usage: ImageUsage | None = None
+    usage: UpstreamUsage | None = None
 
 
 def parse_base64_images(
@@ -98,10 +95,7 @@ async def parse_generated_images(
 def _parse_response(data: Mapping[str, Any], api_format: ApiFormat) -> ImageResponse:
     if data.get("error"):
         raise build_upstream_error(status=400, data=data, api_format=api_format)
-    try:
-        return ImageResponse.model_validate(data)
-    except ValidationError as exc:
-        raise invalid_response_error(api_format, "上游图片响应不符合接口契约。") from exc
+    return parse_response(ImageResponse, data, api_format=api_format)
 
 
 def _base64_image(item: ImageData, default_mime_type: str) -> GeneratedImage:

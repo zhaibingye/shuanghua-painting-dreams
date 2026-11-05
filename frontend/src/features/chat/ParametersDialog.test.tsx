@@ -33,23 +33,8 @@ const options = {
   partialImages: 2,
 }
 
-function renderDialog(format: StoredConversation['apiFormat'] = 'openaiImage', values: Record<string, unknown> = options) {
-  render(
-    <ParametersDialog
-      open
-      conversation={{ ...conversation, apiFormat: format }}
-      options={values}
-      videoDraft={defaultVideoDraft}
-      modelCapabilities={undefined}
-      onOpenChange={vi.fn()}
-      onOption={vi.fn()}
-      onVideoDraft={vi.fn()}
-    />,
-  )
-}
-
-describe('ParametersDialog ByteDance video resolutions', () => {
-  it('renders Seedance 2.0 capabilities before metadata loads', () => {
+describe('video parameter controls', () => {
+  it('renders Seedance 2.0 controls from the generated catalog', () => {
     render(
       <ParametersDialog
         open
@@ -61,7 +46,6 @@ describe('ParametersDialog ByteDance video resolutions', () => {
         }}
         options={{ duration: 5, resolution: '720p', aspectRatio: 'adaptive' }}
         videoDraft={defaultVideoDraft}
-        modelCapabilities={undefined}
         onOpenChange={vi.fn()}
         onOption={vi.fn()}
         onVideoDraft={vi.fn()}
@@ -73,21 +57,27 @@ describe('ParametersDialog ByteDance video resolutions', () => {
     expect(screen.getByRole('option', { name: '1080p' })).toBeInTheDocument()
     expect(screen.queryByLabelText('服务等级')).not.toBeInTheDocument()
   })
-})
 
-describe('ParametersDialog OpenAI Images mode', () => {
-  it('shows standard Gemini thinking levels without the obsolete Off option', () => {
-    renderDialog('googleGeminiImage', {})
-    expect(screen.getByLabelText('Thinking Level')).toHaveValue('HIGH')
-    expect(screen.getByRole('option', { name: 'MINIMAL' })).toBeInTheDocument()
-    expect(screen.queryByRole('option', { name: 'Off' })).not.toBeInTheDocument()
+  it.each([
+    ['grok-imagine-video-1.5', ['480p', '720p', '1080p']],
+    ['custom-video', ['480p', '720p']],
+  ])('uses catalog resolutions and schema limits for %s', (modelId, resolutions) => {
+    render(<ParametersDialog open
+      conversation={{ ...conversation, apiFormat: 'xaiVideo', mediaKind: 'video', modelId }}
+      options={{}} videoDraft={defaultVideoDraft}
+      onOpenChange={vi.fn()} onOption={vi.fn()} onVideoDraft={vi.fn()} />)
+    const resolution = screen.getByLabelText('分辨率')
+    expect(resolution).toHaveValue('720p')
+    expect([...resolution.querySelectorAll('option')].map((option) => option.value)).toEqual(resolutions)
+    expect(screen.getByLabelText('时长（秒）')).toHaveValue(8)
+    expect(screen.getByLabelText('时长（秒）')).toHaveAttribute('max', '15')
   })
 })
 
 function ImageDialogHarness({ modelId = 'gpt-image-2.5-sunburst', responses = false }: { modelId?: string; responses?: boolean }) {
   const [current, setCurrent] = useState<Record<string, unknown>>(options)
   return <ParametersDialog open conversation={{ ...conversation, modelId, apiFormat: responses ? 'openaiResponsesImage' : 'openaiImage' }}
-    options={current} videoDraft={defaultVideoDraft} modelCapabilities={undefined}
+    options={current} videoDraft={defaultVideoDraft}
     onOpenChange={vi.fn()} onOption={(key, value) => setCurrent((previous) => ({ ...previous, [key]: value }))} onVideoDraft={vi.fn()} />
 }
 

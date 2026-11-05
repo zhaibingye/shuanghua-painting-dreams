@@ -1,12 +1,13 @@
 import * as Dialog from '@radix-ui/react-dialog'
 import { SlidersHorizontal, X } from 'lucide-react'
 
+import { defaultOptions, optionFields } from '../../api/options'
 import { Button } from '../../components/ui/Button'
 import { FieldShell, Input, Select, Textarea } from '../../components/ui/Field'
 import type { StoredConversation } from '../../storage/db'
 import { isImageFormat } from '../../storage/settings'
 import { ImageParameters } from './ImageParameters'
-import { resolveByteDanceVideoCapabilities } from './model-capabilities'
+import { byteDanceVideoDefaults, resolveByteDanceVideoCapabilities, xaiVideoResolutions } from './model-capabilities'
 import type { VideoDraft } from './video-turn'
 
 export function ParametersDialog({
@@ -14,7 +15,6 @@ export function ParametersDialog({
   conversation,
   options,
   videoDraft,
-  modelCapabilities,
   onOpenChange,
   onOption,
   onVideoDraft,
@@ -23,7 +23,6 @@ export function ParametersDialog({
   conversation: StoredConversation
   options: Record<string, unknown>
   videoDraft: VideoDraft
-  modelCapabilities: Record<string, unknown> | undefined
   onOpenChange: (open: boolean) => void
   onOption: (key: string, value: unknown) => void
   onVideoDraft: (patch: Partial<VideoDraft>) => void
@@ -62,7 +61,6 @@ export function ParametersDialog({
                 modelId={conversation.modelId}
                 options={options}
                 draft={videoDraft}
-                capabilities={modelCapabilities}
                 onOption={onOption}
                 onDraft={onVideoDraft}
               />
@@ -79,7 +77,6 @@ function VideoParameters({
   modelId,
   options,
   draft,
-  capabilities,
   onOption,
   onDraft,
 }: {
@@ -87,17 +84,17 @@ function VideoParameters({
   modelId: string
   options: Record<string, unknown>
   draft: VideoDraft
-  capabilities: Record<string, unknown> | undefined
   onOption: (key: string, value: unknown) => void
   onDraft: (patch: Partial<VideoDraft>) => void
 }) {
   if (draft.operation === 'extension') {
+    const duration = optionFields('xaiVideoExtension').duration
     return (
       <ParameterGrid>
         <FieldShell label="源视频 URL">
           <Input value={draft.extensionVideoUrl} onChange={(event) => onDraft({ extensionVideoUrl: event.target.value })} />
         </FieldShell>
-        <NumberField label="续写时长（秒）" value={num(options, 'extensionDuration', 6)} min={2} max={10} onChange={(value) => onOption('extensionDuration', value)} />
+        <NumberField label="续写时长（秒）" value={(options.extensionDuration as number | undefined) ?? defaultOptions('xaiVideoExtension').duration} min={duration.minimum} max={duration.maximum} onChange={(value) => onOption('extensionDuration', value)} />
         <Button variant="secondary" onClick={() => onDraft({ operation: 'generation', parentTaskId: null, extensionVideoUrl: '' })}>退出续写模式</Button>
       </ParameterGrid>
     )
@@ -105,8 +102,10 @@ function VideoParameters({
 
   if (format === 'byteDanceVideo') {
     const byteCapabilities = resolveByteDanceVideoCapabilities(modelId)
-    const { durationMin, durationMax, resolutions, defaultDuration } = byteCapabilities
-    const duration = num(options, 'duration', defaultDuration)
+    const { durationMin, durationMax, resolutions } = byteCapabilities
+    const values = { ...byteDanceVideoDefaults(modelId), ...options }
+    const fields = optionFields('byteDanceVideo')
+    const duration = values.duration
     const automaticDuration = duration === -1
     const frameMode = draft.byteMode === 'firstFrameToVideo' || draft.byteMode === 'firstLastFrameToVideo'
     const adaptiveOnly = frameMode && byteCapabilities.frameAspectRatios !== undefined
@@ -122,28 +121,30 @@ function VideoParameters({
         </> : null}
         <NumberField label="时长（秒）" value={automaticDuration ? durationMin : duration} min={durationMin} max={durationMax} disabled={automaticDuration} onChange={(value) => onOption('duration', value)} />
         {byteCapabilities.automaticDuration ? <CheckField label="自动决定时长" checked={automaticDuration} onChange={(value) => onOption('duration', value ? -1 : durationMin)} /> : null}
-        <SelectField label="分辨率" value={text(options, 'resolution', '720p')} values={resolutions} onChange={(value) => onOption('resolution', value)} />
-        <SelectField label="画面比例" value={adaptiveOnly ? 'adaptive' : text(options, 'aspectRatio', 'adaptive')} values={adaptiveOnly ? ['adaptive'] : ['adaptive', '16:9', '9:16', '1:1', '4:3', '3:4', '21:9']} onChange={(value) => onOption('aspectRatio', value)} />
-        {byteCapabilities.generateAudio ? <CheckField label="生成同步音频" checked={bool(options, 'generateAudio', byteCapabilities.defaultGenerateAudio)} onChange={(value) => onOption('generateAudio', value)} /> : null}
-        <CheckField label="添加水印" checked={bool(options, 'watermark', false)} onChange={(value) => onOption('watermark', value)} />
-        <CheckField label="返回尾帧" checked={bool(options, 'returnLastFrame', false)} onChange={(value) => onOption('returnLastFrame', value)} />
-        {byteCapabilities.seed ? <NumberField label="Seed" value={num(options, 'seed', -1)} min={-1} max={4294967295} onChange={(value) => onOption('seed', value)} /> : null}
-        {byteCapabilities.cameraFixed ? <CheckField label="固定机位" checked={bool(options, 'cameraFixed', false)} onChange={(value) => onOption('cameraFixed', value)} /> : null}
-        {byteCapabilities.webSearch ? <CheckField label="Web Search" checked={bool(options, 'webSearch', false)} onChange={(value) => onOption('webSearch', value)} /> : null}
-        {byteCapabilities.serviceTierParameter ? <SelectField label="服务等级" value={text(options, 'serviceTier', 'default')} values={byteCapabilities.serviceTiers} onChange={(value) => onOption('serviceTier', value)} /> : null}
+        <SelectField label="分辨率" value={values.resolution} values={resolutions} onChange={(value) => onOption('resolution', value)} />
+        <SelectField label="画面比例" value={adaptiveOnly ? 'adaptive' : values.aspectRatio} values={adaptiveOnly ? ['adaptive'] : fields.aspectRatio.enum} onChange={(value) => onOption('aspectRatio', value)} />
+        {byteCapabilities.generateAudio ? <CheckField label="生成同步音频" checked={values.generateAudio} onChange={(value) => onOption('generateAudio', value)} /> : null}
+        <CheckField label="添加水印" checked={values.watermark} onChange={(value) => onOption('watermark', value)} />
+        <CheckField label="返回尾帧" checked={values.returnLastFrame} onChange={(value) => onOption('returnLastFrame', value)} />
+        {byteCapabilities.seed ? <NumberField label="Seed" value={values.seed} min={fields.seed.minimum} max={fields.seed.maximum} onChange={(value) => onOption('seed', value)} /> : null}
+        {byteCapabilities.cameraFixed ? <CheckField label="固定机位" checked={values.cameraFixed} onChange={(value) => onOption('cameraFixed', value)} /> : null}
+        {byteCapabilities.webSearch ? <CheckField label="Web Search" checked={values.webSearch} onChange={(value) => onOption('webSearch', value)} /> : null}
+        {byteCapabilities.serviceTierParameter ? <SelectField label="服务等级" value={values.serviceTier} values={byteCapabilities.serviceTiers} onChange={(value) => onOption('serviceTier', value)} /> : null}
       </ParameterGrid>
     )
   }
 
-  const resolutions = stringCapability(capabilities, 'resolutions', ['480p', '720p'])
+  const values = { ...defaultOptions('xaiVideo'), ...options }
+  const fields = optionFields('xaiVideo')
+  const resolutions = xaiVideoResolutions(modelId)
   const referenceResolutions = draft.xaiMode === 'referenceToVideo' ? resolutions.filter((value) => value !== '1080p') : resolutions
   return (
     <ParameterGrid>
       <SelectField label="生成模式" value={draft.xaiMode} values={['textToVideo', 'firstFrameToVideo', 'referenceToVideo']} labels={['文生视频', '首帧生视频', '多参考生视频']} onChange={(value) => onDraft({ xaiMode: value as VideoDraft['xaiMode'] })} />
       {draft.xaiMode === 'referenceToVideo' ? <FieldShell label="参考音色" hint="逗号分隔，最多 3 个"><Input value={draft.voiceIds} onChange={(event) => onDraft({ voiceIds: event.target.value })} placeholder="eve, ara" /></FieldShell> : null}
-      <NumberField label="时长（秒）" value={num(options, 'duration', 8)} min={numberCapability(capabilities, 'durationMin', 1)} max={numberCapability(capabilities, 'durationMax', 15)} onChange={(value) => onOption('duration', value)} />
-      <SelectField label="分辨率" value={text(options, 'resolution', '720p')} values={referenceResolutions} onChange={(value) => onOption('resolution', value)} />
-      <SelectField label="画面比例" value={text(options, 'aspectRatio', '16:9')} values={['16:9', '9:16', '1:1', '4:3', '3:4', '3:2', '2:3']} onChange={(value) => onOption('aspectRatio', value)} />
+      <NumberField label="时长（秒）" value={values.duration} min={fields.duration.minimum} max={fields.duration.maximum} onChange={(value) => onOption('duration', value)} />
+      <SelectField label="分辨率" value={values.resolution} values={referenceResolutions} onChange={(value) => onOption('resolution', value)} />
+      <SelectField label="画面比例" value={values.aspectRatio} values={fields.aspectRatio.enum} onChange={(value) => onOption('aspectRatio', value)} />
     </ParameterGrid>
   )
 }
@@ -163,9 +164,3 @@ function NumberField({ label, value, min, max, disabled = false, onChange }: { l
 function CheckField({ label, checked, onChange }: { label: string; checked: boolean; onChange: (value: boolean) => void }) {
   return <label className="flex items-center justify-between rounded-xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-hover)] px-3 py-3 text-sm"><span>{label}</span><input className="size-4 accent-[var(--ds-brand-primary)]" type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} /></label>
 }
-
-function text(options: Record<string, unknown>, key: string, fallback: string): string { return typeof options[key] === 'string' ? options[key] : fallback }
-function num(options: Record<string, unknown>, key: string, fallback: number): number { const value = options[key]; return typeof value === 'number' && Number.isFinite(value) ? value : fallback }
-function bool(options: Record<string, unknown>, key: string, fallback: boolean): boolean { return typeof options[key] === 'boolean' ? options[key] : fallback }
-function stringCapability(capabilities: Record<string, unknown> | undefined, key: string, fallback: string[]): string[] { const value = capabilities?.[key]; return Array.isArray(value) && value.every((item) => typeof item === 'string') ? value : fallback }
-function numberCapability(capabilities: Record<string, unknown> | undefined, key: string, fallback: number): number { const value = capabilities?.[key]; return typeof value === 'number' ? value : fallback }

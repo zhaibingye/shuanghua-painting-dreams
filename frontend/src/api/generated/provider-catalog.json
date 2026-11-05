@@ -543,7 +543,11 @@
         "referenceToVideo": true,
         "firstLastFrameToVideo": false,
         "voiceIds": true,
-        "videoExtension": false
+        "videoExtension": false,
+        "resolutions": [
+          "480p",
+          "720p"
+        ]
       },
       "knownModels": {
         "grok-imagine-video-1.5": {
@@ -572,12 +576,11 @@
       "defaultOptions": {
         "duration": 8,
         "resolution": "720p",
-        "aspectRatio": "16:9",
-        "voiceIds": []
+        "aspectRatio": "16:9"
       }
     }
   ],
-  "imageOptions": {
+  "options": {
     "googleGeminiImage": {
       "additionalProperties": false,
       "properties": {
@@ -1024,6 +1027,138 @@
         }
       },
       "title": "ByteDanceImageOptions",
+      "type": "object"
+    },
+    "byteDanceVideo": {
+      "additionalProperties": false,
+      "properties": {
+        "duration": {
+          "default": -1,
+          "maximum": 30,
+          "minimum": -1,
+          "title": "Duration",
+          "type": "integer"
+        },
+        "resolution": {
+          "default": "720p",
+          "enum": [
+            "480p",
+            "720p",
+            "1080p",
+            "4k"
+          ],
+          "title": "Resolution",
+          "type": "string"
+        },
+        "aspectRatio": {
+          "default": "adaptive",
+          "enum": [
+            "16:9",
+            "4:3",
+            "1:1",
+            "3:4",
+            "9:16",
+            "21:9",
+            "adaptive"
+          ],
+          "title": "Aspectratio",
+          "type": "string"
+        },
+        "generateAudio": {
+          "default": true,
+          "title": "Generateaudio",
+          "type": "boolean"
+        },
+        "watermark": {
+          "default": false,
+          "title": "Watermark",
+          "type": "boolean"
+        },
+        "seed": {
+          "default": -1,
+          "maximum": 4294967295,
+          "minimum": -1,
+          "title": "Seed",
+          "type": "integer"
+        },
+        "returnLastFrame": {
+          "default": false,
+          "title": "Returnlastframe",
+          "type": "boolean"
+        },
+        "cameraFixed": {
+          "default": false,
+          "title": "Camerafixed",
+          "type": "boolean"
+        },
+        "serviceTier": {
+          "default": "default",
+          "enum": [
+            "default",
+            "flex"
+          ],
+          "title": "Servicetier",
+          "type": "string"
+        },
+        "webSearch": {
+          "default": false,
+          "title": "Websearch",
+          "type": "boolean"
+        }
+      },
+      "title": "ByteDanceVideoOptions",
+      "type": "object"
+    },
+    "xaiVideo": {
+      "additionalProperties": false,
+      "properties": {
+        "duration": {
+          "default": 8,
+          "maximum": 15,
+          "minimum": 1,
+          "title": "Duration",
+          "type": "integer"
+        },
+        "resolution": {
+          "default": "720p",
+          "enum": [
+            "480p",
+            "720p",
+            "1080p"
+          ],
+          "title": "Resolution",
+          "type": "string"
+        },
+        "aspectRatio": {
+          "default": "16:9",
+          "enum": [
+            "16:9",
+            "9:16",
+            "1:1",
+            "4:3",
+            "3:4",
+            "3:2",
+            "2:3"
+          ],
+          "title": "Aspectratio",
+          "type": "string"
+        }
+      },
+      "title": "XAIVideoOptions",
+      "type": "object"
+    },
+    "xaiVideoExtension": {
+      "additionalProperties": false,
+      "properties": {
+        "duration": {
+          "default": 6,
+          "maximum": 10,
+          "minimum": 2,
+          "title": "Duration",
+          "type": "integer"
+        }
+      },
+      "title": "XAIVideoExtensionOptions",
       "type": "object"
     }
   },

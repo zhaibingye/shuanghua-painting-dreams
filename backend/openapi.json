@@ -2990,6 +2990,13 @@
       },
       "XAIVideoExtensionRequest": {
         "properties": {
+          "duration": {
+            "type": "integer",
+            "maximum": 10.0,
+            "minimum": 2.0,
+            "title": "Duration",
+            "default": 6
+          },
           "apiFormat": {
             "type": "string",
             "const": "xaiVideo",
@@ -3018,13 +3025,6 @@
             "minLength": 1,
             "format": "uri",
             "title": "Videourl"
-          },
-          "duration": {
-            "type": "integer",
-            "maximum": 10.0,
-            "minimum": 2.0,
-            "title": "Duration",
-            "default": 6
           }
         },
         "additionalProperties": false,

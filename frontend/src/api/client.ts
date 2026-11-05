@@ -3,7 +3,6 @@ import { ApiClientError, apiFetch, safeJson, toApiError } from './http'
 
 export { ApiClientError } from './http'
 
-export type ProviderMetadataResponse = schemas.ProviderMetadataResponse
 export type ImageOperationResponse = schemas.ImageOperationResponse
 export type VideoCreationResponse = schemas.VideoCreationResponse
 export type VideoTaskStatusResponse = schemas.VideoTaskStatusResponse
@@ -83,10 +82,6 @@ export type ImageStreamEvent =
         requestId: string
       }
     }
-
-export async function fetchProviderMetadata(): Promise<ProviderMetadataResponse> {
-  return apiFetch('/api/v1/metadata/providers', { method: 'GET' })
-}
 
 export async function generateImage(
   request: ImageGenerationRequest,

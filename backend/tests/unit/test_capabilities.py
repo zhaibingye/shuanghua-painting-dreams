@@ -47,17 +47,6 @@ def test_seedance_2_supports_4k() -> None:
     ]
 
 
-@pytest.mark.parametrize("resolution", ["1080p", "4k"])
-def test_seedance_2_fast_rejects_unsupported_resolutions(resolution: str) -> None:
-    with pytest.raises(ApplicationError, match="分辨率"):
-        validate_byte_dance_video_request(
-            _byte_dance_request(
-                "doubao-seedance-2-0-fast-260128",
-                options={"resolution": resolution},
-            )
-        )
-
-
 @pytest.mark.parametrize(
     ("model_id", "expected"),
     [
@@ -110,6 +99,7 @@ def test_seedance_2_5_duration(duration: int) -> None:
         ("doubao-seedance-2-5-260628", {"resolution": "4k"}, "分辨率"),
         ("doubao-seedance-2-0-mini-260615", {"resolution": "1080p"}, "分辨率"),
         ("doubao-seedance-2-0-fast-260128-se", {"resolution": "1080p"}, "分辨率"),
+        ("doubao-seedance-2-0-fast-260128", {"resolution": "4k"}, "分辨率"),
         ("doubao-seedance-2-0-260128", {"duration": 30}, "4~15"),
         ("doubao-seedance-2-5-260628", {"duration": 3}, "4~30"),
     ],

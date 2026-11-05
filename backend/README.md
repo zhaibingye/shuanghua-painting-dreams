@@ -44,7 +44,7 @@ uv run mypy app tests
 
 ## 导出 OpenAPI
 
-从项目根目录运行 `npm run api:generate --prefix frontend`，统一生成后端 OpenAPI、前端 TypeScript 类型以及 `provider-catalog.json`。图片参数字段、默认值、枚举和限制以 Pydantic 请求模型为准，前端表单和提交校验共用导出的 JSON Schema。
+从项目根目录运行 `npm run api:generate --prefix frontend`，统一生成后端 OpenAPI、前端 TypeScript 类型以及 `provider-catalog.json`。图片、视频和视频续写的参数字段、默认值、枚举和限制以 Pydantic 请求模型为准，在 `app/domain/options.py` 注册；前端表单和提交校验共用导出的 JSON Schema。
 
 仅导出 OpenAPI 和参数目录时，在 backend 目录运行：
 

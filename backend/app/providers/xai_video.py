@@ -1,5 +1,7 @@
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, Literal
+
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.domain.enums import ApiFormat, TaskOperation, TaskStatus
 from app.domain.models import (
@@ -13,12 +15,41 @@ from app.infrastructure.config import Settings
 from app.infrastructure.url_builder import build_upstream_url, encode_path_segment
 from app.providers.base import (
     ProviderTransport,
+    UpstreamUsage,
     bearer_headers,
     ensure_success,
     image_asset_value,
     invalid_response_error,
+    parse_response,
 )
+from app.schemas.common import PublicHttpUrl
 from app.schemas.videos import XAIVideoExtensionRequest, XAIVideoGenerationRequest
+
+
+class XAIVideoCreation(BaseModel):
+    request_id: str = Field(min_length=1)
+
+
+class XAIVideoContent(BaseModel):
+    model_config = ConfigDict(strict=True)
+    url: PublicHttpUrl | None = None
+    duration: float | None = None
+    respect_moderation: bool | None = None
+
+
+class XAIVideoError(BaseModel):
+    code: str = "upstreamTaskFailed"
+    message: str = "xAI 视频任务失败。"
+
+
+class XAIVideoTask(BaseModel):
+    model_config = ConfigDict(strict=True)
+    status: Literal["pending", "done", "failed", "expired"]
+    progress: int | None = Field(default=None, ge=0, le=100)
+    model: str | None = None
+    video: XAIVideoContent | None = None
+    usage: UpstreamUsage | None = None
+    error: XAIVideoError | None = None
 
 
 class XAIVideoAdapter:
@@ -87,11 +118,9 @@ class XAIVideoAdapter:
             api_format=self.api_format,
         )
         data = ensure_success(response, api_format=self.api_format)
-        task_id = data.get("request_id")
-        if not isinstance(task_id, str) or not task_id:
-            raise invalid_response_error(self.api_format, "xAI 视频响应缺少 request_id。")
+        created = parse_response(XAIVideoCreation, data, api_format=self.api_format)
         return CreatedVideoTask(
-            task_id=task_id,
+            task_id=created.request_id,
             api_format=self.api_format,
             operation=operation,
             status=TaskStatus.PROCESSING,
@@ -112,83 +141,48 @@ class XAIVideoAdapter:
         return self._parse_status(task_id, data)
 
     def _parse_status(self, task_id: str, data: Mapping[str, Any]) -> VideoTaskResult:
-        raw_status = data.get("status")
-        if not isinstance(raw_status, str):
-            raise invalid_response_error(self.api_format, "xAI 视频任务响应缺少状态。")
+        task = parse_response(XAIVideoTask, data, api_format=self.api_format)
         status_map = {
             "pending": TaskStatus.PROCESSING,
             "done": TaskStatus.SUCCEEDED,
             "failed": TaskStatus.FAILED,
             "expired": TaskStatus.EXPIRED,
         }
-        status = status_map.get(raw_status)
-        if status is None:
-            raise invalid_response_error(self.api_format, f"未知 xAI 任务状态：{raw_status}")
+        status = status_map[task.status]
 
-        progress = _optional_int(data.get("progress"))
         output = None
         task_error = None
-        video_data = data.get("video")
         if status == TaskStatus.SUCCEEDED:
-            if not isinstance(video_data, Mapping):
+            if task.video is None:
                 raise invalid_response_error(self.api_format, "成功任务缺少 video 视频结果。")
-            respects_moderation = video_data.get("respect_moderation")
-            video_url = video_data.get("url")
-            if respects_moderation is False:
+            if task.video.respect_moderation is False:
                 status = TaskStatus.FAILED
                 task_error = VideoTaskError(
                     code="moderationBlocked",
                     message="生成视频未通过上游安全审核。",
                 )
             else:
-                if not isinstance(video_url, str) or not video_url:
+                if task.video.url is None:
                     raise invalid_response_error(self.api_format, "成功任务缺少视频 URL。")
                 output = VideoOutput(
-                    video_url=video_url,
-                    duration=_optional_float(video_data.get("duration")),
-                    respect_moderation=(
-                        respects_moderation if isinstance(respects_moderation, bool) else None
-                    ),
+                    video_url=str(task.video.url),
+                    duration=task.video.duration,
+                    respect_moderation=task.video.respect_moderation,
                 )
 
-        error_data = data.get("error")
-        if status == TaskStatus.FAILED and task_error is None and isinstance(error_data, Mapping):
+        if status == TaskStatus.FAILED and task_error is None and task.error is not None:
             task_error = VideoTaskError(
-                code=_optional_str(error_data.get("code")) or "upstreamTaskFailed",
-                message=_optional_str(error_data.get("message")) or "xAI 视频任务失败。",
-            )
-
-        usage_data = data.get("usage")
-        usage = None
-        if isinstance(usage_data, Mapping):
-            usage = Usage(
-                input_tokens=_optional_int(usage_data.get("input_tokens")),
-                output_tokens=_optional_int(usage_data.get("output_tokens")),
-                total_tokens=_optional_int(usage_data.get("total_tokens")),
-                cost_in_usd_ticks=_optional_int(usage_data.get("cost_in_usd_ticks")),
+                code=task.error.code,
+                message=task.error.message,
             )
 
         return VideoTaskResult(
             task_id=task_id,
             api_format=self.api_format,
             status=status,
-            progress=progress,
-            model_id=_optional_str(data.get("model")),
+            progress=task.progress,
+            model_id=task.model,
             output=output,
-            usage=usage,
+            usage=Usage(**task.usage.model_dump()) if task.usage else None,
             error=task_error,
         )
-
-
-def _optional_str(value: object) -> str | None:
-    return value if isinstance(value, str) and value else None
-
-
-def _optional_int(value: object) -> int | None:
-    return value if isinstance(value, int) and not isinstance(value, bool) else None
-
-
-def _optional_float(value: object) -> float | None:
-    if isinstance(value, int | float) and not isinstance(value, bool):
-        return float(value)
-    return None

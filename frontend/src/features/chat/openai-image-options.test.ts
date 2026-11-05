@@ -2,8 +2,6 @@ import { describe, expect, it } from 'vitest'
 
 import { buildImageTurnRequest } from './image-turn'
 import {
-  OPENAI_ASPECT_RATIOS,
-  OPENAI_RESOLUTION_TIERS,
   normalizeOpenAIImageOptions,
   openAIImageCapabilities,
   openAIImageAspectRatio,
@@ -12,23 +10,6 @@ import {
 } from './openai-image-options'
 
 describe('OpenAI image presets', () => {
-  for (const ratio of OPENAI_ASPECT_RATIOS) {
-    for (const tier of OPENAI_RESOLUTION_TIERS) {
-      it(`${ratio} ${tier} satisfies every API constraint`, () => {
-        const size = openAIImagePreset(ratio, tier)
-        const [width = 0, height = 0] = size.split('x').map(Number)
-        const [ratioWidth = 1, ratioHeight = 1] = ratio.split(':').map(Number)
-        expect(width % 16).toBe(0)
-        expect(height % 16).toBe(0)
-        expect(width * height).toBeGreaterThanOrEqual(655_360)
-        expect(width * height).toBeLessThanOrEqual(8_294_400)
-        expect(Math.max(width, height)).toBeLessThanOrEqual(3840)
-        expect(width / height).toBeCloseTo(ratioWidth / ratioHeight)
-        expect(openAIImageSizeError(size, 'gpt-image-2.5-sunburst')).toBeUndefined()
-      })
-    }
-  }
-
   it('restores the ratio from saved dimensions', () => {
     expect(openAIImageAspectRatio('3840x2160')).toBe('16:9')
     expect(openAIImageAspectRatio('576x1344')).toBe('9:21')

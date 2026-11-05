@@ -1,4 +1,4 @@
-import { imageOptionFields } from '../../api/image-options'
+import { optionFields } from '../../api/options'
 import { FieldShell, Input, Select } from '../../components/ui/Field'
 import type { ImageApiFormat } from '../../storage/settings'
 import { OpenAIImageSizeField } from './OpenAIImageSizeField'
@@ -10,7 +10,7 @@ export function ImageParameters({ format, modelId, options, onOption }: {
   options: Record<string, unknown>
   onOption: (key: string, value: unknown) => void
 }) {
-  const fields = imageOptionFields(format)
+  const fields = optionFields(format)
   const openAI = format === 'openaiImage' || format === 'openaiResponsesImage'
   const selectedImageModel = options.imageModel ?? fields.imageModel?.default
   const imageModel = format === 'openaiResponsesImage' && typeof selectedImageModel === 'string'

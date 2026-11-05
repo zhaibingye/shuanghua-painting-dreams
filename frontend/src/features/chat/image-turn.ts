@@ -1,5 +1,5 @@
 import { nanoid } from 'nanoid'
-import { parseImageOptions } from '../../api/image-options'
+import { parseOptions } from '../../api/options'
 import type * as schemas from '../../api/generated/models'
 import type { ImageConversationTurnRequest } from '../../api/client'
 import {
@@ -52,7 +52,7 @@ export async function buildImageTurnRequest(options: {
       ? await requiredApiAsset(conversation.activeImageAssetId)
       : null
     const sourceImages = active ? [active, ...currentImages] : currentImages
-    const parsedOptions = parseImageOptions('openaiImage', options.turnOptions)
+    const parsedOptions = parseOptions('openaiImage', options.turnOptions)
     if (['svg', 'gif'].includes(parsedOptions.outputFormat) && sourceImages.length) {
       throw new Error('SVG / GIF 仅支持文生图，请先取消编辑基图并移除参考图。')
     }
@@ -81,7 +81,7 @@ export async function buildImageTurnRequest(options: {
       prompt: options.prompt,
       history: await buildResponsesHistory(options.previousMessages),
       images: currentImages,
-      options: parseImageOptions('openaiResponsesImage', options.turnOptions),
+      options: parseOptions('openaiResponsesImage', options.turnOptions),
     }
   }
 
@@ -92,7 +92,7 @@ export async function buildImageTurnRequest(options: {
       prompt: options.prompt,
       history: await buildGeminiHistory(options.previousMessages),
       images: currentImages,
-      options: parseImageOptions('googleGeminiImage', options.turnOptions),
+      options: parseOptions('googleGeminiImage', options.turnOptions),
     }
   }
 
@@ -101,11 +101,11 @@ export async function buildImageTurnRequest(options: {
     : currentImages
   if (conversation.apiFormat === 'xaiImage') return {
     apiFormat: 'xaiImage', ...connection, prompt: options.prompt, sourceImages,
-    options: parseImageOptions('xaiImage', options.turnOptions),
+    options: parseOptions('xaiImage', options.turnOptions),
   }
   if (conversation.apiFormat === 'byteDanceImage') return {
     apiFormat: 'byteDanceImage', ...connection, prompt: options.prompt, sourceImages,
-    options: parseImageOptions('byteDanceImage', options.turnOptions),
+    options: parseOptions('byteDanceImage', options.turnOptions),
   }
   throw new Error('当前对话格式不支持图片生成。')
 }

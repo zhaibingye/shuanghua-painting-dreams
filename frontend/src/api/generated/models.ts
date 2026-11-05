@@ -737,12 +737,12 @@ export interface XAIImageTurnRequest {
  * via the `definition` "XAIVideoExtensionRequest".
  */
 export interface XAIVideoExtensionRequest {
+  duration?: number
   apiFormat: 'xaiVideo'
   baseUrl: string
   modelId: string
   prompt: string
   videoUrl: string
-  duration?: number
 }
 /**
  * This interface was referenced by `ApiModels`'s JSON-Schema

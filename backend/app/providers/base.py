@@ -1,6 +1,7 @@
 from collections.abc import AsyncIterator, Mapping
 from typing import Any, Protocol
 
+from pydantic import BaseModel, ConfigDict, ValidationError
 from yarl import URL
 
 from app.domain.enums import ApiFormat, ErrorCategory
@@ -13,6 +14,14 @@ from app.infrastructure.safe_http import (
 )
 from app.infrastructure.upstream_errors import raise_for_upstream_status
 from app.schemas.common import DataUrlImageAsset, ImageAsset, UrlImageAsset
+
+
+class UpstreamUsage(BaseModel):
+    model_config = ConfigDict(strict=True)
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+    total_tokens: int | None = None
+    cost_in_usd_ticks: int | None = None
 
 
 class ProviderTransport(Protocol):
@@ -125,3 +134,12 @@ def invalid_response_error(api_format: ApiFormat, message: str) -> ApplicationEr
         retryable=False,
         api_format=api_format,
     )
+
+
+def parse_response[T: BaseModel](
+    model: type[T], data: Mapping[str, Any], *, api_format: ApiFormat
+) -> T:
+    try:
+        return model.model_validate(data)
+    except ValidationError as exc:
+        raise invalid_response_error(api_format, "上游响应不符合接口契约。") from exc
