@@ -105,7 +105,7 @@ async def test_validation_error_does_not_echo_large_input() -> None:
             json={
                 "apiFormat": "openaiImage",
                 "baseUrl": "https://shapi.vip",
-                "modelId": "invalid/model",
+                "modelId": "invalid?model",
                 "prompt": "edit",
                 "images": [{"kind": "dataUrl", "dataUrl": secret_image}],
             },

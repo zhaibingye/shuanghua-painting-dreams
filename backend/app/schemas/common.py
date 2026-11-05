@@ -7,7 +7,7 @@ from pydantic.alias_generators import to_camel
 
 from app.domain.enums import ApiFormat
 
-_MODEL_ID_PATTERN = re.compile(r"^[^/?#\\\s]+$")
+_MODEL_ID_PATTERN = re.compile(r"^[^?#\\\s]+$")
 _DATA_URL_PATTERN = re.compile(
     r"^data:(image/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=\r\n]+)$",
     re.IGNORECASE,
@@ -54,7 +54,7 @@ class UpstreamRequest(ApiModel):
     @classmethod
     def validate_model_id(cls, value: str) -> str:
         if not _MODEL_ID_PATTERN.fullmatch(value):
-            raise ValueError("模型 ID 不能包含空白、斜杠、反斜杠、Query 或 Fragment")
+            raise ValueError("模型 ID 不能包含空白、反斜杠、Query 或 Fragment")
         return value
 
 

@@ -1,10 +1,11 @@
 from collections.abc import Mapping
 from typing import Any
+from urllib.parse import quote
 
 from app.domain.enums import ApiFormat
 from app.domain.models import GeneratedImage, ImageResult, Usage
 from app.infrastructure.config import Settings
-from app.infrastructure.url_builder import build_upstream_url, encode_path_segment
+from app.infrastructure.url_builder import build_upstream_url
 from app.providers.base import (
     ProviderTransport,
     ensure_success,
@@ -82,8 +83,8 @@ class GoogleGeminiImageAdapter:
         api_key: str,
         payload: dict[str, Any],
     ) -> ImageResult:
-        model = encode_path_segment(model_id)
-        url = build_upstream_url(base_url, f"/v1beta/models/{model}:generateContent")
+        prefix = build_upstream_url(base_url, "/v1beta/models")
+        url = prefix.joinpath(f"{quote(model_id, safe='')}:generateContent", encoded=True)
         response = await self._transport.request_json(
             method="POST",
             url=url,

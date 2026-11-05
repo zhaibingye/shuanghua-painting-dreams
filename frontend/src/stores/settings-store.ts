@@ -66,7 +66,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
     })),
   addModel: (format, value) => set((state) => {
     const modelId = value.trim()
-    if (!modelId || /[\s/?#\\]/.test(modelId)) throw new Error('模型 ID 不能包含空白或路径字符。')
+    if (!modelId || /[\s?#\\]/.test(modelId)) throw new Error('模型 ID 不能为空，且不能包含空白、反斜杠、? 或 #。')
     const current = state.settings.formats[format]
     if (current.models.includes(modelId)) throw new Error('模型已在列表中。')
     return { settings: { ...state.settings, formats: { ...state.settings.formats,

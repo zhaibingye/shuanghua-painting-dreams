@@ -20,7 +20,7 @@ from tests.conftest import FakeTransport
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("model_id", ["gpt-image-2", "gpt-image-2.5-sunburst"])
+@pytest.mark.parametrize("model_id", ["gpt-image-2", "gpt-image-2.5-sunburst", "vendor/model"])
 async def test_openai_generation_payload_and_response(settings: Settings, model_id: str) -> None:
     transport = FakeTransport(
         [
@@ -61,7 +61,13 @@ async def test_openai_generation_payload_and_response(settings: Settings, model_
 
 
 @pytest.mark.asyncio
-async def test_gemini_edit_maps_data_url_to_inline_data(settings: Settings) -> None:
+@pytest.mark.parametrize(
+    ("model_id", "encoded_model"),
+    [("nano-banana-2", "nano-banana-2"), ("vendor/model", "vendor%2Fmodel")],
+)
+async def test_gemini_edit_maps_data_url_to_inline_data(
+    settings: Settings, model_id: str, encoded_model: str
+) -> None:
     transport = FakeTransport(
         [
             UpstreamResponse(
@@ -90,8 +96,8 @@ async def test_gemini_edit_maps_data_url_to_inline_data(settings: Settings) -> N
     request = GeminiImageEditRequest.model_validate(
         {
             "apiFormat": "googleGeminiImage",
-            "baseUrl": "https://shapi.vip",
-            "modelId": "nano-banana-2",
+            "baseUrl": "https://shapi.vip/proxy",
+            "modelId": model_id,
             "prompt": "edit",
             "images": [
                 {
@@ -106,7 +112,7 @@ async def test_gemini_edit_maps_data_url_to_inline_data(settings: Settings) -> N
 
     call = transport.calls[0]
     assert call.payload is not None
-    assert str(call.url) == "https://shapi.vip/v1beta/models/nano-banana-2:generateContent"
+    assert str(call.url) == f"https://shapi.vip/proxy/v1beta/models/{encoded_model}:generateContent"
     config = call.payload["generationConfig"]
     assert config["imageConfig"] == {"aspectRatio": "1:1", "imageSize": "1K"}
     assert config["thinkingConfig"]["thinkingLevel"] == "HIGH"

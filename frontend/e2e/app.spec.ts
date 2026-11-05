@@ -320,8 +320,8 @@ async function openSettings(page: Page): Promise<void> {
 
 test('按格式管理模型，新对话无需填写模型，且可切换并持久化', async ({ page }) => {
   await ignoreKeyGate(page)
-  await createConversation(page, 'image', 'byteDanceImage', 'ep-custom-image')
-  await expect(page.getByLabel('当前模型')).toHaveValue('ep-custom-image')
+  await createConversation(page, 'image', 'byteDanceImage', 'vendor/ep-custom-image')
+  await expect(page.getByLabel('当前模型')).toHaveValue('vendor/ep-custom-image')
   await page.getByLabel('消息', { exact: true }).fill('保留的草稿')
   await page.getByLabel('当前模型').selectOption('doubao-seedream-5-0-pro-260628')
   await expect(page.getByLabel('消息', { exact: true })).toHaveValue('保留的草稿')
@@ -331,7 +331,7 @@ test('按格式管理模型，新对话无需填写模型，且可切换并持�
   await page.getByRole('button', { name: '关闭参数面板' }).click()
   await page.screenshot({ path: test.info().outputPath('chat-models.png'), fullPage: true })
   await page.reload()
-  await expect(page.getByLabel('当前模型').locator('option[value="ep-custom-image"]')).toHaveCount(1)
+  await expect(page.getByLabel('当前模型').locator('option[value="vendor/ep-custom-image"]')).toHaveCount(1)
   await expect(page.getByLabel('当前模型')).toHaveValue('doubao-seedream-5-0-pro-260628')
 })
 

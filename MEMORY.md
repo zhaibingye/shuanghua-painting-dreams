@@ -19,3 +19,4 @@
 - 前端只安装正式 `typescript@7`。Oxlint / oxlint-tsgolint 提供原生类型感知 lint，`scripts/generate-api.ts` 用 json-schema-to-typescript 从 OpenAPI 3.1 的组件生成模型，不依赖旧编译器 API。Pydantic 有默认值的字段在传输类型中可选；`parseImageOptions` 经 Zod 补齐默认值后返回 `Required` 类型。数组数量由后端与表单校验，不生成固定长度 tuple。
 - Vite 8 使用 Rolldown，分包配置采用 `build.rolldownOptions.output.codeSplitting.groups`，不再使用已移除的对象式 `manualChunks`。
 - 创建按钮 click 不代表 IndexedDB 写入与 ChatPage 载入完成。E2E 创建辅助函数等待弹窗关闭和消息输入框可见，再操作侧边栏；侧边栏辅助函数用界面断言等待状态，不用固定 sleep 或瞬时检查后静默跳过。
+- 模型 ID 允许 `/`（如 `vendor/model`），前后端校验保持一致；JSON 请求原样发送，Gemini URL 对整个模型名做单次路径段编码，不把模型名当作路由层级或重复编码。
