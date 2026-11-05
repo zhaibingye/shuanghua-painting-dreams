@@ -90,18 +90,20 @@ git pull --ff-only origin main
 pm2 stop shuanghua
 npm run setup
 npm run check
-pm2 restart shuanghua --update-env
+pm2 restart deploy/pm2/ecosystem.config.cjs --only shuanghua --update-env
 pm2 save
 curl -fsS http://127.0.0.1:3002/api/v1/health/ready
 ```
 
 重启后的健康检查可能需要等待构建完成。失败时查看 `pm2 logs shuanghua --lines 50 --nostream`。
 
+更新时通过配置文件重启，PM2 会重新读取配置并创建项目的 `logs/` 目录。仅按进程名重启不会执行这一步；若旧命令报 `ENOENT ... logs/shuanghua.out.log`，在项目目录执行 `mkdir -p logs`，再运行上面的重启命令。
+
 `backend/.env` 不受 Git 管理，常规更新会保留它；浏览器中的对话、图片和设置也会保留。继续使用相同的浏览器与访问地址，才能读取原有本地记录。
 
 如果更新后 Node.js 版本要求变化，先运行 `nvm install && nvm use`，重新安装 npm 和 PM2，并按 `pm2 startup` 的输出更新开机自启配置，再继续上述安装与重启步骤。
 
-仅修改 `backend/.env` 时，执行 `pm2 restart shuanghua --update-env` 即可。
+仅修改 `backend/.env` 时，执行 `pm2 restart deploy/pm2/ecosystem.config.cjs --only shuanghua --update-env` 即可。
 
 ## 三、删除
 

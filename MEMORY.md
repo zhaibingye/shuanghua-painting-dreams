@@ -22,3 +22,4 @@
 - 创建按钮 click 不代表 IndexedDB 写入与 ChatPage 载入完成。E2E 创建辅助函数等待弹窗关闭和消息输入框可见，再操作侧边栏；侧边栏辅助函数用界面断言等待状态，不用固定 sleep 或瞬时检查后静默跳过。
 - 模型 ID 允许 `/`（如 `vendor/model`），前后端校验保持一致；JSON 请求原样发送，Gemini URL 对整个模型名做单次路径段编码，不把模型名当作路由层级或重复编码。
 - 公网 HTTP 需避免依赖安全上下文 API：本地标识统一用 Nano ID（crypto.getRandomValues），复制使用 clipboard-copy，容量统计不可用时只显示未提供，不阻塞设置或清空数据。E2E 使用 shuanghua.test 映射本地测试服务，断言 isSecureContext=false，不能通过浏览器安全豁免标志验证 HTTP 兼容性。
+- PM2 的项目日志目录由 `deploy/pm2/ecosystem.config.cjs` 在加载时创建。部署更新使用 `pm2 restart deploy/pm2/ecosystem.config.cjs --only shuanghua --update-env`；按进程名重启不会重读配置，若目录已不存在，会在应用启动前报日志路径 ENOENT。此时先创建项目 `logs/` 目录即可恢复。
