@@ -76,17 +76,7 @@ pm2 startup
 sudo ufw allow 3002/tcp
 ```
 
-浏览器打开 `http://服务器公网IP:3002`，可确认页面能否访问。
-
-**当前完整创作功能需要 HTTPS 或 localhost。** 普通远程 HTTP 下，浏览器不会提供本项目使用的 `crypto.randomUUID()` 和存储估算接口，可能导致创建对话、设置等功能失败。参见 [浏览器安全上下文说明](https://developer.mozilla.org/en-US/docs/Web/Security/Defenses/Secure_Contexts)。
-
-只有服务器 IP、没有域名和证书时，在**自己的电脑**终端执行：
-
-```bash
-ssh -N -L 127.0.0.1:3002:127.0.0.1:3002 用户名@服务器公网IP
-```
-
-保持该终端连接，在自己的浏览器打开 **<http://localhost:3002>**，即可通过 SSH 转发完整使用。若 SSH 使用其他端口，在命令中加 `-p SSH端口`。此方式只需 SSH 可连接，无需向公网开放应用的 3002 端口。
+浏览器直接打开 **`http://服务器公网IP:3002`** 即可使用。也可以通过指向该服务器的域名加端口访问。
 
 进入页面后填写 API Key，在「设置」中配置上游地址、接口格式和模型。供应商 Key 在浏览器中填写，不需要写入服务器 `.env`。
 

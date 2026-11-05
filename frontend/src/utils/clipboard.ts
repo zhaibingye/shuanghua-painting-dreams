@@ -1,3 +1,1 @@
-export async function copyText(value: string): Promise<void> {
-  await navigator.clipboard.writeText(value)
-}
+export { default as copyText } from 'clipboard-copy'

@@ -35,28 +35,26 @@ export function SettingsDialog({
   const [format, setFormat] = useState<ApiFormat>(settings.activeImageFormat)
   const [modelInput, setModelInput] = useState('')
   const overrideEnabled = settings.formats[format].keyOverride !== null
-  const [storage, setStorage] = useState<{ usage: number; quota: number } | null>(null)
+  const [storage, setStorage] = useState<StorageEstimate | null>()
   const selected = settings.formats[format]
   const inherited = effectiveKey(settings, format)
 
   useEffect(() => {
     if (!open) return
-    void navigator.storage.estimate().then((estimate) => {
-      setStorage({ usage: estimate.usage ?? 0, quota: estimate.quota ?? 0 })
-    })
+    void estimateStorage().then(setStorage)
   }, [open])
 
   const storageText = useMemo(() => {
-    if (!storage) return '正在读取…'
-    return `${formatBytes(storage.usage)} / ${formatBytes(storage.quota)}`
+    if (storage === undefined) return '正在读取…'
+    if (storage === null) return '当前浏览器未提供容量统计'
+    return `${formatBytes(storage.usage ?? 0)} / ${formatBytes(storage.quota ?? 0)}`
   }, [storage])
 
   const clearAll = async () => {
     if (!window.confirm('确定清空全部对话、图片和视频任务吗？')) return
     await clearWorkspace()
     toast.success('本地工作区已清空')
-    const estimate = await navigator.storage.estimate()
-    setStorage({ usage: estimate.usage ?? 0, quota: estimate.quota ?? 0 })
+    setStorage(await estimateStorage())
   }
 
   return (
@@ -185,6 +183,14 @@ export function SettingsDialog({
       </Dialog.Portal>
     </Dialog.Root>
   )
+}
+
+async function estimateStorage(): Promise<StorageEstimate | null> {
+  try {
+    return await navigator.storage?.estimate() ?? null
+  } catch {
+    return null
+  }
 }
 
 function formatBytes(value: number): string {

@@ -8,6 +8,7 @@ const tinyPng = Buffer.from(
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/')
+  expect(await page.evaluate(() => isSecureContext)).toBe(false)
   await page.evaluate(() => {
     localStorage.clear()
     sessionStorage.clear()
@@ -368,6 +369,55 @@ test('恢复默认设置会更新配置并在刷新后保留', async ({ page }) 
   await expect(page.getByLabel('默认模型', { exact: true })).toHaveValue('gpt-image-2.5-sunburst')
 })
 
+
+test('HTTP 下可提交视频、复制链接并清空本地数据', async ({ page, context }) => {
+  const pageErrors: string[] = []
+  page.on('pageerror', (error) => pageErrors.push(error.message))
+  expect(await page.evaluate(() => ({
+    uuid: typeof crypto.randomUUID,
+    clipboard: typeof navigator.clipboard,
+    storage: typeof navigator.storage,
+  }))).toEqual({ uuid: 'undefined', clipboard: 'undefined', storage: 'undefined' })
+
+  await page.getByLabel('API Key').fill('browser-test-key')
+  await page.getByRole('button', { name: '保存 Key 并进入' }).click()
+  await openSettings(page)
+  await expect(page.getByText('当前估算使用量：当前浏览器未提供容量统计')).toBeVisible()
+  await page.getByRole('button', { name: '关闭设置' }).click()
+  await createConversation(page, 'video', 'xaiVideo')
+
+  const videoUrl = 'https://example.com/http-video.mp4'
+  await page.route(videoUrl, (route) => route.fulfill({ status: 204 }))
+  await page.route('**/api/v1/videos/generations', (route) => route.fulfill({
+    json: { requestId: 'req_http', task: { taskId: 'http_video', apiFormat: 'xaiVideo', operation: 'generation', status: 'queued' } },
+  }))
+  await page.route('**/api/v1/video-tasks/status', (route) => route.fulfill({
+    json: { requestId: 'req_http', task: { taskId: 'http_video', apiFormat: 'xaiVideo', status: 'succeeded', output: { videoUrl, duration: 5 } } },
+  }))
+  await page.getByRole('textbox', { name: '消息', exact: true }).fill('HTTP 视频测试')
+  await page.getByRole('button', { name: '发送消息' }).click()
+  await expect(page.getByRole('button', { name: '复制 URL' })).toBeVisible({ timeout: 10_000 })
+  await page.reload()
+  await expect(page.getByRole('button', { name: '复制 URL' })).toBeVisible()
+  await page.getByRole('button', { name: '复制 URL' }).click()
+  await expect(page.getByText('视频 URL 已复制')).toBeVisible()
+
+  // 仅在另一个 localhost 页面授予读取权限，验证 HTTP 页面实际复制的内容。
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: 'http://127.0.0.1:5173' })
+  const clipboardPage = await context.newPage()
+  await clipboardPage.goto('http://127.0.0.1:5173')
+  await expect.poll(() => clipboardPage.evaluate(() => navigator.clipboard.readText())).toBe(videoUrl)
+  await clipboardPage.close()
+
+  await openSettings(page)
+  page.once('dialog', (dialog) => void dialog.accept())
+  await page.getByRole('button', { name: '清空全部对话' }).click()
+  await expect(page.getByText('本地工作区已清空')).toBeVisible()
+  await page.goto('/')
+  await openSidebarIfNeeded(page)
+  await expect(page.locator('aside').getByText('还没有创作记录')).toBeVisible()
+  expect(pageErrors).toEqual([])
+})
 
 for (const viewport of [
   { width: 320, height: 568 }, { width: 390, height: 844 },

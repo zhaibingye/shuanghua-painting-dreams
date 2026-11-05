@@ -1,3 +1,4 @@
+import { nanoid } from 'nanoid'
 import * as Dialog from '@radix-ui/react-dialog'
 import { Image, MessageSquarePlus, Video, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
@@ -63,7 +64,7 @@ export function CreateConversationDialog({
       const now = new Date().toISOString()
       const connection = settings.formats[format]
       const conversation: StoredConversation = {
-        id: `conv_${crypto.randomUUID()}`,
+        id: `conv_${nanoid()}`,
         title: kind === 'image' ? '新图片对话' : '新视频对话',
         mediaKind: kind,
         apiFormat: format,

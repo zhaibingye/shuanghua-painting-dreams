@@ -1,3 +1,4 @@
+import { nanoid } from 'nanoid'
 import type {
   ImageWorkerRequest,
   ImageWorkerResponse,
@@ -39,7 +40,7 @@ function send(message: ImageWorkerRequest): Promise<ProcessedBlob | ProcessedFil
 }
 
 export async function fileToDataUrl(file: File): Promise<ProcessedFile> {
-  const result = await send({ id: crypto.randomUUID(), type: 'fileToDataUrl', file })
+  const result = await send({ id: nanoid(), type: 'fileToDataUrl', file })
   if (!('dataUrl' in result)) throw new Error('图片 Worker 返回了错误类型')
   return result
 }
@@ -49,7 +50,7 @@ export async function base64ToBlob(
   mimeType: string,
 ): Promise<ProcessedBlob> {
   const result = await send({
-    id: crypto.randomUUID(),
+    id: nanoid(),
     type: 'base64ToBlob',
     base64Data,
     mimeType,

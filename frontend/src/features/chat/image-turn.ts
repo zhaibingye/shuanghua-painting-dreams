@@ -1,3 +1,4 @@
+import { nanoid } from 'nanoid'
 import { parseImageOptions } from '../../api/image-options'
 import type * as schemas from '../../api/generated/models'
 import type { ImageConversationTurnRequest } from '../../api/client'
@@ -116,7 +117,7 @@ export function draftToStoredAsset(options: {
 }): StoredMediaAsset {
   const { draft } = options
   return {
-    id: `asset_${crypto.randomUUID()}`,
+    id: `asset_${nanoid()}`,
     conversationId: options.conversationId,
     messageId: options.messageId,
     mediaKind: 'image',

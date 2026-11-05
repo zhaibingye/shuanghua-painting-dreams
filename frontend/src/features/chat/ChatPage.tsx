@@ -1,3 +1,4 @@
+import { nanoid } from 'nanoid'
 import { ArrowDown, Menu, SlidersHorizontal } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
@@ -238,9 +239,9 @@ export function ChatPage({ onOpenSidebar }: { onOpenSidebar: () => void }) {
         markupDataUrl,
       })
       const now = new Date().toISOString()
-      const userMessageId = `msg_${crypto.randomUUID()}`
-      const assistantMessageId = `msg_${crypto.randomUUID()}`
-      const taskId = `image_${crypto.randomUUID()}`
+      const userMessageId = `msg_${nanoid()}`
+      const assistantMessageId = `msg_${nanoid()}`
+      const taskId = `image_${nanoid()}`
       const inputAssets = draftImages.map((draft) =>
         draftToStoredAsset({
           draft,
@@ -324,9 +325,9 @@ export function ChatPage({ onOpenSidebar }: { onOpenSidebar: () => void }) {
       return
     }
     const now = new Date().toISOString()
-    const userMessageId = `msg_${crypto.randomUUID()}`
-    const assistantMessageId = `msg_${crypto.randomUUID()}`
-    const taskId = `video_${crypto.randomUUID()}`
+    const userMessageId = `msg_${nanoid()}`
+    const assistantMessageId = `msg_${nanoid()}`
+    const taskId = `video_${nanoid()}`
     videoBusyRef.current = true
     setVideoBusy(true)
     try {

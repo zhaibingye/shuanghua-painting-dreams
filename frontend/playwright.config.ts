@@ -8,7 +8,10 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: 'list',
   use: {
-    baseURL: 'http://127.0.0.1:5173',
+    baseURL: 'http://shuanghua.test:5173',
+    launchOptions: {
+      args: ['--host-resolver-rules=MAP shuanghua.test 127.0.0.1', '--no-proxy-server'],
+    },
     trace: 'on-first-retry',
   },
   projects: [
@@ -31,6 +34,7 @@ export default defineConfig({
     },
     {
       command: 'npm run dev -- --host 127.0.0.1',
+      env: { __VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS: 'shuanghua.test' },
       cwd: '.',
       url: 'http://127.0.0.1:5173',
       reuseExistingServer: !process.env.CI,

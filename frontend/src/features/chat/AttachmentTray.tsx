@@ -1,3 +1,4 @@
+import { nanoid } from 'nanoid'
 import { ImagePlus, Link2, Trash2, X } from 'lucide-react'
 import { type ChangeEvent, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
@@ -66,7 +67,7 @@ export function AttachmentTray({
       if (!mounted.current || latest.current.disabled) return
       const remaining = Math.max(0, latest.current.maxImages - latest.current.images.length)
       const next: DraftImage[] = prepared.slice(0, remaining).map(({ file, processed }) => ({
-        id: crypto.randomUUID(),
+        id: nanoid(),
         kind: 'file',
         file,
         previewUrl: URL.createObjectURL(file),
@@ -97,7 +98,7 @@ export function AttachmentTray({
       toast.error(`当前格式最多支持 ${maxImages} 张图片`)
       return
     }
-    onChange([...images, { id: crypto.randomUUID(), kind: 'url', url: normalized }])
+    onChange([...images, { id: nanoid(), kind: 'url', url: normalized }])
     setUrl('')
     setShowUrl(false)
   }

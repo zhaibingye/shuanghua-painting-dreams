@@ -20,4 +20,4 @@
 - Vite 8 使用 Rolldown，分包配置采用 `build.rolldownOptions.output.codeSplitting.groups`，不再使用已移除的对象式 `manualChunks`。
 - 创建按钮 click 不代表 IndexedDB 写入与 ChatPage 载入完成。E2E 创建辅助函数等待弹窗关闭和消息输入框可见，再操作侧边栏；侧边栏辅助函数用界面断言等待状态，不用固定 sleep 或瞬时检查后静默跳过。
 - 模型 ID 允许 `/`（如 `vendor/model`），前后端校验保持一致；JSON 请求原样发送，Gemini URL 对整个模型名做单次路径段编码，不把模型名当作路由层级或重复编码。
-- 端口部署要区分页面可达与创作可用：前端直接依赖 `crypto.randomUUID()` 和 `navigator.storage.estimate()`，非 localhost 的 HTTP 环境不提供这些 API（2026-11-06 用远程 HTTP 来源实测，创建对话失败）。部署教程提供 SSH 转发至 localhost 的完整访问方式；公网直接使用需要 HTTPS。
+- 公网 HTTP 需避免依赖安全上下文 API：本地标识统一用 Nano ID（crypto.getRandomValues），复制使用 clipboard-copy，容量统计不可用时只显示未提供，不阻塞设置或清空数据。E2E 使用 shuanghua.test 映射本地测试服务，断言 isSecureContext=false，不能通过浏览器安全豁免标志验证 HTTP 兼容性。
