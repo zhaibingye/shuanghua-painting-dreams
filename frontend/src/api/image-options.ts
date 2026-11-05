@@ -1,16 +1,16 @@
 import { z } from 'zod'
 
 import catalog from './generated/provider-catalog.json'
-import type { components } from './generated/schema'
+import type * as models from './generated/models'
 
 export type ImageFormat = keyof typeof catalog.imageOptions
-export type ImageOptions<F extends ImageFormat> = {
-  googleGeminiImage: components['schemas']['GeminiImageOptions']
-  openaiImage: components['schemas']['OpenAIImageTurnOptions']
-  openaiResponsesImage: components['schemas']['OpenAIResponsesImageOptions']
-  xaiImage: components['schemas']['XAIImageOptions']
-  byteDanceImage: components['schemas']['ByteDanceImageOptions']
-}[F]
+export type ImageOptions<F extends ImageFormat> = Required<{
+  googleGeminiImage: models.GeminiImageOptions
+  openaiImage: models.OpenAIImageTurnOptions
+  openaiResponsesImage: models.OpenAIResponsesImageOptions
+  xaiImage: models.XAIImageOptions
+  byteDanceImage: models.ByteDanceImageOptions
+}[F]>
 
 export type OptionField = {
   type?: string

@@ -74,7 +74,7 @@ Seedance 2.5 默认自动时长（`-1`，模型选择 4～30 秒）、`adaptive`
 - 前端：React 19 + TypeScript + Vite + Tailwind CSS
 - 后端：FastAPI + aiohttp + Pydantic
 - Python 管理：uv
-- API 类型与图片参数：FastAPI OpenAPI / Pydantic JSON Schema → `openapi-typescript` / 参数目录
+- API 类型与图片参数：FastAPI OpenAPI / Pydantic JSON Schema → `json-schema-to-typescript` / 参数目录
 - 生产入口：FastAPI 同时提供 `/api/v1/*` 与 Vite 构建产物
 - 默认监听：`127.0.0.1:3002`
 - 部署：Linux + Nginx/宝塔 + PM2
@@ -87,7 +87,7 @@ Seedance 2.5 默认自动时长（`-1`，模型选择 4～30 秒）、`adaptive`
 
 Node.js 版本记录在 `.node-version` / `.nvmrc`，Python 版本记录在 `backend/.python-version`。依赖由 lock 文件固定，安装时使用 `npm ci` 和 `uv sync --frozen`。
 
-类型检查使用 TypeScript 7。按 TypeScript 官方并行安装方案，ESLint 使用 TypeScript 6 编译器 API；`frontend/tools/openapi` 独立工具包保留最新版 OpenAPI 生成器所要求的 TypeScript 5 API。两者只用于开发工具，不进入浏览器产物。
+类型检查使用 TypeScript 7，lint 使用 Oxlint 及其原生类型感知检查。API 类型由 `json-schema-to-typescript` 从后端契约生成，所有前端工具统一安装在 `frontend`。
 
 ## 项目命令
 
@@ -114,7 +114,7 @@ npm run check
 - Pytest
 - Ruff lint / format check
 - mypy strict
-- ESLint
+- Oxlint（含类型感知和 React Hooks 检查）
 - TypeScript typecheck
 - Vitest
 - Vite production build

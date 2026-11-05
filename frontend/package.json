@@ -10,11 +10,11 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "lint": "eslint . --max-warnings=0",
+    "lint": "oxlint --type-aware --deny-warnings .",
     "typecheck": "tsc -b --pretty false",
     "test": "vitest run",
     "test:watch": "vitest",
-    "api:generate": "uv run --directory ../backend --frozen --no-sync python scripts/export_openapi.py && npm run generate --prefix tools/openapi",
+    "api:generate": "uv run --directory ../backend --frozen --no-sync python scripts/export_openapi.py && node scripts/generate-api.ts",
     "e2e": "playwright test",
     "e2e:install": "playwright install chromium"
   },
@@ -24,7 +24,6 @@
     "clsx": "^2.1.1",
     "idb": "^8.0.4",
     "lucide-react": "^1.69.0",
-    "openapi-fetch": "^0.17.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-router-dom": "^7.18.5",
@@ -34,7 +33,6 @@
     "zustand": "^5.0.16"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
     "@tailwindcss/vite": "^4.3.4",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
@@ -42,23 +40,17 @@
     "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "@typescript/native": "npm:typescript@^7.0.2",
     "@vitejs/plugin-react": "^6.2.1",
-    "eslint": "^10.14.0",
-    "eslint-plugin-react-hooks": "^7.1.1",
-    "eslint-plugin-react-refresh": "^0.5.7",
     "fake-indexeddb": "^6.2.7",
-    "globals": "^17.14.0",
     "jsdom": "^31.0.0",
+    "json-schema-to-typescript": "^16.0.0",
+    "oxlint": "^1.91.0",
+    "oxlint-tsgolint": "^7.0.2005",
     "playwright": "^1.64.1",
     "tailwindcss": "^4.3.4",
-    "typescript": "npm:@typescript/typescript6@^6.0.2",
-    "typescript-eslint": "^8.72.1",
+    "typescript": "^7.0.2",
     "vite": "^8.3.6",
     "vitest": "^5.1.0"
   },
-  "packageManager": "npm@12.2.2",
-  "overrides": {
-    "minimatch": "^11.0.4"
-  }
+  "packageManager": "npm@12.2.2"
 }

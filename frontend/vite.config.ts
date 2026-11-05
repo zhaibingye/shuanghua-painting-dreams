@@ -21,7 +21,7 @@ export default defineConfig({
           groups: [
             { name: 'react', test: /node_modules[\\/]react(?:-dom|-router|-router-dom)?[\\/]/ },
             { name: 'ui', test: /node_modules[\\/](?:@radix-ui|lucide-react|sonner)[\\/]/ },
-            { name: 'data', test: /node_modules[\\/](?:@tanstack|idb|zustand|zod|openapi-fetch)[\\/]/ },
+            { name: 'data', test: /node_modules[\\/](?:@tanstack|idb|zustand|zod)[\\/]/ },
           ],
         },
       },

@@ -288,23 +288,23 @@ async function createConversation(
   await dialog.getByLabel('API 格式').selectOption(format)
   await expect(dialog.getByLabel('模型 ID', { exact: true })).toHaveCount(0)
   await dialog.getByRole('button', { name: '创建对话' }).click()
+  await expect(dialog).toBeHidden()
+  await expect(page.getByRole('textbox', { name: '消息', exact: true })).toBeVisible()
 }
 
 async function openSidebarIfNeeded(page: Page): Promise<void> {
   const sidebar = page.locator('aside')
-  if (await sidebar.isVisible()) return
-  const openSidebar = page.getByRole('button', { name: '打开侧边栏' })
-  if (await openSidebar.isVisible()) {
-    await openSidebar.click()
-    await page.waitForTimeout(350)
+  if (!await sidebar.isVisible()) {
+    await page.getByRole('button', { name: '打开侧边栏' }).click()
   }
+  await expect(sidebar).toBeVisible()
 }
 
 async function closeSidebarIfOpen(page: Page): Promise<void> {
   const sidebar = page.locator('aside')
   if (!await sidebar.isVisible() || await page.getByRole('button', { name: '打开侧边栏' }).isHidden()) return
   await sidebar.getByRole('button', { name: '关闭侧边栏' }).click()
-  await page.waitForTimeout(350)
+  await expect(sidebar).toBeHidden()
 }
 
 async function openNewConversation(page: Page): Promise<void> {
@@ -414,6 +414,8 @@ async function assertInViewport(
 }
 
 test('窗口缩小后输入区仍可见，抽屉支持 Escape', async ({ page }) => {
+  const pageErrors: string[] = []
+  page.on('pageerror', (error) => pageErrors.push(error.message))
   await ignoreKeyGate(page)
   await createConversation(page, 'image', 'openaiImage')
   await page.setViewportSize({ width: 390, height: 360 })
@@ -423,6 +425,7 @@ test('窗口缩小后输入区仍可见，抽屉支持 Escape', async ({ page })
   await page.keyboard.press('Escape')
   await expect(page.getByRole('dialog', { name: '对话导航' })).toHaveCount(0)
   await expect(page.getByRole('button', { name: '打开侧边栏' })).toBeFocused()
+  expect(pageErrors).toEqual([])
 })
 
 test('OpenAI 九种比例分辨率预设与 max 质量随请求保存', async ({ page }) => {

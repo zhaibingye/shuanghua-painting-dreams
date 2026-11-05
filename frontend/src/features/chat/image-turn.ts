@@ -1,5 +1,5 @@
 import { parseImageOptions } from '../../api/image-options'
-import type { components } from '../../api/generated/schema'
+import type * as schemas from '../../api/generated/models'
 import type { ImageConversationTurnRequest } from '../../api/client'
 import {
   getAssets,
@@ -27,8 +27,8 @@ export type DraftImage =
     }
 
 type ApiImageAsset =
-  | components['schemas']['DataUrlImageAsset']
-  | components['schemas']['UrlImageAsset']
+  | schemas.DataUrlImageAsset
+  | schemas.UrlImageAsset
 
 export async function buildImageTurnRequest(options: {
   conversation: StoredConversation
@@ -145,9 +145,9 @@ export async function storedAssetToDataUrl(asset: StoredMediaAsset): Promise<str
 
 async function buildResponsesHistory(
   messages: StoredMessage[],
-): Promise<components['schemas']['OpenAIResponsesImageTurnRequest']['history']> {
+): Promise<schemas.OpenAIResponsesImageTurnRequest['history']> {
   const history: NonNullable<
-    components['schemas']['OpenAIResponsesImageTurnRequest']['history']
+    schemas.OpenAIResponsesImageTurnRequest['history']
   > = []
   for (let index = 0; index < messages.length; index += 2) {
     const user = messages[index]
@@ -179,8 +179,8 @@ async function buildResponsesHistory(
 
 async function buildGeminiHistory(
   messages: StoredMessage[],
-): Promise<components['schemas']['GeminiImageTurnRequest']['history']> {
-  const history: NonNullable<components['schemas']['GeminiImageTurnRequest']['history']> = []
+): Promise<schemas.GeminiImageTurnRequest['history']> {
+  const history: NonNullable<schemas.GeminiImageTurnRequest['history']> = []
   for (let index = 0; index < messages.length; index += 2) {
     const user = messages[index]
     const assistant = messages[index + 1]

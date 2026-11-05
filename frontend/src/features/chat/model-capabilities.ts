@@ -1,9 +1,9 @@
 import catalog from '../../api/generated/provider-catalog.json'
-import type { components } from '../../api/generated/schema'
+import type * as schemas from '../../api/generated/models'
 
-type ProviderMetadata = components['schemas']['ProviderMetadata']
-type ByteDanceVideoOptions = components['schemas']['ByteDanceVideoOptions']
-type ByteDanceVideoResolution = ByteDanceVideoOptions['resolution']
+type ProviderMetadata = schemas.ProviderMetadata
+type ByteDanceVideoOptions = schemas.ByteDanceVideoOptions
+type ByteDanceVideoResolution = NonNullable<ByteDanceVideoOptions['resolution']>
 
 type ByteDanceVideoCapabilities = Readonly<{
   durationMin: number

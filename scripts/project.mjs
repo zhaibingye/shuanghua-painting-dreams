@@ -174,11 +174,6 @@ async function setup() {
     cwd: frontendDirectory,
     label: '前端依赖安装',
   })
-  log('安装 OpenAPI 生成工具依赖……')
-  await runProcess(npmCommand, npmArguments(['ci']), {
-    cwd: path.join(frontendDirectory, 'tools', 'openapi'),
-    label: 'OpenAPI 工具依赖安装',
-  })
   log('依赖安装完成。')
 }
 
@@ -285,7 +280,7 @@ async function checkProject() {
       backendDirectory,
       'mypy',
     ],
-    [npmCommand, npmArguments(['run', 'lint']), frontendDirectory, 'ESLint'],
+    [npmCommand, npmArguments(['run', 'lint']), frontendDirectory, 'Oxlint'],
     [npmCommand, npmArguments(['run', 'typecheck']), frontendDirectory, 'TypeScript'],
     [npmCommand, npmArguments(['run', 'test']), frontendDirectory, 'Vitest'],
     [npmCommand, npmArguments(['run', 'build']), frontendDirectory, '前端构建'],

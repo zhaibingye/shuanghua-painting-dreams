@@ -56,14 +56,21 @@ export function ChatComposer({
     const textarea = textareaRef.current
     if (!textarea || typeof ResizeObserver === 'undefined') return
     let width = textarea.clientWidth
+    let frame = 0
     const observer = new ResizeObserver(() => {
       if (width === textarea.clientWidth) return
       width = textarea.clientWidth
-      textarea.style.height = 'auto'
-      textarea.style.height = `${textarea.scrollHeight}px`
+      cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(() => {
+        textarea.style.height = 'auto'
+        textarea.style.height = `${textarea.scrollHeight}px`
+      })
     })
     observer.observe(textarea)
-    return () => observer.disconnect()
+    return () => {
+      observer.disconnect()
+      cancelAnimationFrame(frame)
+    }
   }, [])
   const submit = () => {
     if (!busy && !attachmentsProcessing) onSubmit()

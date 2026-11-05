@@ -114,8 +114,7 @@ npm run setup
 该命令会执行：
 
 - `uv sync --frozen`，安装后端运行、开发和检查依赖；
-- `npm ci`，安装前端运行、构建和检查依赖；
-- 在 `frontend/tools/openapi` 执行 `npm ci`，安装隔离的 OpenAPI 类型生成工具。
+- `npm ci`，安装前端运行、构建、检查和类型生成依赖。
 
 `npm start` 不会自动安装依赖。更新 lock 文件后应重新执行 `npm run setup`。
 
