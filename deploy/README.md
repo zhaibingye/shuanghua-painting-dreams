@@ -1,427 +1,138 @@
-# Linux 单端口部署
+# 部署、更新与删除
 
-本文档适用于 **Linux + Nginx/宝塔 + PM2**。项目生产模式只监听一个本地 HTTP 端口，FastAPI 同时提供前端页面、静态资源和 `/api/v1/*` 接口。
+使用 Linux + PM2 运行，前端页面和 API 共用一个端口，默认 `3002`。以下以 Ubuntu / Debian、项目目录 `~/shuanghua` 为例。
 
-外部部署结构：
+## 一、部署并通过端口访问
 
-```text
-浏览器
-  ↓ HTTPS
-Nginx / 宝塔反向代理
-  ↓ HTTP，整个域名全部转发
-127.0.0.1:3002
-  ↓
-FastAPI API + frontend/dist
-```
+### 1. 准备环境和代码
 
-不再需要创建独立的前端静态网站，也不再需要单独创建 `/api/` 反向代理。
-
-## 1. 环境要求
-
-服务器需要安装：
-
-- Python 3.15.2；
-- uv 0.13.7 或更高版本；
-- Node.js 26.13.0 或更高的 26 LTS 版本；
-- npm 12.2.2；
-- PM2；
-- Nginx，或带 Nginx 的宝塔面板。
-
-示例安装 PM2：
+在服务器终端中执行。安装和后续 PM2 操作使用同一个 Linux 用户。
 
 ```bash
-npm install -g pm2
-pm2 --version
+sudo apt update
+sudo apt install -y git curl ca-certificates
+
+git clone --branch main https://github.com/zhaibingye/shuanghua-painting-dreams.git "$HOME/shuanghua"
+cd "$HOME/shuanghua"
 ```
 
-建议仅向公网开放 SSH、HTTP 80 和 HTTPS 443。统一应用端口只监听 `127.0.0.1`，不要向公网开放 3002。
-
-## 2. 放置项目
-
-本文以 `/opt/shuanghua` 为例：
+通过 [nvm](https://github.com/nvm-sh/nvm#installing-and-updating) 安装仓库 `.nvmrc` 指定的 Node.js 26 LTS，再安装 npm、PM2 和 [uv](https://docs.astral.sh/uv/getting-started/installation/)：
 
 ```bash
-mkdir -p /opt/shuanghua /etc/shuanghua
+export NVM_DIR="$HOME/.nvm"
+curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.41.0/install.sh | bash
+. "$NVM_DIR/nvm.sh"
+nvm install
+nvm alias default "$(cat .nvmrc)"
+npm install -g npm@12.2.2 pm2
+
+curl -LsSf https://astral.sh/uv/install.sh | sh
+export PATH="$HOME/.local/bin:$PATH"
 ```
 
-将完整项目上传或拉取到 `/opt/shuanghua`：
+项目要求 uv 0.13.7+。下一步安装依赖时，uv 会按 `backend/.python-version` 自动准备 Python 3.15.2。
 
-```text
-/opt/shuanghua/
-├── package.json
-├── package-lock.json
-├── backend/
-├── frontend/
-├── scripts/
-└── deploy/
-```
-
-PM2 配置会根据自身文件位置自动计算项目根目录，因此项目也可以部署到其他目录，不需要修改绝对路径。
-
-## 3. 配置环境变量
-
-复制后端配置：
+### 2. 配置端口并启动
 
 ```bash
-cp /opt/shuanghua/backend/.env.example /etc/shuanghua/shuanghua.env
-chmod 600 /etc/shuanghua/shuanghua.env
-ln -sfn /etc/shuanghua/shuanghua.env /opt/shuanghua/backend/.env
-```
-
-编辑 `/etc/shuanghua/shuanghua.env`，主要配置如下：
-
-```dotenv
+cd "$HOME/shuanghua"
+cat > backend/.env <<'EOF'
 SHUANGHUA_ENV=production
-SHUANGHUA_HOST=127.0.0.1
+SHUANGHUA_HOST=0.0.0.0
 PORT=3002
 WEB_CONCURRENCY=2
-SHUANGHUA_FORWARDED_ALLOW_IPS=127.0.0.1
-SHUANGHUA_LOG_LEVEL=INFO
-```
+EOF
 
-说明：
-
-- `PORT` 默认 `3002`，也可以在启动命令或 PM2 环境中覆盖；
-- 兼容旧变量 `SHUANGHUA_PORT`，但新部署建议只使用 `PORT`；
-- `WEB_CONCURRENCY` 默认 `2`，可根据 CPU 和内存调整；
-- 兼容 `SHUANGHUA_WORKERS`，但新部署建议只使用 `WEB_CONCURRENCY`；
-- `SHUANGHUA_HOST` 应保持 `127.0.0.1`，避免绕过 Nginx 直接访问应用；
-- `SHUANGHUA_FORWARDED_ALLOW_IPS=127.0.0.1` 表示只信任本机反向代理发送的转发头；
-- 前端与 API 为同源访问，生产环境不依赖 CORS。只有额外的跨域客户端需要配置 `SHUANGHUA_CORS_ORIGINS`；
-- 不要将供应商 API Key 写入服务端环境变量。Key 由用户保存在浏览器本地。
-
-端口优先级：
-
-```text
-PORT → SHUANGHUA_PORT → 3002
-```
-
-worker 优先级：
-
-```text
-WEB_CONCURRENCY → SHUANGHUA_WORKERS → 2
-```
-
-## 4. 安装依赖
-
-在项目根目录执行统一安装命令：
-
-```bash
-cd /opt/shuanghua
 npm run setup
-```
-
-该命令会执行：
-
-- `uv sync --frozen`，安装后端运行、开发和检查依赖；
-- `npm ci`，安装前端运行、构建、检查和类型生成依赖。
-
-`npm start` 不会自动安装依赖。更新 lock 文件后应重新执行 `npm run setup`。
-
-## 5. 前台验证生产启动
-
-先在终端中验证：
-
-```bash
-cd /opt/shuanghua
-npm start
-```
-
-每次启动会依次：
-
-1. 检查 Node.js、npm、uv 和依赖目录；
-2. 执行 TypeScript 检查；
-3. 执行 Vite 生产构建；
-4. 检查 `frontend/dist/index.html`；
-5. 启动 Uvicorn/FastAPI；
-6. 由 FastAPI 在同一端口提供前端和 API。
-
-另开终端检查：
-
-```bash
-curl -i http://127.0.0.1:3002/
-curl -i http://127.0.0.1:3002/create/image
-curl -i http://127.0.0.1:3002/api/v1/health/ready
-```
-
-三个请求都应返回 HTTP 200，其中前两个返回前端 HTML，第三个返回健康检查 JSON。
-
-验证结束后在启动终端按 `Ctrl+C`，启动器会将退出信号转发给 Uvicorn 并关闭 worker。
-
-临时覆盖端口和 worker：
-
-```bash
-PORT=4000 WEB_CONCURRENCY=4 npm start
-```
-
-## 6. 使用 PM2 守护
-
-项目提供：
-
-```text
-deploy/pm2/ecosystem.config.cjs
-```
-
-启动：
-
-```bash
-cd /opt/shuanghua
 pm2 start deploy/pm2/ecosystem.config.cjs --only shuanghua
-pm2 status
-```
-
-PM2 直接守护与 `npm start` 相同的生产启动器 `scripts/project.mjs start`，避免额外的 npm shell 层。默认日志写入：
-
-```text
-/opt/shuanghua/logs/shuanghua.out.log
-/opt/shuanghua/logs/shuanghua.error.log
-```
-
-查看日志：
-
-```bash
-pm2 logs shuanghua --lines 100
-```
-
-验证：
-
-```bash
-curl -i http://127.0.0.1:3002/api/v1/health/ready
-```
-
-PM2 只启动一个受守护的启动器实例，Uvicorn 默认在其下创建两个 worker。不要再使用 PM2 `instances` 扩容，否则会与 `WEB_CONCURRENCY` 叠加。
-
-### 开机自启
-
-以当前运行 PM2 的 Linux 用户执行：
-
-```bash
-pm2 startup
 pm2 save
 ```
 
-按照 `pm2 startup` 输出的命令完成 systemd 注册。服务器重启后使用以下命令确认：
+`0.0.0.0` 允许从服务器外部连接。修改 `PORT` 即可换端口；后文的访问地址、端口转发和防火墙规则也要使用同一端口。
+
+首次启动会先构建前端，再启动服务。查看状态与日志：
 
 ```bash
 pm2 status
-curl -i http://127.0.0.1:3002/api/v1/health/ready
+pm2 logs shuanghua --lines 50 --nostream
+curl -fsS http://127.0.0.1:3002/api/v1/health/ready
 ```
 
-### 修改环境变量
+健康检查返回 `"status":"ready"` 表示服务已启动。若仍在构建，稍后重新检查；启动失败时查看上面的日志。
 
-修改 `/etc/shuanghua/shuanghua.env` 后执行：
+设置开机自启：
 
 ```bash
-pm2 restart shuanghua --update-env
+pm2 startup
 ```
 
-由于生产启动按要求每次都重新构建前端，PM2 重启时也会先执行前端构建，再启动服务。
+执行它输出的注册命令，然后运行 `pm2 save`。[PM2 官方说明](https://pm2.keymetrics.io/docs/usage/startup/)
 
-## 7. 配置宝塔或 Nginx 反向代理
+### 3. 通过端口访问
 
-将域名的整个路径 `/` 代理到：
-
-```text
-http://127.0.0.1:3002
-```
-
-不要只代理 `/api/`，也不要再将网站根目录设置为 `frontend/dist`。前端页面和 API 现在都由统一端口提供。
-
-宝塔面板中的建议值：
-
-| 配置项 | 建议值 |
-| --- | --- |
-| 代理名称 | `shuanghua` |
-| 代理目录 | `/` |
-| 目标 URL | `http://127.0.0.1:3002` |
-| 发送域名 | `$host` |
-| 内容替换 | 留空 |
-| 缓存 | 关闭 |
-| WebSocket | 开启 |
-
-不要配置路径重写，必须保留原始路径，例如：
-
-```text
-/create/image → /create/image
-/api/v1/health/ready → /api/v1/health/ready
-/assets/app-xxxx.js → /assets/app-xxxx.js
-```
-
-## 8. Nginx 关键参数
-
-图片请求可能包含较大的 Base64 数据，图片生成最长可能等待约 10 分钟。建议在站点 `server` 块中设置：
-
-```nginx
-client_max_body_size 128m;
-```
-
-在反向代理 `location /` 中确认：
-
-```nginx
-proxy_http_version 1.1;
-proxy_connect_timeout 30s;
-proxy_send_timeout 620s;
-proxy_read_timeout 620s;
-proxy_request_buffering off;
-proxy_buffering off;
-
-proxy_set_header Host $host;
-proxy_set_header X-Real-IP $remote_addr;
-proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-proxy_set_header X-Forwarded-Proto $scheme;
-proxy_set_header X-Request-ID $request_id;
-proxy_set_header Upgrade $http_upgrade;
-proxy_set_header Connection $connection_upgrade;
-
-proxy_pass http://127.0.0.1:3002;
-```
-
-宝塔通常会自动生成其中大部分配置，已有项不要重复添加。`$connection_upgrade` 可能由宝塔自动定义；若纯手写 Nginx，需要在 `http` 块中配置相应的 `map`，或者按实际需求移除 WebSocket 两行。
-
-图片对话使用 SSE 传输渐进式图片。必须确保 `/api/v1/images/conversation-turns/stream` 不被缓存、缓冲或合并；建议在通用 `location /` 之前增加精确规则：
-
-```nginx
-location = /api/v1/images/conversation-turns/stream {
-    proxy_pass http://127.0.0.1:3002;
-    proxy_http_version 1.1;
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-    proxy_set_header Accept-Encoding "";
-
-    proxy_connect_timeout 30s;
-    proxy_send_timeout 620s;
-    proxy_read_timeout 620s;
-    proxy_request_buffering off;
-    proxy_buffering off;
-    gzip off;
-}
-```
-
-其他前端静态资源可以开启 gzip/Brotli。FastAPI 会为前端资源返回缓存头：
-
-- `index.html`：`Cache-Control: no-cache`；
-- Vite 哈希资源 `/assets/*`：一年强缓存并带 `immutable`；
-- favicon 等其他静态文件：缓存一小时。
-
-## 9. SSL
-
-在宝塔或 Nginx 中为域名配置证书，并将 HTTP 强制跳转到 HTTPS。应用内部仍使用本地 HTTP：
-
-```text
-公网 HTTPS → Nginx → http://127.0.0.1:3002
-```
-
-确认 Nginx 传递 `X-Forwarded-Proto`，Uvicorn 会信任来自 `127.0.0.1` 的代理头。
-
-## 10. 更新部署
-
-更新代码后：
+如需从公网检查页面，先在云服务器安全组和系统防火墙中放行 **TCP 3002**。使用 UFW 的服务器可执行：
 
 ```bash
-cd /opt/shuanghua
+sudo ufw allow 3002/tcp
+```
+
+浏览器打开 `http://服务器公网IP:3002`，可确认页面能否访问。
+
+**当前完整创作功能需要 HTTPS 或 localhost。** 普通远程 HTTP 下，浏览器不会提供本项目使用的 `crypto.randomUUID()` 和存储估算接口，可能导致创建对话、设置等功能失败。参见 [浏览器安全上下文说明](https://developer.mozilla.org/en-US/docs/Web/Security/Defenses/Secure_Contexts)。
+
+只有服务器 IP、没有域名和证书时，在**自己的电脑**终端执行：
+
+```bash
+ssh -N -L 127.0.0.1:3002:127.0.0.1:3002 用户名@服务器公网IP
+```
+
+保持该终端连接，在自己的浏览器打开 **<http://localhost:3002>**，即可通过 SSH 转发完整使用。若 SSH 使用其他端口，在命令中加 `-p SSH端口`。此方式只需 SSH 可连接，无需向公网开放应用的 3002 端口。
+
+进入页面后填写 API Key，在「设置」中配置上游地址、接口格式和模型。供应商 Key 在浏览器中填写，不需要写入服务器 `.env`。
+
+## 二、更新
+
+在服务器上执行；每一步成功后再继续。安装依赖期间会暂停服务，重启时会重新构建前端。
+
+```bash
+cd "$HOME/shuanghua"
+git pull --ff-only origin main
+pm2 stop shuanghua
 npm run setup
 npm run check
 pm2 restart shuanghua --update-env
 pm2 save
-curl -i http://127.0.0.1:3002/api/v1/health/ready
+curl -fsS http://127.0.0.1:3002/api/v1/health/ready
 ```
 
-如果 lock 文件没有变化，可以省略 `npm run setup`。`pm2 restart` 会触发生产启动器重新构建前端。
+重启后的健康检查可能需要等待构建完成。失败时查看 `pm2 logs shuanghua --lines 50 --nostream`。
 
-常用命令：
+`backend/.env` 不受 Git 管理，常规更新会保留它；浏览器中的对话、图片和设置也会保留。继续使用相同的浏览器与访问地址，才能读取原有本地记录。
+
+如果更新后 Node.js 版本要求变化，先运行 `nvm install && nvm use`，重新安装 npm 和 PM2，并按 `pm2 startup` 的输出更新开机自启配置，再继续上述安装与重启步骤。
+
+仅修改 `backend/.env` 时，执行 `pm2 restart shuanghua --update-env` 即可。
+
+## 三、删除
+
+先移除服务，并保存 PM2 进程列表，防止重启服务器后恢复：
 
 ```bash
-pm2 status
-pm2 describe shuanghua
-pm2 logs shuanghua
-pm2 restart shuanghua --update-env
-pm2 stop shuanghua
 pm2 delete shuanghua
-pm2 save
+pm2 save --force
 ```
 
-## 11. 故障排查
-
-### `npm start` 提示缺少依赖
+确认 `~/shuanghua` 就是本教程创建的项目目录后，删除代码、依赖、配置和日志：
 
 ```bash
-cd /opt/shuanghua
-npm run setup
+cd "$HOME"
+rm -rf -- "$HOME/shuanghua"
 ```
 
-确认存在：
-
-```text
-/opt/shuanghua/backend/.venv
-/opt/shuanghua/frontend/node_modules
-```
-
-### PM2 显示 `errored`
+若前面用 UFW 放行过端口，再移除该规则，并在云服务器安全组中删除对应规则：
 
 ```bash
-pm2 describe shuanghua
-pm2 logs shuanghua --lines 200
+sudo ufw delete allow 3002/tcp
 ```
 
-重点检查：
-
-- Node.js 是否为 26.13.0 或更高的 26 LTS 版本；
-- Python 是否为 3.15.2；
-- `uv` 是否可被 PM2 运行用户从 `PATH` 找到；
-- `npm run setup` 是否执行成功；
-- 3002 是否被其他进程占用；
-- 前端 TypeScript 或 Vite 构建是否失败；
-- `/opt/shuanghua/backend/.env` 软链接是否有效。
-
-### 域名访问返回 502
-
-先测试本地应用：
-
-```bash
-curl -i http://127.0.0.1:3002/api/v1/health/ready
-```
-
-若本地失败，检查 PM2；若本地成功，检查宝塔/Nginx 的目标是否为 `http://127.0.0.1:3002`。
-
-### 前端子路由刷新返回 404
-
-确认反向代理覆盖整个 `/`，并且没有路径重写。FastAPI 已内置 SPA fallback，不需要再配置 Nginx `try_files`。
-
-### API 不存在的路径返回前端 HTML
-
-正常实现会让 `/api/*` 未知路径保持 HTTP 404，不会回退到 `index.html`。若出现 HTML，检查 Nginx 是否仍残留旧的静态站点 `try_files` 配置。
-
-### 上传返回 413
-
-提高 Nginx `client_max_body_size`。若使用 CDN，也要同步提高 CDN 请求体限制。
-
-### 图片生成返回 504
-
-检查 `proxy_read_timeout` 和 `proxy_send_timeout` 是否至少为 620 秒，并检查上游供应商是否提前超时。
-
-### 修改端口后无法访问
-
-如果将 `PORT` 改为其他值，必须同步修改：
-
-1. `/etc/shuanghua/shuanghua.env`；
-2. Nginx/宝塔反向代理目标；
-3. 健康检查命令。
-
-然后执行：
-
-```bash
-pm2 restart shuanghua --update-env
-```
-
-## 12. 性能说明
-
-- API 与静态资源共享 Uvicorn 端口，不会给 API 增加额外的代理层；
-- PM2 只负责进程守护，运行时开销可以忽略；
-- Vite 哈希资源带长期缓存，重复访问通常不会再次从应用读取；
-- Nginx 仍负责 TLS、压缩、连接管理和公网流量承接；
-- 默认两个 Uvicorn worker 可以利用多个 CPU 核心；
-- 极高静态流量场景下可以再引入 CDN，但普通单机部署通常没有必要。
-
-相比原先“静态站点 + 单独 `/api/` 代理”的结构，主要差异是首次静态文件请求由 FastAPI 返回。对该项目的常规访问规模，性能影响通常很小，而部署、更新和 PM2 守护会明显简化。
+删除服务器项目不会清除浏览器本地数据。如需一并删除 Key、设置、对话和图片，在浏览器设置中清除此站点的网站数据。

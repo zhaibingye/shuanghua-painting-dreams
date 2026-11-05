@@ -1,140 +1,60 @@
 # 霜华绘梦
 
-霜华绘梦是一个部署在单机服务器上的多供应商对话式图片、视频创作网页。前端以本地优先方式保存对话、附件、图片 Blob 和视频任务，FastAPI 负责安全地适配不同上游 API。
+可自行部署的对话式 AI 图片与视频创作工具。在一个界面中连接不同供应商，通过对话生成图片、编辑细节、创建视频。
 
-## 支持格式
+![霜华绘梦桌面首页](docs/screenshots/desktop.png)
 
-### 图片
+## 功能
 
-默认生图协议为 OpenAI Images（Image API，`openaiImage`），所有协议的默认 Base URL 为 `https://www.shapi.vip`。已有的自定义设置和历史对话保留原值；点击「恢复默认设置」可应用新默认值。
+- **图片创作**：文生图、参考图编辑、遮罩与标注编辑、渐进式预览，以及受支持模型的 SVG / GIF 输出。
+- **视频创作**：文生视频、图片参考、任务进度查询，以及受支持模型的视频续写。
+- **自由配置**：按接口设置 Base URL、API Key、模型列表与默认参数；模型名支持 `vendor/model`。
+- **本地保存**：对话、图片与任务记录保存在当前浏览器，无需额外数据库服务。
+- **桌面与手机**：自适应布局，支持浅色、深色和跟随系统主题。
 
-- Google Gemini：默认 `nano-banana-2`，原生完整多轮 `contents` 与 `thought_signature` 回传。
-- OpenAI Images：默认 `gpt-image-2.5-sunburst`；支持 `gpt-image-2.6-sunburst` 和 `gpt-image-2.6-flare`。普通图片生成、参考图/遮罩/标注编辑支持上游 SSE 与 0～3 张渐进预览；SVG / GIF 使用非流式上游请求。
-- OpenAI Responses：默认主体模型 `gpt-5.6-luna`，`store: false`，通过显式回传本地历史实现无状态多轮生成/编辑，支持 SSE 与渐进预览。
-- xAI Image：默认 `grok-imagine-image-2.0`，采用与 OpenAI Images 相同的“最新图片继续编辑”逻辑。
-- 字节 Seedream：默认 `doubao-seedream-5-0-pro-260628`，支持文生图、单图/多图参考编辑；支持组图的模型可配置组图模式与最大数量。支持 Base64 图片和 URL 图片，URL 结果由后端安全下载后统一返回并保存到本地；组图部分失败会保留成功图片并显示失败信息。
+| 类型 | 支持接口 |
+| --- | --- |
+| 图片 | OpenAI Images、OpenAI Responses、Google Gemini、xAI Image、字节 Seedream |
+| 视频 | 字节 Seedance、xAI Video |
 
-GPT Image 2.6 按 [OpenAI 官方图像生成指南](https://developers.openai.com/api/docs/guides/image-generation)接入（核对日期：2026-11-05）。在设置的 OpenAI Images 模型列表添加 `gpt-image-2.6-sunburst`，再从对话顶部切换模型；已有设置和默认模型保持原值。
+具体模型和功能以所连接的上游服务支持情况为准。
 
-- 本轮参数的「复杂度」支持 `auto` / `low` / `medium` / `high`，独立于图像质量；`auto` 不发送该字段，模型默认使用 `high`。
-- 「绘制遮罩 / 标注」中选择「标注引导」，圈选或勾画需要修改的位置，并在消息中描述修改要求。标注以独立透明 PNG 发送为 `markup`，作用于第一张输入图，不能与 `mask` 同时使用。接口也支持 GPT Image 2.5 的标注编辑；上游校验图层尺寸、透明度及像素限制。
-- 输出格式可选 SVG 或 GIF，均只支持文生图，请取消已选编辑基图并移除参考图。SVG 每次生成一张，下载保留矢量文件；GIF 支持 2～64 帧（默认 9）、每帧 20～2000 毫秒（默认 200），切换 GIF 时使用自动尺寸，也可填写 16 倍数的帧尺寸。模型的动画尺寸与总像素预算由上游校验，超限时减少帧数、尺寸或数量。
-- SVG / GIF 不向上游发送 `stream`、`partial_images` 或压缩参数；生成完成后经本站事件流返回，支持预览、本地保存与下载。两种结果均不作为后续图片编辑输入。这些新增控制只在 Images 中开放。
-- 上游已开通 SVG 模型选择时，可填写「SVG 编写模型」和其支持的「SVG 编写推理强度」，分别映射为 `svg.model` / `svg.reasoning.effort`，独立于图像复杂度。留空时完全省略 `svg`，使用上游默认配置。
+<details>
+<summary>查看参数面板与手机界面</summary>
 
-官方指南中 GPT Image 2.6 的 GIF 参数为 2～64 帧、20～2000 毫秒；部分 API 参考页仍列旧预览的 2～16 帧，本项目采用 2.6 专节的范围。实际可用性取决于所用上游服务对模型和功能的支持。
+### 图片参数
 
-字节生图按[火山方舟图片生成 API](https://console.volcengine.com/ark/region:cn-beijing/docs/image-generation-api)实现。直连方舟时，将该格式的 Base URL 设为 `https://ark.cn-beijing.volces.com`，填写方舟 Key 与已开通的模型 ID 或 Endpoint ID；API 路径由服务端追加。不同 Seedream 模型的尺寸、参考图数量、组图、输出格式与联网搜索能力不同，已知模型会按文档校验，自定义别名由上游确认能力。
+![图片对话与参数面板](docs/screenshots/parameters.png)
 
-字节图片和视频根据 Base URL 自动选择协议：
+### 手机首页
 
-| Base URL 主机 | 图片生成 / 编辑 | 视频提交 / 查询 |
-| --- | --- | --- |
-| `ark.cn-beijing.volces.com`、`ark.ap-southeast.bytepluses.com` | `/api/v3/images/generations` | `/api/v3/contents/generations/tasks[/{id}]` |
-| 其他主机，例如 `www.shapi.vip` | `/v1/images/generations`、`/v1/images/edits` | `/v1/videos[/{id}]` |
+<img src="docs/screenshots/mobile.png" alt="霜华绘梦手机首页" width="390" />
 
-官方主机按完整主机名匹配。Base URL 可以是服务根地址，也可带 `/v1` 或 `/api/v3`，程序会按所选协议规范化版本路径，保留自定义代理前缀。使用 SHAPI 时填写 `https://www.shapi.vip` 或 `https://www.shapi.vip/v1`，此前用于原生插件的 `/doubao` 前缀应从设置中去掉。非官方生图请求 URL 输出，下载图片时不向图片服务器转发 API Key；兼容视频使用 `seconds` 和 `metadata` 承载参数，将 `queued/in_progress/completed` 映射为本站任务状态，并从 `metadata.url` 读取完成视频地址。兼容服务需要在完成响应中提供可访问的视频 URL。
+</details>
 
-### 视频
+## 开始使用
 
-- 字节 Seedance：默认 `doubao-seedance-2-5-260628`。
-- xAI Video：默认 `grok-imagine-video-1.5`。
+服务器安装、端口访问、更新和删除，见 [部署教程](deploy/README.md)。
 
-同一视频对话中的普通轮次彼此独立。字节尾帧续写和 xAI 视频扩展必须由用户显式发起。Seedance 2.5 / 2.0 系列请求不会发送不支持的 `service_tier` 和 `seed` 字段。
-
-字节模型参数依据[火山方舟创建视频生成任务 API](https://console.volcengine.com/ark/region:cn-beijing/docs/create-video-generation-task-api)核对（2026-10-21）：
-
-| 模型 | 可用清晰度 | 默认清晰度 |
-| --- | --- | --- |
-| Seedance 2.5 | 480p、720p、1080p | 720p |
-| Seedance 2.0 | 480p、720p、1080p、4k | 720p |
-| Seedance 2.0 fast / mini | 480p、720p | 720p |
-| Seedance 1.0 pro / pro fast | 480p、720p、1080p | 1080p |
-
-Seedance 2.5 默认自动时长（`-1`，模型选择 4～30 秒）、`adaptive` 比例、开启同步音频、关闭水印和返回尾帧。首帧/首尾帧生成仅允许 `adaptive`。模型名带 `-se` 不会额外开放官方未支持的清晰度。已有设置与历史对话保留；恢复默认设置可应用新模型与默认参数。
-
-## UI 与本地数据
-
-- UI：依据 `文档/DS设计语言.MD` 实现的冷蓝中性 DS Design System。
-- 布局：桌面常驻导航、手机模态抽屉、独立消息滚动区、自适应输入区、参数抽屉和设置弹窗。
-- 屏幕适配：动态可视高度、软键盘与浏览器栏变化、安全区域、窄屏与横屏；输入区按内容占位，不覆盖消息。
-- 阅读体验：跟随最新内容；向上阅读历史时保持位置，可一键回到最新消息。
-- 主题：浅色、深色、跟随系统。
-- 设置：LocalStorage。
-- 每个 API 格式可配置模型列表、默认模型、Base URL 和独立 Key；新对话只需选择格式，对话顶部可切换列表中的模型，切换保留输入草稿。独立 Key 不会改写全局 Key。
-- 图片参数只有一套表单：后端 Pydantic 契约同时生成默认值、前端字段与校验规则。OpenAI Images 和 Responses 是不同端点，保留两个格式并共用输出参数定义；Gemini 统一使用 GenerateContent 的 `imageConfig` 与标准思考等级。
-- 设置 schema v2 会迁移为 v3，保留原有 Key、连接、默认参数和模型；原单个模型自动成为模型列表首项。
-- 对话、消息、图片 Blob、视频任务：IndexedDB。
-- Partial Images：由全局内存图片任务管理器按结果索引维护，仅作为临时预览，不持久化、不参与后续编辑。
-- 图片任务切换对话后继续运行并写回原对话；刷新或关闭浏览器仍会中断未完成请求。
-- 无账号、SQL、Redis、服务端媒体文件存储和云端对话存储。
-
-## 架构
-
-- 前端：React 19 + TypeScript + Vite + Tailwind CSS
-- 后端：FastAPI + aiohttp + Pydantic
-- Python 管理：uv
-- API 类型与图片参数：FastAPI OpenAPI / Pydantic JSON Schema → `json-schema-to-typescript` / 参数目录
-- 生产入口：FastAPI 同时提供 `/api/v1/*` 与 Vite 构建产物
-- 默认监听：`127.0.0.1:3002`
-- 部署：Linux + Nginx/宝塔 + PM2
-
-## 环境要求
-
-- Node.js 26.13.0+（26 LTS）
-- Python 3.15.2
-- uv 0.13.7+、npm 12.2.2
-
-Node.js 版本记录在 `.node-version` / `.nvmrc`，Python 版本记录在 `backend/.python-version`。依赖由 lock 文件固定，安装时使用 `npm ci` 和 `uv sync --frozen`。
-
-类型检查使用 TypeScript 7，lint 使用 Oxlint 及其原生类型感知检查。API 类型由 `json-schema-to-typescript` 从后端契约生成，所有前端工具统一安装在 `frontend`。
-
-## 项目命令
-
-所有命令均在项目根目录执行。
+本机运行需准备 **Node.js 26 LTS（26.13.0+）、npm 12.2.2 和 uv 0.13.7+**；Python 3.15.2 由 uv 按项目配置安装。
 
 ```bash
+git clone https://github.com/zhaibingye/shuanghua-painting-dreams.git
+cd shuanghua-painting-dreams
 npm run setup
-npm run dev
-npm run build
 npm start
-npm run check
 ```
 
-修改后端请求模型后运行 `npm run api:generate --prefix frontend`，同时更新 OpenAPI、前端类型及参数目录。不要手工修改 `frontend/src/api/generated/` 中的生成文件。
+打开 <http://localhost:3002>，填写 API Key；在「设置」中配置上游地址和模型，再创建图片或视频对话。
 
-开发模式：
+API Key 保存在当前浏览器，请求时经本服务转发给上游。清除网站数据会删除本地记录；更换浏览器、访问地址或端口后，原有数据不会自动共享。
 
-- 前端：`http://127.0.0.1:5173`
-- 后端：`http://127.0.0.1:3002`
-- Vite 自动代理 `/api`
+## 开发
 
-`npm run check` 依次执行：
+前端使用 React、TypeScript、Vite 和 Tailwind CSS，后端使用 FastAPI、Pydantic 和 aiohttp。生产模式由后端在同一端口提供页面与 API。
 
-- Pytest
-- Ruff lint / format check
-- mypy strict
-- Oxlint（含类型感知和 React Hooks 检查）
-- TypeScript typecheck
-- Vitest
-- Vite production build
+- `npm run dev`：启动开发环境，前端地址为 <http://localhost:5173>。
+- `npm run check`：运行测试、静态检查与生产构建。
+- `npm run e2e`：运行浏览器测试，首次运行前执行 `npm run e2e:install`。
 
-浏览器 E2E：
-
-```bash
-npm run e2e
-```
-
-## 部署注意事项
-
-Nginx 必须关闭 API 请求与响应缓冲，以确保 SSE 渐进图片立即到达浏览器：
-
-```nginx
-proxy_request_buffering off;
-proxy_buffering off;
-proxy_read_timeout 620s;
-proxy_send_timeout 620s;
-client_max_body_size 128m;
-```
-
-PM2 配置位于 `deploy/pm2/ecosystem.config.cjs`。完整部署说明见 [`deploy/README.md`](deploy/README.md)，系统设计与统一契约位于 `文档/`。
+[前端说明](frontend/README.md) · [后端说明](backend/README.md) · [Apache-2.0 许可证](LICENSE)
