@@ -243,10 +243,29 @@ def validate_openai_image_request(
     capabilities = openai_image_capabilities(model_id)
     if request.options.quality not in capabilities["qualities"]:
         raise _capability_error(
-            "当前图像模型不支持所选质量；xhigh、max 仅支持 GPT Image 2.5。", request.api_format
+            "当前图像模型不支持所选质量；xhigh、max 仅支持 GPT Image 2.5 / 2.6。",
+            request.api_format,
         )
     if not capabilities["customImageSize"] and request.options.size not in STANDARD_SIZES:
         raise _capability_error("当前图像模型仅支持 auto 和三种标准尺寸。", request.api_format)
+    if not isinstance(request, OpenAIResponsesImageTurnRequest):
+        if request.options.output_format not in capabilities["outputFormats"]:
+            raise _capability_error("当前图像模型不支持所选输出格式。", request.api_format)
+        if request.options.complexity != "auto" and not capabilities["complexity"]:
+            raise _capability_error("复杂度控制仅支持 GPT Image 2.6。", request.api_format)
+        editing = isinstance(request, OpenAIImageEditRequest) or (
+            isinstance(request, OpenAIImageTurnRequest) and bool(request.source_images)
+        )
+        if editing and request.options.output_format in {"svg", "gif"}:
+            raise _capability_error(
+                "SVG / GIF 仅支持文生图，请移除编辑基图和参考图。", request.api_format
+            )
+        if (
+            isinstance(request, (OpenAIImageEditRequest, OpenAIImageTurnRequest))
+            and request.markup is not None
+            and not capabilities["markupEditing"]
+        ):
+            raise _capability_error("标注编辑需要 GPT Image 2.5 / 2.6。", request.api_format)
     # auto is an application-level sentinel: omit input_fidelity on the wire.
     if (
         isinstance(

@@ -65,6 +65,61 @@
           "transparentBackground": true,
           "inputFidelities": [
             "auto"
+          ],
+          "complexity": false,
+          "markupEditing": true,
+          "outputFormats": [
+            "png",
+            "jpeg",
+            "webp"
+          ]
+        },
+        "gpt-image-2.6-sunburst": {
+          "qualities": [
+            "auto",
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
+          "customImageSize": true,
+          "transparentBackground": true,
+          "inputFidelities": [
+            "auto"
+          ],
+          "complexity": true,
+          "markupEditing": true,
+          "outputFormats": [
+            "png",
+            "jpeg",
+            "webp",
+            "svg",
+            "gif"
+          ]
+        },
+        "gpt-image-2.6-flare": {
+          "qualities": [
+            "auto",
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
+          "customImageSize": true,
+          "transparentBackground": true,
+          "inputFidelities": [
+            "auto"
+          ],
+          "complexity": true,
+          "markupEditing": true,
+          "outputFormats": [
+            "png",
+            "jpeg",
+            "webp",
+            "svg",
+            "gif"
           ]
         },
         "gpt-image-2.5-flare": {
@@ -80,6 +135,13 @@
           "transparentBackground": true,
           "inputFidelities": [
             "auto"
+          ],
+          "complexity": false,
+          "markupEditing": true,
+          "outputFormats": [
+            "png",
+            "jpeg",
+            "webp"
           ]
         },
         "gpt-image-2": {
@@ -93,6 +155,13 @@
           "transparentBackground": true,
           "inputFidelities": [
             "auto"
+          ],
+          "complexity": false,
+          "markupEditing": false,
+          "outputFormats": [
+            "png",
+            "jpeg",
+            "webp"
           ]
         },
         "gpt-image-1.5": {
@@ -108,6 +177,13 @@
             "auto",
             "low",
             "high"
+          ],
+          "complexity": false,
+          "markupEditing": false,
+          "outputFormats": [
+            "png",
+            "jpeg",
+            "webp"
           ]
         },
         "gpt-image-1": {
@@ -123,6 +199,13 @@
             "auto",
             "low",
             "high"
+          ],
+          "complexity": false,
+          "markupEditing": false,
+          "outputFormats": [
+            "png",
+            "jpeg",
+            "webp"
           ]
         },
         "gpt-image-1-mini": {
@@ -137,6 +220,13 @@
           "inputFidelities": [
             "auto",
             "low"
+          ],
+          "complexity": false,
+          "markupEditing": false,
+          "outputFormats": [
+            "png",
+            "jpeg",
+            "webp"
           ]
         },
         "chatgpt-image-latest": {
@@ -150,6 +240,13 @@
           "transparentBackground": true,
           "inputFidelities": [
             "auto"
+          ],
+          "complexity": false,
+          "markupEditing": false,
+          "outputFormats": [
+            "png",
+            "jpeg",
+            "webp"
           ]
         }
       },
@@ -161,6 +258,11 @@
         "background": "auto",
         "safetyIdentifier": null,
         "count": 1,
+        "complexity": "auto",
+        "svgModel": "",
+        "svgReasoningEffort": "auto",
+        "frameCount": 9,
+        "frameDurationMs": 200,
         "moderation": "auto",
         "partialImages": 2,
         "inputFidelity": "auto"
@@ -290,6 +392,10 @@
       },
       "knownModels": {
         "doubao-seedance-2-5-260628": {
+          "defaultDuration": -1,
+          "defaultResolution": "720p",
+          "defaultGenerateAudio": true,
+          "seed": false,
           "durationMin": 4,
           "durationMax": 30,
           "automaticDuration": true,
@@ -315,15 +421,15 @@
           "serviceTierParameter": false,
           "webSearch": true,
           "returnLastFrame": true,
-          "seed": false,
-          "defaultDuration": -1,
-          "defaultResolution": "720p",
-          "defaultGenerateAudio": true,
           "frameAspectRatios": [
             "adaptive"
           ]
         },
         "doubao-seedance-2-0-260128": {
+          "defaultDuration": 5,
+          "defaultResolution": "720p",
+          "defaultGenerateAudio": true,
+          "seed": false,
           "durationMin": 4,
           "durationMax": 15,
           "automaticDuration": true,
@@ -349,13 +455,13 @@
           ],
           "serviceTierParameter": false,
           "webSearch": true,
-          "returnLastFrame": true,
-          "seed": false,
-          "defaultDuration": 5,
-          "defaultResolution": "720p",
-          "defaultGenerateAudio": true
+          "returnLastFrame": true
         },
         "doubao-seedance-2-0-fast-260128": {
+          "defaultDuration": 5,
+          "defaultResolution": "720p",
+          "defaultGenerateAudio": true,
+          "seed": false,
           "durationMin": 4,
           "durationMax": 15,
           "automaticDuration": true,
@@ -379,13 +485,13 @@
           ],
           "serviceTierParameter": false,
           "webSearch": true,
-          "returnLastFrame": true,
-          "seed": false,
-          "defaultDuration": 5,
-          "defaultResolution": "720p",
-          "defaultGenerateAudio": true
+          "returnLastFrame": true
         },
         "doubao-seedance-2-0-mini-260615": {
+          "defaultDuration": 5,
+          "defaultResolution": "720p",
+          "defaultGenerateAudio": true,
+          "seed": false,
           "durationMin": 4,
           "durationMax": 15,
           "automaticDuration": true,
@@ -409,11 +515,7 @@
           ],
           "serviceTierParameter": false,
           "webSearch": true,
-          "returnLastFrame": true,
-          "seed": false,
-          "defaultDuration": 5,
-          "defaultResolution": "720p",
-          "defaultGenerateAudio": true
+          "returnLastFrame": true
         }
       },
       "defaultOptions": {
@@ -554,7 +656,7 @@
         },
         "quality": {
           "default": "auto",
-          "description": "xhigh / max 需要 GPT Image 2.5。",
+          "description": "xhigh / max 需要 GPT Image 2.5 / 2.6。",
           "enum": [
             "auto",
             "low",
@@ -568,10 +670,13 @@
         },
         "outputFormat": {
           "default": "png",
+          "description": "SVG / GIF 仅支持 GPT Image 2.6 文生图，生成期间不提供渐进预览。",
           "enum": [
             "png",
             "jpeg",
-            "webp"
+            "webp",
+            "svg",
+            "gif"
           ],
           "title": "输出格式",
           "type": "string"
@@ -612,6 +717,56 @@
           "maximum": 10,
           "minimum": 1,
           "title": "生成数量",
+          "type": "integer"
+        },
+        "complexity": {
+          "default": "auto",
+          "description": "GPT Image 2.6 的构图规划量，独立于质量；auto 使用模型默认值 high。",
+          "enum": [
+            "auto",
+            "low",
+            "medium",
+            "high"
+          ],
+          "title": "复杂度",
+          "type": "string"
+        },
+        "svgModel": {
+          "default": "",
+          "description": "仅在上游已开通 SVG 模型选择时填写；留空使用上游默认配置。",
+          "maxLength": 256,
+          "title": "SVG 编写模型（可选）",
+          "type": "string"
+        },
+        "svgReasoningEffort": {
+          "default": "auto",
+          "description": "独立于图像复杂度；可用档位取决于所选编写模型，auto 使用其默认值。",
+          "enum": [
+            "auto",
+            "none",
+            "minimal",
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
+          "title": "SVG 编写推理强度",
+          "type": "string"
+        },
+        "frameCount": {
+          "default": 9,
+          "maximum": 64,
+          "minimum": 2,
+          "title": "动画帧数",
+          "type": "integer"
+        },
+        "frameDurationMs": {
+          "default": 200,
+          "description": "仅 GIF 生效；上游按 10 毫秒取整。",
+          "maximum": 2000,
+          "minimum": 20,
+          "title": "每帧时长（毫秒）",
           "type": "integer"
         },
         "moderation": {
@@ -657,7 +812,7 @@
         },
         "quality": {
           "default": "auto",
-          "description": "xhigh / max 需要 GPT Image 2.5。",
+          "description": "xhigh / max 需要 GPT Image 2.5 / 2.6。",
           "enum": [
             "auto",
             "low",
@@ -870,6 +1025,222 @@
       },
       "title": "ByteDanceImageOptions",
       "type": "object"
+    }
+  },
+  "byteDanceVideoFamilies": {
+    "families": [
+      {
+        "prefixes": [
+          "doubao-seedance-2-5-"
+        ],
+        "capabilities": {
+          "defaultDuration": -1,
+          "defaultResolution": "720p",
+          "defaultGenerateAudio": true,
+          "seed": false,
+          "durationMin": 4,
+          "durationMax": 30,
+          "automaticDuration": true,
+          "resolutions": [
+            "480p",
+            "720p",
+            "1080p"
+          ],
+          "aspectRatios": [
+            "16:9",
+            "4:3",
+            "1:1",
+            "3:4",
+            "9:16",
+            "21:9",
+            "adaptive"
+          ],
+          "generateAudio": true,
+          "cameraFixed": false,
+          "serviceTiers": [
+            "default"
+          ],
+          "serviceTierParameter": false,
+          "webSearch": true,
+          "returnLastFrame": true,
+          "frameAspectRatios": [
+            "adaptive"
+          ]
+        }
+      },
+      {
+        "prefixes": [
+          "doubao-seedance-2-0-fast-",
+          "doubao-seedance-2-0-mini-"
+        ],
+        "capabilities": {
+          "defaultDuration": 5,
+          "defaultResolution": "720p",
+          "defaultGenerateAudio": true,
+          "seed": false,
+          "durationMin": 4,
+          "durationMax": 15,
+          "automaticDuration": true,
+          "resolutions": [
+            "480p",
+            "720p"
+          ],
+          "aspectRatios": [
+            "16:9",
+            "4:3",
+            "1:1",
+            "3:4",
+            "9:16",
+            "21:9",
+            "adaptive"
+          ],
+          "generateAudio": true,
+          "cameraFixed": false,
+          "serviceTiers": [
+            "default"
+          ],
+          "serviceTierParameter": false,
+          "webSearch": true,
+          "returnLastFrame": true
+        }
+      },
+      {
+        "prefixes": [
+          "doubao-seedance-2-0-"
+        ],
+        "capabilities": {
+          "defaultDuration": 5,
+          "defaultResolution": "720p",
+          "defaultGenerateAudio": true,
+          "seed": false,
+          "durationMin": 4,
+          "durationMax": 15,
+          "automaticDuration": true,
+          "resolutions": [
+            "480p",
+            "720p",
+            "1080p",
+            "4k"
+          ],
+          "aspectRatios": [
+            "16:9",
+            "4:3",
+            "1:1",
+            "3:4",
+            "9:16",
+            "21:9",
+            "adaptive"
+          ],
+          "generateAudio": true,
+          "cameraFixed": false,
+          "serviceTiers": [
+            "default"
+          ],
+          "serviceTierParameter": false,
+          "webSearch": true,
+          "returnLastFrame": true
+        }
+      },
+      {
+        "prefixes": [
+          "doubao-seedance-1-5-pro-"
+        ],
+        "capabilities": {
+          "defaultDuration": 5,
+          "defaultResolution": "720p",
+          "defaultGenerateAudio": true,
+          "seed": true,
+          "durationMin": 4,
+          "durationMax": 12,
+          "automaticDuration": true,
+          "resolutions": [
+            "480p",
+            "720p",
+            "1080p"
+          ],
+          "generateAudio": true,
+          "cameraFixed": true,
+          "serviceTiers": [
+            "default",
+            "flex"
+          ],
+          "serviceTierParameter": true,
+          "webSearch": false
+        }
+      },
+      {
+        "prefixes": [
+          "doubao-seedance-1-0-lite-"
+        ],
+        "capabilities": {
+          "defaultDuration": 5,
+          "defaultResolution": "720p",
+          "defaultGenerateAudio": false,
+          "seed": true,
+          "durationMin": 2,
+          "durationMax": 12,
+          "automaticDuration": false,
+          "resolutions": [
+            "480p",
+            "720p"
+          ],
+          "generateAudio": false,
+          "cameraFixed": true,
+          "serviceTiers": [
+            "default",
+            "flex"
+          ],
+          "serviceTierParameter": true,
+          "webSearch": false
+        }
+      },
+      {
+        "prefixes": [
+          "doubao-seedance-1-0-"
+        ],
+        "capabilities": {
+          "defaultDuration": 5,
+          "defaultResolution": "1080p",
+          "defaultGenerateAudio": false,
+          "seed": true,
+          "durationMin": 2,
+          "durationMax": 12,
+          "automaticDuration": false,
+          "resolutions": [
+            "480p",
+            "720p",
+            "1080p"
+          ],
+          "generateAudio": false,
+          "cameraFixed": true,
+          "serviceTiers": [
+            "default",
+            "flex"
+          ],
+          "serviceTierParameter": true,
+          "webSearch": false
+        }
+      }
+    ],
+    "defaultCapabilities": {
+      "defaultDuration": 5,
+      "defaultResolution": "720p",
+      "defaultGenerateAudio": false,
+      "seed": false,
+      "durationMin": 2,
+      "durationMax": 15,
+      "automaticDuration": false,
+      "resolutions": [
+        "480p",
+        "720p"
+      ],
+      "generateAudio": false,
+      "cameraFixed": false,
+      "serviceTiers": [
+        "default"
+      ],
+      "serviceTierParameter": false,
+      "webSearch": false
     }
   }
 }

@@ -49,7 +49,7 @@ function renderDialog(format: StoredConversation['apiFormat'] = 'openaiImage', v
 }
 
 describe('ParametersDialog ByteDance video resolutions', () => {
-  it('renders 4k when Seedance 2.0 capabilities include it', () => {
+  it('renders Seedance 2.0 capabilities before metadata loads', () => {
     render(
       <ParametersDialog
         open
@@ -61,12 +61,7 @@ describe('ParametersDialog ByteDance video resolutions', () => {
         }}
         options={{ duration: 5, resolution: '720p', aspectRatio: 'adaptive' }}
         videoDraft={defaultVideoDraft}
-        modelCapabilities={{
-          automaticDuration: true,
-          resolutions: ['480p', '720p', '1080p', '4k'],
-          generateAudio: true,
-          webSearch: true,
-        }}
+        modelCapabilities={undefined}
         onOpenChange={vi.fn()}
         onOption={vi.fn()}
         onVideoDraft={vi.fn()}
@@ -76,19 +71,11 @@ describe('ParametersDialog ByteDance video resolutions', () => {
     expect(screen.getByLabelText('分辨率')).toHaveValue('720p')
     expect(screen.getByRole('option', { name: '4k' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: '1080p' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('服务等级')).not.toBeInTheDocument()
   })
 })
 
 describe('ParametersDialog OpenAI Images mode', () => {
-  it('uses one form for generation and editing controls', () => {
-    renderDialog()
-
-    expect(screen.getByText('渐进预览数量')).toBeInTheDocument()
-    expect(screen.getByText('Moderation')).toBeInTheDocument()
-    expect(screen.getByText('输入保真度')).toBeInTheDocument()
-    expect(screen.queryByText(/参考图与遮罩编辑使用非流式/)).not.toBeInTheDocument()
-  })
-
   it('shows standard Gemini thinking levels without the obsolete Off option', () => {
     renderDialog('googleGeminiImage', {})
     expect(screen.getByLabelText('Thinking Level')).toHaveValue('HIGH')
@@ -105,6 +92,39 @@ function ImageDialogHarness({ modelId = 'gpt-image-2.5-sunburst', responses = fa
 }
 
 describe('OpenAI image parameter controls', () => {
+  it('shows 2.6 complexity and GIF controls while hiding incompatible streaming and compression controls', async () => {
+    const user = userEvent.setup()
+    render(<ImageDialogHarness modelId="gpt-image-2.6-sunburst" />)
+    expect(screen.getByLabelText('复杂度')).toHaveValue('auto')
+    expect(screen.getByRole('option', { name: 'svg' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('动画帧数')).not.toBeInTheDocument()
+    await user.selectOptions(screen.getByLabelText('输出格式'), 'gif')
+    expect(screen.getByLabelText('动画帧数')).toHaveValue(9)
+    expect(screen.getByLabelText('动画帧数')).toHaveAttribute('max', '64')
+    expect(screen.getByLabelText('每帧时长（毫秒）')).toHaveValue(200)
+    expect(screen.queryByLabelText('输出压缩')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('渐进预览数量')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('快捷比例')).not.toBeInTheDocument()
+    await user.selectOptions(screen.getByLabelText('输出格式'), 'svg')
+    expect(screen.getByLabelText('生成数量')).toHaveAttribute('max', '1')
+    expect(screen.queryByLabelText('动画帧数')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('SVG 编写模型（可选）')).toHaveValue('')
+    expect(screen.queryByLabelText('SVG 编写推理强度')).not.toBeInTheDocument()
+    await user.type(screen.getByLabelText('SVG 编写模型（可选）'), 'custom-svg-author')
+    expect(screen.getByLabelText('SVG 编写推理强度')).toHaveValue('auto')
+  })
+
+  it('keeps new Images controls out of Responses and older image models', () => {
+    const { unmount } = render(<ImageDialogHarness modelId="gpt-image-2.6-sunburst" responses />)
+    expect(screen.queryByLabelText('复杂度')).not.toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'svg' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'gif' })).not.toBeInTheDocument()
+    unmount()
+    render(<ImageDialogHarness />)
+    expect(screen.queryByLabelText('复杂度')).not.toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'svg' })).not.toBeInTheDocument()
+  })
+
   it('applies a 4K portrait preset and retains manual size input', async () => {
     const user = userEvent.setup()
     render(<ImageDialogHarness />)

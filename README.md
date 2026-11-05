@@ -9,10 +9,20 @@
 默认生图协议为 OpenAI Images（Image API，`openaiImage`），所有协议的默认 Base URL 为 `https://www.shapi.vip`。已有的自定义设置和历史对话保留原值；点击「恢复默认设置」可应用新默认值。
 
 - Google Gemini：默认 `nano-banana-2`，原生完整多轮 `contents` 与 `thought_signature` 回传。
-- OpenAI Images：默认 `gpt-image-2.5-sunburst`；生成与参考图/遮罩编辑共用参数，均支持上游 SSE 与 0～3 张渐进预览。
+- OpenAI Images：默认 `gpt-image-2.5-sunburst`；支持 `gpt-image-2.6-sunburst` 和 `gpt-image-2.6-flare`。普通图片生成、参考图/遮罩/标注编辑支持上游 SSE 与 0～3 张渐进预览；SVG / GIF 使用非流式上游请求。
 - OpenAI Responses：默认主体模型 `gpt-5.6-luna`，`store: false`，通过显式回传本地历史实现无状态多轮生成/编辑，支持 SSE 与渐进预览。
 - xAI Image：默认 `grok-imagine-image-2.0`，采用与 OpenAI Images 相同的“最新图片继续编辑”逻辑。
 - 字节 Seedream：默认 `doubao-seedream-5-0-pro-260628`，支持文生图、单图/多图参考编辑；支持组图的模型可配置组图模式与最大数量。支持 Base64 图片和 URL 图片，URL 结果由后端安全下载后统一返回并保存到本地；组图部分失败会保留成功图片并显示失败信息。
+
+GPT Image 2.6 按 [OpenAI 官方图像生成指南](https://developers.openai.com/api/docs/guides/image-generation)接入（核对日期：2026-11-05）。在设置的 OpenAI Images 模型列表添加 `gpt-image-2.6-sunburst`，再从对话顶部切换模型；已有设置和默认模型保持原值。
+
+- 本轮参数的「复杂度」支持 `auto` / `low` / `medium` / `high`，独立于图像质量；`auto` 不发送该字段，模型默认使用 `high`。
+- 「绘制遮罩 / 标注」中选择「标注引导」，圈选或勾画需要修改的位置，并在消息中描述修改要求。标注以独立透明 PNG 发送为 `markup`，作用于第一张输入图，不能与 `mask` 同时使用。接口也支持 GPT Image 2.5 的标注编辑；上游校验图层尺寸、透明度及像素限制。
+- 输出格式可选 SVG 或 GIF，均只支持文生图，请取消已选编辑基图并移除参考图。SVG 每次生成一张，下载保留矢量文件；GIF 支持 2～64 帧（默认 9）、每帧 20～2000 毫秒（默认 200），切换 GIF 时使用自动尺寸，也可填写 16 倍数的帧尺寸。模型的动画尺寸与总像素预算由上游校验，超限时减少帧数、尺寸或数量。
+- SVG / GIF 不向上游发送 `stream`、`partial_images` 或压缩参数；生成完成后经本站事件流返回，支持预览、本地保存与下载。两种结果均不作为后续图片编辑输入。这些新增控制只在 Images 中开放。
+- 上游已开通 SVG 模型选择时，可填写「SVG 编写模型」和其支持的「SVG 编写推理强度」，分别映射为 `svg.model` / `svg.reasoning.effort`，独立于图像复杂度。留空时完全省略 `svg`，使用上游默认配置。
+
+官方指南中 GPT Image 2.6 的 GIF 参数为 2～64 帧、20～2000 毫秒；部分 API 参考页仍列旧预览的 2～16 帧，本项目采用 2.6 专节的范围。实际可用性取决于所用上游服务对模型和功能的支持。
 
 字节生图按[火山方舟图片生成 API](https://console.volcengine.com/ark/region:cn-beijing/docs/image-generation-api)实现。直连方舟时，将该格式的 Base URL 设为 `https://ark.cn-beijing.volces.com`，填写方舟 Key 与已开通的模型 ID 或 Endpoint ID；API 路径由服务端追加。不同 Seedream 模型的尺寸、参考图数量、组图、输出格式与联网搜索能力不同，已知模型会按文档校验，自定义别名由上游确认能力。
 

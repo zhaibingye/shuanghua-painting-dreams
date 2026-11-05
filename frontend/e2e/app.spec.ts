@@ -1,4 +1,5 @@
 import { expect, test, type Page } from 'playwright/test'
+import { readFile } from 'node:fs/promises'
 
 const tinyPng = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAEklEQVR4AWL6z8DwH4SZGKAAAAAA//8qMqaOAAAABklEQVQDADYSBAFv606fAAAAAElFTkSuQmCC',
@@ -114,33 +115,103 @@ test('OpenAI Images 对话可读取本地文件并打开遮罩编辑器', async 
     buffer: tinyPng,
   })
   await expect(page.getByText('1/16')).toBeVisible()
-  await page.getByRole('button', { name: '绘制遮罩' }).click()
+  await page.getByRole('button', { name: '绘制遮罩 / 标注' }).click()
   await expect(page.getByRole('heading', { name: 'OpenAI 遮罩编辑器' })).toBeVisible()
 })
 
-test('Seedance 2.0 隐藏并省略不支持的 service_tier 参数', async ({ page }) => {
-  await ignoreKeyGate(page)
-  await createConversation(page, 'video', 'byteDanceVideo', 'doubao-seedance-2-0-260128')
-  await page.getByRole('button', { name: '参数', exact: true }).click()
+for (const outputFormat of ['svg', 'gif']) {
+  test(`GPT Image 2.6 ${outputFormat} 参数、预览、下载和本地持久化`, async ({ page }) => {
+    await page.getByLabel('API Key').fill('browser-test-key')
+    await page.getByRole('button', { name: '保存 Key 并进入' }).click()
+    await createConversation(page, 'image', 'openaiImage', 'gpt-image-2.6-sunburst')
+    await page.getByRole('button', { name: '参数', exact: true }).click()
+    await page.getByLabel('复杂度').selectOption('medium')
+    await page.getByLabel('输出格式', { exact: true }).selectOption(outputFormat)
+    await expect(page.getByLabel('渐进预览数量')).toHaveCount(0)
+    if (outputFormat === 'gif') {
+      await expect(page.getByLabel('尺寸', { exact: true })).toHaveValue('auto')
+      await page.getByLabel('动画帧数').fill('64')
+      await page.getByLabel('每帧时长（毫秒）').fill('120')
+    }
+    await page.screenshot({ path: test.info().outputPath(`${outputFormat}-parameters.png`), fullPage: true })
+    await page.getByRole('button', { name: '关闭参数面板' }).click()
 
-  await expect(page.getByText('自动决定时长')).toBeVisible()
-  await expect(page.getByText('生成同步音频')).toBeVisible()
-  await expect(page.getByText('Web Search')).toBeVisible()
-  await expect(page.getByText('服务等级')).toHaveCount(0)
-  await expect(page.getByLabel('分辨率')).toHaveValue('720p')
-  await expect(page.getByLabel('分辨率').locator('option[value="4k"]')).toHaveCount(1)
-  await expect(page.getByLabel('分辨率').locator('option[value="1080p"]')).toHaveCount(1)
-})
+    const bytes = outputFormat === 'svg'
+      ? Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128"><circle cx="64" cy="64" r="48" fill="#38bdf8"/></svg>')
+      : Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64')
+    const mimeType = outputFormat === 'svg' ? 'image/svg+xml' : 'image/gif'
+    await page.route('**/api/v1/images/conversation-turns/stream', (route) => route.fulfill({
+      status: 200, contentType: 'text/event-stream', body: [
+        'event: turn.started\ndata: {"requestId":"req_26","apiFormat":"openaiImage"}\n\n',
+        `event: image.completed\ndata: ${JSON.stringify({ index: 0, image: { id: 'img_26', mimeType, base64Data: bytes.toString('base64'), revisedPrompt: null, thought: false, thoughtSignature: null }, providerMetadata: null })}\n\n`,
+        'event: turn.completed\ndata: {"requestId":"req_26","usage":null,"providerState":null}\n\n',
+      ].join(''),
+    }))
+    const captured = page.waitForRequest('**/api/v1/images/conversation-turns/stream')
+    await page.getByRole('textbox', { name: '消息', exact: true }).fill('创建蓝色圆形')
+    await page.getByRole('button', { name: '发送消息' }).click()
+    expect((await captured).postDataJSON()).toMatchObject({ modelId: 'gpt-image-2.6-sunburst',
+      options: { outputFormat, complexity: 'medium', ...(outputFormat === 'gif' ? { frameCount: 64, frameDurationMs: 120 } : { count: 1 }) } })
+    await expect(page.getByAltText('生成结果 1')).toBeVisible()
+    await expect(page.getByRole('button', { name: '设为基图' })).toHaveCount(0)
+    const downloaded = page.waitForEvent('download')
+    await page.getByRole('button', { name: '下载', exact: true }).click()
+    const download = await downloaded
+    expect(download.suggestedFilename()).toMatch(new RegExp(`\\.${outputFormat}$`))
+    const downloadPath = await download.path()
+    expect(downloadPath).not.toBeNull()
+    expect(await readFile(downloadPath)).toEqual(bytes)
+    await page.reload()
+    await expect(page.getByAltText('生成结果 1')).toBeVisible()
+  })
+}
 
-test('Seedance 2.0 fast-se 保持官方的 720p 上限', async ({ page }) => {
-  await ignoreKeyGate(page)
-  await createConversation(page, 'video', 'byteDanceVideo', 'doubao-seedance-2-0-fast-260128-se')
-  await page.getByRole('button', { name: '参数', exact: true }).click()
-
-  const resolution = page.getByLabel('分辨率')
-  await expect(resolution.locator('option[value="1080p"]')).toHaveCount(0)
-  await expect(resolution.locator('option[value="4k"]')).toHaveCount(0)
-  await expect(resolution).toHaveValue('720p')
+test('GPT Image 2.6 标注编辑提交独立透明 PNG', async ({ page }) => {
+  await page.getByLabel('API Key').fill('browser-test-key')
+  await page.getByRole('button', { name: '保存 Key 并进入' }).click()
+  await createConversation(page, 'image', 'openaiImage', 'gpt-image-2.6-sunburst')
+  const base = await page.evaluate(() => {
+    const canvas = document.createElement('canvas')
+    canvas.width = 64
+    canvas.height = 64
+    const context = canvas.getContext('2d')
+    if (!context) throw new Error('Canvas unavailable')
+    context.fillRect(0, 0, 64, 64)
+    const dataUrl = canvas.toDataURL()
+    return dataUrl.slice(dataUrl.indexOf(',') + 1)
+  })
+  await page.locator('input[type="file"]').setInputFiles({ name: 'base.png', mimeType: 'image/png', buffer: Buffer.from(base, 'base64') })
+  await expect(page.getByText('1/16')).toBeVisible()
+  await page.getByRole('button', { name: '绘制遮罩 / 标注' }).click()
+  await page.getByLabel('编辑方式').selectOption('markup')
+  await page.getByLabel('画笔大小').fill('4')
+  await page.locator('.mask-stage canvas').click()
+  await page.getByRole('button', { name: '应用标注' }).click()
+  await expect(page.getByRole('button', { name: '标注已就绪' })).toBeVisible()
+  await page.route('**/api/v1/images/conversation-turns/stream', (route) => route.fulfill({ status: 200,
+    contentType: 'text/event-stream', body: 'event: turn.completed\ndata: {"requestId":"req_markup","usage":null,"providerState":null}\n\n' }))
+  const captured = page.waitForRequest('**/api/v1/images/conversation-turns/stream')
+  await page.getByRole('textbox', { name: '消息', exact: true }).fill('将标注位置改成蓝色')
+  await page.getByRole('button', { name: '发送消息' }).click()
+  const payload = (await captured).postDataJSON()
+  expect(payload.mask).toBeNull()
+  expect(payload.markup.filename).toBe('markup.png')
+  expect(payload.markup.dataUrl).toMatch(/^data:image\/png;base64,/)
+  expect(payload.sourceImages).toHaveLength(1)
+  const overlay = await page.evaluate(async (dataUrl: string) => {
+    const image = await createImageBitmap(await (await fetch(dataUrl)).blob())
+    const canvas = document.createElement('canvas')
+    canvas.width = image.width
+    canvas.height = image.height
+    const context = canvas.getContext('2d')
+    if (!context) throw new Error('Canvas unavailable')
+    context.drawImage(image, 0, 0)
+    return { width: image.width, height: image.height,
+      cornerAlpha: context.getImageData(0, 0, 1, 1).data[3],
+      centerAlpha: context.getImageData(32, 32, 1, 1).data[3] }
+  }, payload.markup.dataUrl)
+  expect(overlay).toMatchObject({ width: 64, height: 64, cornerAlpha: 0 })
+  expect(overlay.centerAlpha).toBeGreaterThan(0)
 })
 
 test('Seedance 2.5 默认模型、清晰度、自动时长和同步音频', async ({ page }) => {

@@ -1,7 +1,8 @@
 // Keep model capabilities aligned with backend/app/domain/openai_images.py.
-// Official Image API docs verified 2026-10-21.
+// Official Image API docs verified 2026-11-05.
 export const OPENAI_IMAGE_MODELS = [
   'gpt-image-2.5-sunburst', 'gpt-image-2.5-flare', 'gpt-image-2',
+  'gpt-image-2.6-sunburst', 'gpt-image-2.6-flare',
   'gpt-image-1.5', 'gpt-image-1', 'gpt-image-1-mini', 'chatgpt-image-latest',
 ] as const
 export const OPENAI_IMAGE_QUALITIES = ['auto', 'low', 'medium', 'high', 'xhigh', 'max'] as const
@@ -17,10 +18,15 @@ export function openAIResponsesImageModel(options: Record<string, unknown>): str
 
 export function openAIImageCapabilities(modelId: string) {
   const family = modelId.replace(/-\d{4}-\d{2}-\d{2}$/, '')
+  const is26 = ['gpt-image-2.6-sunburst', 'gpt-image-2.6-flare'].includes(family)
+  const sunburstOrFlare = is26 || ['gpt-image-2.5-sunburst', 'gpt-image-2.5-flare'].includes(family)
   return {
-    qualities: family === 'gpt-image-2.5-sunburst' || family === 'gpt-image-2.5-flare'
+    qualities: sunburstOrFlare
       ? [...OPENAI_IMAGE_QUALITIES] : OPENAI_IMAGE_QUALITIES.slice(0, 4),
-    customImageSize: ['gpt-image-2', 'gpt-image-2.5-sunburst', 'gpt-image-2.5-flare'].includes(family),
+    customImageSize: family === 'gpt-image-2' || sunburstOrFlare,
+    complexity: is26,
+    markupEditing: sunburstOrFlare,
+    outputFormats: is26 ? ['png', 'jpeg', 'webp', 'svg', 'gif'] : ['png', 'jpeg', 'webp'],
     inputFidelities: ['gpt-image-1', 'gpt-image-1.5'].includes(family)
       ? ['auto', 'low', 'high'] : family === 'gpt-image-1-mini' ? ['auto', 'low'] : ['auto'],
   }
@@ -52,12 +58,13 @@ export function openAIImageAspectRatio(size: string): OpenAIAspectRatio {
   }) ?? '1:1'
 }
 
-export function openAIImageSizeError(size: string, modelId: string): string | undefined {
+export function openAIImageSizeError(size: string, modelId: string, outputFormat?: string): string | undefined {
   if (size === 'auto') return undefined
   if (!/^[0-9]+[xX][0-9]+$/.test(size)) return '请输入 auto 或 WIDTHxHEIGHT。'
   const [width = 0, height = 0] = size.toLowerCase().split('x').map(Number)
   if (width <= 0 || height <= 0 || width > 3840 || height > 3840) return '每条边必须介于 1 和 3840 像素之间。'
   if (width % 16 || height % 16) return '宽和高必须是 16 的倍数。'
+  if (outputFormat === 'gif') return undefined
   if (Math.max(width, height) > 3 * Math.min(width, height)) return '长短边比例不能超过 3:1。'
   if (width * height < 655_360 || width * height > 8_294_400) return '总像素必须介于 655360 和 8294400 之间。'
   if (!openAIImageCapabilities(modelId).customImageSize && !OPENAI_STANDARD_SIZES.includes(size.toLowerCase() as typeof OPENAI_STANDARD_SIZES[number])) {
@@ -72,13 +79,19 @@ export function normalizeOpenAIImageOptions(options: Record<string, unknown>, mo
     ? options.quality : 'auto'
   const inputFidelity = typeof options.inputFidelity === 'string' && capabilities.inputFidelities.includes(options.inputFidelity)
     ? options.inputFidelity : 'auto'
+  const outputFormat = typeof options.outputFormat === 'string' && capabilities.outputFormats.includes(options.outputFormat)
+    ? options.outputFormat : 'png'
   return {
     ...options,
     quality,
     inputFidelity,
+    complexity: capabilities.complexity ? options.complexity ?? 'auto' : 'auto',
+    svgReasoningEffort: typeof options.svgModel === 'string' && options.svgModel.trim()
+      ? options.svgReasoningEffort ?? 'auto' : 'auto',
+    count: outputFormat === 'svg' ? 1 : options.count,
     size: !capabilities.customImageSize && typeof options.size === 'string' && !OPENAI_STANDARD_SIZES.includes(options.size as typeof OPENAI_STANDARD_SIZES[number])
       ? 'auto' : options.size,
-    outputFormat: options.background === 'transparent' && options.outputFormat === 'jpeg' ? 'png' : options.outputFormat,
+    outputFormat: options.background === 'transparent' && ['jpeg', 'gif'].includes(outputFormat) ? 'png' : outputFormat,
   }
 }
 

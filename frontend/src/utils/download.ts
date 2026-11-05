@@ -20,6 +20,6 @@ export function imageFilename(
     .replace('T', '-')
     .slice(0, 15)
   const parsedExtension = mimeType.split('/')[1]
-  const extension = mimeType === 'image/jpeg' ? 'jpg' : parsedExtension?.length ? parsedExtension : 'png'
+  const extension = mimeType === 'image/svg+xml' ? 'svg' : mimeType === 'image/jpeg' ? 'jpg' : parsedExtension?.length ? parsedExtension : 'png'
   return `shuanghua-${provider}-${stamp}-${index + 1}.${extension}`
 }

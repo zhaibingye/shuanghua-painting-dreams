@@ -14,6 +14,7 @@ import {
   type ApiFormat,
 } from '../../storage/settings'
 import { useSettingsStore } from '../../stores/settings-store'
+import { OPENAI_IMAGE_MODELS } from '../chat/openai-image-options'
 
 export function SettingsDialog({
   open,
@@ -119,7 +120,8 @@ export function SettingsDialog({
                   try { addModel(format, modelInput); setModelInput('') }
                   catch (error) { toast.error(error instanceof Error ? error.message : '添加模型失败') }
                 }}>
-                  <Input aria-label="添加模型 ID" value={modelInput} onChange={(event) => setModelInput(event.target.value)} placeholder="输入模型 ID 或 Endpoint ID" />
+                  <Input aria-label="添加模型 ID" value={modelInput} onChange={(event) => setModelInput(event.target.value)} placeholder="输入模型 ID 或 Endpoint ID" list={format === 'openaiImage' ? 'openai-model-suggestions' : undefined} />
+                  {format === 'openaiImage' ? <datalist id="openai-model-suggestions">{OPENAI_IMAGE_MODELS.map((model) => <option key={model} value={model} />)}</datalist> : null}
                   <Button type="submit" disabled={!modelInput.trim()} icon={<Plus className="size-4" />}>添加</Button>
                 </form>
                 <ul className="mt-3 grid gap-2">

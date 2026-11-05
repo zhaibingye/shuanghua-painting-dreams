@@ -37,6 +37,7 @@ export async function buildImageTurnRequest(options: {
   draftImages: DraftImage[]
   turnOptions: Record<string, unknown>
   maskDataUrl: string | null
+  markupDataUrl?: string | null
 }): Promise<ImageConversationTurnRequest> {
   const { conversation } = options
   const connection = {
@@ -50,6 +51,13 @@ export async function buildImageTurnRequest(options: {
       ? await requiredApiAsset(conversation.activeImageAssetId)
       : null
     const sourceImages = active ? [active, ...currentImages] : currentImages
+    const parsedOptions = parseImageOptions('openaiImage', options.turnOptions)
+    if (['svg', 'gif'].includes(parsedOptions.outputFormat) && sourceImages.length) {
+      throw new Error('SVG / GIF 仅支持文生图，请先取消编辑基图并移除参考图。')
+    }
+    if (parsedOptions.outputFormat === 'svg' && parsedOptions.count !== 1) {
+      throw new Error('SVG 输出只能生成一张图片。')
+    }
     return {
       apiFormat: 'openaiImage',
       ...connection,
@@ -58,7 +66,10 @@ export async function buildImageTurnRequest(options: {
       mask: options.maskDataUrl
         ? { kind: 'dataUrl', dataUrl: options.maskDataUrl, filename: 'mask.png' }
         : null,
-      options: parseImageOptions('openaiImage', options.turnOptions),
+      markup: options.markupDataUrl
+        ? { kind: 'dataUrl', dataUrl: options.markupDataUrl, filename: 'markup.png' }
+        : null,
+      options: parsedOptions,
     }
   }
 
@@ -237,6 +248,9 @@ async function requiredAsset(id: string): Promise<StoredMediaAsset> {
 }
 
 async function assetToApi(asset: StoredMediaAsset): Promise<ApiImageAsset> {
+  if (asset.mimeType && !['image/png', 'image/jpeg', 'image/webp'].includes(asset.mimeType)) {
+    throw new Error('编辑基图仅支持 PNG、JPEG 或 WebP；SVG / GIF 结果可预览和下载。')
+  }
   if (asset.url) return { kind: 'url', url: asset.url }
   return {
     kind: 'dataUrl',

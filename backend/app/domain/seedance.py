@@ -28,30 +28,28 @@ _SEEDANCE_2_CAPABILITIES: dict[str, Any] = {
 }
 
 
-def byte_dance_model_capabilities(model_id: str) -> dict[str, Any]:
-    capabilities = _family_capabilities(model_id)
-    capabilities.setdefault("defaultDuration", 5)
-    capabilities.setdefault("defaultResolution", "720p")
-    capabilities.setdefault("defaultGenerateAudio", capabilities["generateAudio"])
-    capabilities.setdefault("seed", capabilities["cameraFixed"])
-    return capabilities
-
-
-def _family_capabilities(model_id: str) -> dict[str, Any]:
-    if model_id.startswith("doubao-seedance-2-5-"):
-        return {
-            **deepcopy(_SEEDANCE_2_CAPABILITIES),
+_MODEL_FAMILIES: tuple[tuple[tuple[str, ...], dict[str, Any]], ...] = (
+    (
+        ("doubao-seedance-2-5-",),
+        {
+            **_SEEDANCE_2_CAPABILITIES,
             "durationMax": 30,
             "resolutions": ["480p", "720p", "1080p"],
             "defaultDuration": -1,
             "frameAspectRatios": ["adaptive"],
-        }
-    if model_id.startswith(("doubao-seedance-2-0-fast-", "doubao-seedance-2-0-mini-")):
-        return {**deepcopy(_SEEDANCE_2_CAPABILITIES), "resolutions": ["480p", "720p"]}
-    if model_id.startswith("doubao-seedance-2-0-"):
-        return deepcopy(_SEEDANCE_2_CAPABILITIES)
-    if model_id.startswith("doubao-seedance-1-5-pro-"):
-        return {
+        },
+    ),
+    (
+        ("doubao-seedance-2-0-fast-", "doubao-seedance-2-0-mini-"),
+        {
+            **_SEEDANCE_2_CAPABILITIES,
+            "resolutions": ["480p", "720p"],
+        },
+    ),
+    (("doubao-seedance-2-0-",), _SEEDANCE_2_CAPABILITIES),
+    (
+        ("doubao-seedance-1-5-pro-",),
+        {
             "durationMin": 4,
             "durationMax": 12,
             "automaticDuration": True,
@@ -61,9 +59,11 @@ def _family_capabilities(model_id: str) -> dict[str, Any]:
             "serviceTiers": ["default", "flex"],
             "serviceTierParameter": True,
             "webSearch": False,
-        }
-    if model_id.startswith("doubao-seedance-1-0-lite-"):
-        return {
+        },
+    ),
+    (
+        ("doubao-seedance-1-0-lite-",),
+        {
             "durationMin": 2,
             "durationMax": 12,
             "automaticDuration": False,
@@ -73,9 +73,11 @@ def _family_capabilities(model_id: str) -> dict[str, Any]:
             "serviceTiers": ["default", "flex"],
             "serviceTierParameter": True,
             "webSearch": False,
-        }
-    if model_id.startswith("doubao-seedance-1-0-"):
-        return {
+        },
+    ),
+    (
+        ("doubao-seedance-1-0-",),
+        {
             "defaultResolution": "1080p",
             "durationMin": 2,
             "durationMax": 12,
@@ -86,15 +88,50 @@ def _family_capabilities(model_id: str) -> dict[str, Any]:
             "serviceTiers": ["default", "flex"],
             "serviceTierParameter": True,
             "webSearch": False,
-        }
+        },
+    ),
+)
+
+_GENERIC_CAPABILITIES: dict[str, Any] = {
+    "durationMin": 2,
+    "durationMax": 15,
+    "automaticDuration": False,
+    "resolutions": ["480p", "720p"],
+    "generateAudio": False,
+    "cameraFixed": False,
+    "serviceTiers": ["default"],
+    "serviceTierParameter": False,
+    "webSearch": False,
+}
+
+
+def _with_defaults(capabilities: dict[str, Any]) -> dict[str, Any]:
     return {
-        "durationMin": 2,
-        "durationMax": 15,
-        "automaticDuration": False,
-        "resolutions": ["480p", "720p"],
-        "generateAudio": False,
-        "cameraFixed": False,
-        "serviceTiers": ["default"],
-        "serviceTierParameter": False,
-        "webSearch": False,
+        "defaultDuration": 5,
+        "defaultResolution": "720p",
+        "defaultGenerateAudio": capabilities["generateAudio"],
+        "seed": capabilities["cameraFixed"],
+        **deepcopy(capabilities),
+    }
+
+
+def byte_dance_model_capabilities(model_id: str) -> dict[str, Any]:
+    capabilities = next(
+        (
+            capabilities
+            for prefixes, capabilities in _MODEL_FAMILIES
+            if model_id.startswith(prefixes)
+        ),
+        _GENERIC_CAPABILITIES,
+    )
+    return _with_defaults(capabilities)
+
+
+def byte_dance_model_families() -> dict[str, Any]:
+    return {
+        "families": [
+            {"prefixes": list(prefixes), "capabilities": _with_defaults(capabilities)}
+            for prefixes, capabilities in _MODEL_FAMILIES
+        ],
+        "defaultCapabilities": _with_defaults(_GENERIC_CAPABILITIES),
     }

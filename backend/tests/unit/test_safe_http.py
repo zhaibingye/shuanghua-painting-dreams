@@ -1,19 +1,21 @@
 from collections.abc import AsyncIterator
 from types import TracebackType
-from typing import ClassVar, cast
+from typing import cast
 
 import aiohttp
 import pytest
 from app.domain.enums import ApiFormat
 from app.domain.errors import ApplicationError, SecurityError
 from app.infrastructure.config import Settings
-from app.infrastructure.safe_http import SafeHttpTransport, _parse_sse_block
+from app.infrastructure.safe_http import SafeHttpTransport
 from yarl import URL
 
 
 class RedirectResponse:
     status = 307
-    headers: ClassVar[dict[str, str]] = {"Location": "/same-target"}
+
+    def __init__(self) -> None:
+        self.headers = {"Location": "/same-target"}
 
     async def __aenter__(self) -> "RedirectResponse":
         return self
@@ -28,12 +30,13 @@ class RedirectResponse:
 
 
 class RedirectSession:
-    def __init__(self) -> None:
+    def __init__(self, response: RedirectResponse | None = None) -> None:
         self.requests = 0
+        self.response = response or RedirectResponse()
 
     def request(self, *_args: object, **_kwargs: object) -> RedirectResponse:
         self.requests += 1
-        return RedirectResponse()
+        return self.response
 
 
 class ChunkedContent:
@@ -44,17 +47,26 @@ class ChunkedContent:
         for chunk in self._chunks:
             yield chunk
 
+    async def iter_chunked(self, _size: int) -> AsyncIterator[bytes]:
+        async for chunk in self.iter_any():
+            yield chunk
 
-class EventStreamResponse:
+
+class BodyResponse(RedirectResponse):
     status = 200
+    content_length = None
 
-    def __init__(self, *chunks: bytes) -> None:
+    def __init__(self, content_type: str, *chunks: bytes) -> None:
+        self.headers = {"Content-Type": content_type}
         self.content = ChunkedContent(*chunks)
 
 
-def transport_with_session(settings: Settings) -> tuple[SafeHttpTransport, RedirectSession]:
+def transport_with_session(
+    settings: Settings,
+    response: RedirectResponse | None = None,
+) -> tuple[SafeHttpTransport, RedirectSession]:
     transport = SafeHttpTransport(settings)
-    session = RedirectSession()
+    session = RedirectSession(response)
     transport._session = cast(aiohttp.ClientSession, session)
     return transport, session
 
@@ -94,7 +106,7 @@ def test_signed_media_redirect_preserves_signature(monkeypatch: pytest.MonkeyPat
     transport = SafeHttpTransport(Settings())
     response = RedirectResponse()
     location = "https://cdn.example.com/image.jpg?signature=a%2Fb%2Bc%3D"
-    monkeypatch.setattr(RedirectResponse, "headers", {"Location": location})
+    monkeypatch.setattr(response, "headers", {"Location": location})
     result = transport._download_redirect_target(
         URL("https://proxy.example.com/start"),
         cast(aiohttp.ClientResponse, response),
@@ -111,10 +123,8 @@ def test_signed_media_query_does_not_bypass_private_address_check() -> None:
         )
 
 
-@pytest.mark.asyncio
 async def test_redirect_limit_is_enforced_without_retrying_creation() -> None:
     transport, session = transport_with_session(Settings(max_redirects=1))
-
     with pytest.raises(ApplicationError) as error:
         await transport.request_json(
             method="POST",
@@ -129,68 +139,70 @@ async def test_redirect_limit_is_enforced_without_retrying_creation() -> None:
     assert session.requests == 2
 
 
-def test_sse_parser_accepts_large_single_line_image_events() -> None:
+@pytest.mark.parametrize("content_type", ["text/event-stream; charset=utf-8", "application/json"])
+async def test_stream_response_uses_declared_format_and_handles_large_chunked_images(
+    content_type: str,
+) -> None:
     encoded = "A" * (1024 * 1024)
-    event = _parse_sse_block(
-        "event: image_generation.partial_image\n"
-        f'data: {{"type":"image_generation.partial_image","b64_json":"{encoded}"}}'
-    )
-
-    assert event is not None
-    assert event.event == "image_generation.partial_image"
-    assert event.data["b64_json"] == encoded
-
-
-@pytest.mark.asyncio
-async def test_declared_event_stream_falls_back_to_plain_json() -> None:
-    transport = SafeHttpTransport(Settings())
-    response = cast(
-        aiohttp.ClientResponse,
-        EventStreamResponse(
+    chunks: tuple[bytes, ...]
+    if content_type.startswith("text/event-stream"):
+        chunks = (
             b": ping\n\n",
-            b'{"data":[{"b64_json":"final"}],',
-            b'"output_format":"png"}',
-        ),
-    )
-
-    events = [event async for event in transport._iter_sse(response, ApiFormat.OPENAI_IMAGE)]
-
+            b'event: image_generation.completed\ndata: {"b64_json":"',
+            encoded.encode(),
+            b'"}\n\n',
+        )
+    else:
+        chunks = (b'{"b64_json":"', encoded.encode(), b'"}')
+    transport, _ = transport_with_session(Settings(), BodyResponse(content_type, *chunks))
+    events = [
+        event
+        async for event in transport.stream_sse(
+            method="POST",
+            url=URL("https://8.8.8.8/v1/start"),
+            headers={},
+            payload={"prompt": "snow"},
+            read_timeout=1,
+            api_format=ApiFormat.OPENAI_IMAGE,
+        )
+    ]
     assert len(events) == 1
-    assert events[0].event is None
-    assert events[0].data == {
-        "data": [{"b64_json": "final"}],
-        "output_format": "png",
-    }
-
-
-@pytest.mark.asyncio
-async def test_valid_event_stream_does_not_emit_json_fallback() -> None:
-    transport = SafeHttpTransport(Settings())
-    response = cast(
-        aiohttp.ClientResponse,
-        EventStreamResponse(
-            b": ping\n\n",
-            b"event: image_generation.completed\n",
-            b'data: {"type":"image_generation.completed","b64_json":"final"}\n\n',
-        ),
+    assert events[0].event == (
+        "image_generation.completed" if content_type.startswith("text/event-stream") else None
     )
-
-    events = [event async for event in transport._iter_sse(response, ApiFormat.OPENAI_IMAGE)]
-
-    assert len(events) == 1
-    assert events[0].event == "image_generation.completed"
-    assert events[0].data["b64_json"] == "final"
+    assert events[0].data["b64_json"] == encoded
 
 
-@pytest.mark.asyncio
-async def test_invalid_declared_event_stream_is_rejected() -> None:
-    transport = SafeHttpTransport(Settings())
-    response = cast(
-        aiohttp.ClientResponse,
-        EventStreamResponse(b"this is neither SSE nor JSON"),
-    )
+@pytest.mark.parametrize(
+    ("failure", "code", "http_status"),
+    [
+        (TimeoutError(), "upstreamTimeout", 504),
+        (aiohttp.ClientConnectionError(), "upstreamNetworkError", 502),
+    ],
+)
+async def test_transport_normalizes_network_failures_without_retrying(
+    monkeypatch: pytest.MonkeyPatch,
+    failure: Exception,
+    code: str,
+    http_status: int,
+) -> None:
+    transport, session = transport_with_session(Settings())
 
+    def request(*_args: object, **_kwargs: object) -> RedirectResponse:
+        session.requests += 1
+        raise failure
+
+    monkeypatch.setattr(session, "request", request)
     with pytest.raises(ApplicationError) as error:
-        _ = [event async for event in transport._iter_sse(response, ApiFormat.OPENAI_IMAGE)]
-
-    assert error.value.code == "invalidUpstreamEventStream"
+        await transport.request_json(
+            method="POST",
+            url=URL("https://8.8.8.8/v1/start"),
+            headers={},
+            payload={},
+            read_timeout=1,
+            api_format=ApiFormat.OPENAI_IMAGE,
+        )
+    assert error.value.code == code
+    assert error.value.http_status == http_status
+    assert error.value.retryable is False
+    assert session.requests == 1

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { StoredConversation } from '../../storage/db'
-import { buildVideoGenerationRequest, defaultVideoDraft } from './video-turn'
+import { buildVideoGenerationRequest, defaultVideoDraft, validateVideoTurn } from './video-turn'
 
 function conversation(modelId: string): StoredConversation {
   return {
@@ -27,7 +27,6 @@ describe('buildVideoGenerationRequest resolution', () => {
       turnOptions: { resolution: '4k' },
     })
     expect(request.apiFormat).toBe('byteDanceVideo')
-    if (request.apiFormat !== 'byteDanceVideo') return
     expect(request.options?.resolution).toBe('4k')
   })
 
@@ -40,7 +39,6 @@ describe('buildVideoGenerationRequest resolution', () => {
       turnOptions: { resolution: '1080p' },
     })
     expect(request.apiFormat).toBe('byteDanceVideo')
-    if (request.apiFormat !== 'byteDanceVideo') return
     expect(request.options?.resolution).toBe('720p')
   })
 
@@ -53,7 +51,6 @@ describe('buildVideoGenerationRequest resolution', () => {
       turnOptions: { resolution: '4k' },
     })
     expect(request.apiFormat).toBe('byteDanceVideo')
-    if (request.apiFormat !== 'byteDanceVideo') return
     expect(request.options?.resolution).toBe('720p')
 
     const lite = buildVideoGenerationRequest({
@@ -64,7 +61,6 @@ describe('buildVideoGenerationRequest resolution', () => {
       turnOptions: { resolution: '1080p' },
     })
     expect(lite.apiFormat).toBe('byteDanceVideo')
-    if (lite.apiFormat !== 'byteDanceVideo') return
     expect(lite.options?.resolution).toBe('720p')
   })
 })
@@ -100,4 +96,17 @@ describe('Seedance model defaults', () => {
     })
     expect(request.options).toMatchObject({ aspectRatio: 'adaptive' })
   })
+})
+
+it('rejects excess voice IDs without silently discarding submitted values', () => {
+  const values = {
+    conversation: { ...conversation('grok-imagine-video-1.5'), apiFormat: 'xaiVideo' as const },
+    prompt: 'snow',
+    draft: { ...defaultVideoDraft, xaiMode: 'referenceToVideo' as const, voiceIds: 'a,b,c,d' },
+    images: [],
+    turnOptions: {},
+  }
+  expect(validateVideoTurn(values)).toContain('最多支持 3 个音色')
+  const request = buildVideoGenerationRequest(values)
+  expect(request).toMatchObject({ inputs: { voiceIds: ['a', 'b', 'c', 'd'] } })
 })

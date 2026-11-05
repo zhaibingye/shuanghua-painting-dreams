@@ -1395,7 +1395,7 @@
               "max"
             ],
             "title": "质量",
-            "description": "xhigh / max 需要 GPT Image 2.5。",
+            "description": "xhigh / max 需要 GPT Image 2.5 / 2.6。",
             "default": "auto"
           },
           "outputFormat": {
@@ -1403,9 +1403,12 @@
             "enum": [
               "png",
               "jpeg",
-              "webp"
+              "webp",
+              "svg",
+              "gif"
             ],
             "title": "输出格式",
+            "description": "SVG / GIF 仅支持 GPT Image 2.6 文生图，生成期间不提供渐进预览。",
             "default": "png"
           },
           "outputCompression": {
@@ -1444,6 +1447,56 @@
             "minimum": 1.0,
             "title": "生成数量",
             "default": 1
+          },
+          "complexity": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "low",
+              "medium",
+              "high"
+            ],
+            "title": "复杂度",
+            "description": "GPT Image 2.6 的构图规划量，独立于质量；auto 使用模型默认值 high。",
+            "default": "auto"
+          },
+          "svgModel": {
+            "type": "string",
+            "maxLength": 256,
+            "title": "SVG 编写模型（可选）",
+            "description": "仅在上游已开通 SVG 模型选择时填写；留空使用上游默认配置。",
+            "default": ""
+          },
+          "svgReasoningEffort": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "none",
+              "minimal",
+              "low",
+              "medium",
+              "high",
+              "xhigh",
+              "max"
+            ],
+            "title": "SVG 编写推理强度",
+            "description": "独立于图像复杂度；可用档位取决于所选编写模型，auto 使用其默认值。",
+            "default": "auto"
+          },
+          "frameCount": {
+            "type": "integer",
+            "maximum": 64.0,
+            "minimum": 2.0,
+            "title": "动画帧数",
+            "default": 9
+          },
+          "frameDurationMs": {
+            "type": "integer",
+            "maximum": 2000.0,
+            "minimum": 20.0,
+            "title": "每帧时长（毫秒）",
+            "description": "仅 GIF 生效；上游按 10 毫秒取整。",
+            "default": 200
           },
           "moderation": {
             "type": "string",
@@ -1535,6 +1588,17 @@
               }
             ]
           },
+          "markup": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DataUrlImageAsset"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "与第一张输入图同尺寸的透明 PNG 标注层；不可与 mask 同时使用。"
+          },
           "options": {
             "$ref": "#/components/schemas/OpenAIImageEditOptions"
           }
@@ -1610,7 +1674,7 @@
               "max"
             ],
             "title": "质量",
-            "description": "xhigh / max 需要 GPT Image 2.5。",
+            "description": "xhigh / max 需要 GPT Image 2.5 / 2.6。",
             "default": "auto"
           },
           "outputFormat": {
@@ -1618,9 +1682,12 @@
             "enum": [
               "png",
               "jpeg",
-              "webp"
+              "webp",
+              "svg",
+              "gif"
             ],
             "title": "输出格式",
+            "description": "SVG / GIF 仅支持 GPT Image 2.6 文生图，生成期间不提供渐进预览。",
             "default": "png"
           },
           "outputCompression": {
@@ -1659,6 +1726,56 @@
             "minimum": 1.0,
             "title": "生成数量",
             "default": 1
+          },
+          "complexity": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "low",
+              "medium",
+              "high"
+            ],
+            "title": "复杂度",
+            "description": "GPT Image 2.6 的构图规划量，独立于质量；auto 使用模型默认值 high。",
+            "default": "auto"
+          },
+          "svgModel": {
+            "type": "string",
+            "maxLength": 256,
+            "title": "SVG 编写模型（可选）",
+            "description": "仅在上游已开通 SVG 模型选择时填写；留空使用上游默认配置。",
+            "default": ""
+          },
+          "svgReasoningEffort": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "none",
+              "minimal",
+              "low",
+              "medium",
+              "high",
+              "xhigh",
+              "max"
+            ],
+            "title": "SVG 编写推理强度",
+            "description": "独立于图像复杂度；可用档位取决于所选编写模型，auto 使用其默认值。",
+            "default": "auto"
+          },
+          "frameCount": {
+            "type": "integer",
+            "maximum": 64.0,
+            "minimum": 2.0,
+            "title": "动画帧数",
+            "default": 9
+          },
+          "frameDurationMs": {
+            "type": "integer",
+            "maximum": 2000.0,
+            "minimum": 20.0,
+            "title": "每帧时长（毫秒）",
+            "description": "仅 GIF 生效；上游按 10 毫秒取整。",
+            "default": 200
           },
           "moderation": {
             "type": "string",
@@ -1702,7 +1819,7 @@
               "max"
             ],
             "title": "质量",
-            "description": "xhigh / max 需要 GPT Image 2.5。",
+            "description": "xhigh / max 需要 GPT Image 2.5 / 2.6。",
             "default": "auto"
           },
           "outputFormat": {
@@ -1710,9 +1827,12 @@
             "enum": [
               "png",
               "jpeg",
-              "webp"
+              "webp",
+              "svg",
+              "gif"
             ],
             "title": "输出格式",
+            "description": "SVG / GIF 仅支持 GPT Image 2.6 文生图，生成期间不提供渐进预览。",
             "default": "png"
           },
           "outputCompression": {
@@ -1751,6 +1871,56 @@
             "minimum": 1.0,
             "title": "生成数量",
             "default": 1
+          },
+          "complexity": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "low",
+              "medium",
+              "high"
+            ],
+            "title": "复杂度",
+            "description": "GPT Image 2.6 的构图规划量，独立于质量；auto 使用模型默认值 high。",
+            "default": "auto"
+          },
+          "svgModel": {
+            "type": "string",
+            "maxLength": 256,
+            "title": "SVG 编写模型（可选）",
+            "description": "仅在上游已开通 SVG 模型选择时填写；留空使用上游默认配置。",
+            "default": ""
+          },
+          "svgReasoningEffort": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "none",
+              "minimal",
+              "low",
+              "medium",
+              "high",
+              "xhigh",
+              "max"
+            ],
+            "title": "SVG 编写推理强度",
+            "description": "独立于图像复杂度；可用档位取决于所选编写模型，auto 使用其默认值。",
+            "default": "auto"
+          },
+          "frameCount": {
+            "type": "integer",
+            "maximum": 64.0,
+            "minimum": 2.0,
+            "title": "动画帧数",
+            "default": 9
+          },
+          "frameDurationMs": {
+            "type": "integer",
+            "maximum": 2000.0,
+            "minimum": 20.0,
+            "title": "每帧时长（毫秒）",
+            "description": "仅 GIF 生效；上游按 10 毫秒取整。",
+            "default": 200
           },
           "moderation": {
             "type": "string",
@@ -1841,6 +2011,17 @@
               }
             ]
           },
+          "markup": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DataUrlImageAsset"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "与第一张输入图同尺寸的透明 PNG 标注层；不可与 mask 同时使用。"
+          },
           "options": {
             "$ref": "#/components/schemas/OpenAIImageTurnOptions"
           }
@@ -1907,7 +2088,7 @@
               "max"
             ],
             "title": "质量",
-            "description": "xhigh / max 需要 GPT Image 2.5。",
+            "description": "xhigh / max 需要 GPT Image 2.5 / 2.6。",
             "default": "auto"
           },
           "outputFormat": {

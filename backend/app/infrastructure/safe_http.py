@@ -4,6 +4,7 @@ import re
 import socket
 import time
 from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from http import HTTPStatus
 from typing import Any
@@ -96,52 +97,24 @@ class SafeHttpTransport:
         api_format: ApiFormat,
         retryable: bool = False,
     ) -> UpstreamResponse:
-        if self._session is None:
-            raise RuntimeError("SafeHttpTransport 尚未启动")
-
-        current_url = self._validate_full_url(url)
-        current_method = method.upper()
         body = orjson.dumps(payload) if payload is not None else None
         request_headers = dict(headers)
         if body is not None:
             request_headers.setdefault("Content-Type", "application/json")
-
-        started = time.perf_counter()
-        try:
-            for redirect_count in range(self._settings.max_redirects + 1):
-                async with self._session.request(
-                    current_method,
-                    current_url,
-                    headers=request_headers,
-                    data=body,
-                    timeout=self._timeout(read_timeout),
-                    allow_redirects=False,
-                ) as response:
-                    redirected = self._redirect_target(
-                        current_url,
-                        response,
-                        redirect_count,
-                        api_format,
-                        retryable,
-                    )
-                    if redirected is not None:
-                        current_url = redirected
-                        continue
-                    data = await self._read_json(response, api_format, retryable)
-                    self._log_completion(started, api_format, current_url, response.status)
-                    return UpstreamResponse(
-                        status=response.status,
-                        data=data,
-                        headers=dict(response.headers.items()),
-                    )
-        except (ApplicationError, SecurityError):
-            raise
-        except (TimeoutError, aiohttp.ServerTimeoutError) as exc:
-            raise self._timeout_error(api_format, retryable) from exc
-        except (aiohttp.ClientConnectionError, aiohttp.ClientError, OSError) as exc:
-            raise self._connection_error(exc, api_format, retryable) from exc
-
-        raise self._unexpected_redirect_error(api_format)
+        async with self._request(
+            method=method,
+            url=url,
+            headers=request_headers,
+            body=body,
+            read_timeout=read_timeout,
+            api_format=api_format,
+            retryable=retryable,
+        ) as response:
+            return UpstreamResponse(
+                status=response.status,
+                data=await self._read_json(response, api_format, retryable),
+                headers=dict(response.headers.items()),
+            )
 
     async def stream_sse(
         self,
@@ -154,62 +127,22 @@ class SafeHttpTransport:
         api_format: ApiFormat,
         retryable: bool = False,
     ) -> AsyncIterator[UpstreamSseEvent]:
-        if self._session is None:
-            raise RuntimeError("SafeHttpTransport 尚未启动")
-
-        current_url = self._validate_full_url(url)
-        current_method = method.upper()
         body = orjson.dumps(payload) if payload is not None else None
         request_headers = dict(headers)
         request_headers.setdefault("Accept", "text/event-stream")
         if body is not None:
             request_headers.setdefault("Content-Type", "application/json")
-
-        started = time.perf_counter()
-        try:
-            for redirect_count in range(self._settings.max_redirects + 1):
-                async with self._session.request(
-                    current_method,
-                    current_url,
-                    headers=request_headers,
-                    data=body,
-                    timeout=self._timeout(read_timeout),
-                    allow_redirects=False,
-                ) as response:
-                    redirected = self._redirect_target(
-                        current_url,
-                        response,
-                        redirect_count,
-                        api_format,
-                        retryable,
-                    )
-                    if redirected is not None:
-                        current_url = redirected
-                        continue
-                    if not 200 <= response.status < 300:
-                        data = await self._read_json(response, api_format, retryable)
-                        raise_for_upstream_status(
-                            status=response.status,
-                            data=data,
-                            api_format=api_format,
-                            retryable=retryable,
-                        )
-                    if not _is_event_stream(response.headers.get("Content-Type")):
-                        data = await self._read_json(response, api_format, retryable)
-                        yield UpstreamSseEvent(event=None, data=data)
-                    else:
-                        async for event in self._iter_sse(response, api_format):
-                            yield event
-                    self._log_completion(started, api_format, current_url, response.status)
-                    return
-        except (ApplicationError, SecurityError):
-            raise
-        except (TimeoutError, aiohttp.ServerTimeoutError) as exc:
-            raise self._timeout_error(api_format, retryable) from exc
-        except (aiohttp.ClientConnectionError, aiohttp.ClientError, OSError) as exc:
-            raise self._connection_error(exc, api_format, retryable) from exc
-
-        raise self._unexpected_redirect_error(api_format)
+        async with self._request(
+            method=method,
+            url=url,
+            headers=request_headers,
+            body=body,
+            read_timeout=read_timeout,
+            api_format=api_format,
+            retryable=retryable,
+        ) as response:
+            async for event in self._stream_response(response, api_format, retryable):
+                yield event
 
     async def request_multipart_json(
         self,
@@ -222,47 +155,20 @@ class SafeHttpTransport:
         api_format: ApiFormat,
         retryable: bool = False,
     ) -> UpstreamResponse:
-        if self._session is None:
-            raise RuntimeError("SafeHttpTransport 尚未启动")
-
-        current_url = self._validate_full_url(url)
-        current_method = method.upper()
-        started = time.perf_counter()
-        try:
-            for redirect_count in range(self._settings.max_redirects + 1):
-                async with self._session.request(
-                    current_method,
-                    current_url,
-                    headers=dict(headers),
-                    data=_aiohttp_form(form),
-                    timeout=self._timeout(read_timeout),
-                    allow_redirects=False,
-                ) as response:
-                    redirected = self._redirect_target(
-                        current_url,
-                        response,
-                        redirect_count,
-                        api_format,
-                        retryable,
-                    )
-                    if redirected is not None:
-                        current_url = redirected
-                        continue
-                    data = await self._read_json(response, api_format, retryable)
-                    self._log_completion(started, api_format, current_url, response.status)
-                    return UpstreamResponse(
-                        status=response.status,
-                        data=data,
-                        headers=dict(response.headers.items()),
-                    )
-        except (ApplicationError, SecurityError):
-            raise
-        except (TimeoutError, aiohttp.ServerTimeoutError) as exc:
-            raise self._timeout_error(api_format, retryable) from exc
-        except (aiohttp.ClientConnectionError, aiohttp.ClientError, OSError) as exc:
-            raise self._connection_error(exc, api_format, retryable) from exc
-
-        raise self._unexpected_redirect_error(api_format)
+        async with self._request(
+            method=method,
+            url=url,
+            headers=headers,
+            body=form,
+            read_timeout=read_timeout,
+            api_format=api_format,
+            retryable=retryable,
+        ) as response:
+            return UpstreamResponse(
+                status=response.status,
+                data=await self._read_json(response, api_format, retryable),
+                headers=dict(response.headers.items()),
+            )
 
     async def stream_multipart_sse(
         self,
@@ -275,58 +181,18 @@ class SafeHttpTransport:
         api_format: ApiFormat,
         retryable: bool = False,
     ) -> AsyncIterator[UpstreamSseEvent]:
-        if self._session is None:
-            raise RuntimeError("SafeHttpTransport 尚未启动")
-
-        current_url = self._validate_full_url(url)
-        current_method = method.upper()
-        request_headers = dict(headers)
-        request_headers.setdefault("Accept", "text/event-stream")
-        started = time.perf_counter()
-        try:
-            for redirect_count in range(self._settings.max_redirects + 1):
-                async with self._session.request(
-                    current_method,
-                    current_url,
-                    headers=request_headers,
-                    data=_aiohttp_form(form),
-                    timeout=self._timeout(read_timeout),
-                    allow_redirects=False,
-                ) as response:
-                    redirected = self._redirect_target(
-                        current_url,
-                        response,
-                        redirect_count,
-                        api_format,
-                        retryable,
-                    )
-                    if redirected is not None:
-                        current_url = redirected
-                        continue
-                    if not 200 <= response.status < 300:
-                        data = await self._read_json(response, api_format, retryable)
-                        raise_for_upstream_status(
-                            status=response.status,
-                            data=data,
-                            api_format=api_format,
-                            retryable=retryable,
-                        )
-                    if not _is_event_stream(response.headers.get("Content-Type")):
-                        data = await self._read_json(response, api_format, retryable)
-                        yield UpstreamSseEvent(event=None, data=data)
-                    else:
-                        async for event in self._iter_sse(response, api_format):
-                            yield event
-                    self._log_completion(started, api_format, current_url, response.status)
-                    return
-        except (ApplicationError, SecurityError):
-            raise
-        except (TimeoutError, aiohttp.ServerTimeoutError) as exc:
-            raise self._timeout_error(api_format, retryable) from exc
-        except (aiohttp.ClientConnectionError, aiohttp.ClientError, OSError) as exc:
-            raise self._connection_error(exc, api_format, retryable) from exc
-
-        raise self._unexpected_redirect_error(api_format)
+        request_headers = {"Accept": "text/event-stream", **headers}
+        async with self._request(
+            method=method,
+            url=url,
+            headers=request_headers,
+            body=form,
+            read_timeout=read_timeout,
+            api_format=api_format,
+            retryable=retryable,
+        ) as response:
+            async for event in self._stream_response(response, api_format, retryable):
+                yield event
 
     async def download(
         self,
@@ -336,64 +202,116 @@ class SafeHttpTransport:
         max_bytes: int,
         api_format: ApiFormat,
     ) -> DownloadedContent:
+        async with self._request(
+            method="GET",
+            url=url,
+            headers={"Accept": "image/png,image/jpeg,image/webp"},
+            body=None,
+            read_timeout=read_timeout,
+            api_format=api_format,
+            media_download=True,
+        ) as response:
+            if not 200 <= response.status < 300:
+                data = await self._read_json(response, api_format, False)
+                raise_for_upstream_status(
+                    status=response.status,
+                    data=data,
+                    api_format=api_format,
+                )
+            if response.content_length is not None and response.content_length > max_bytes:
+                raise _image_download_too_large(api_format)
+            body = bytearray()
+            async for chunk in response.content.iter_chunked(1024 * 1024):
+                body.extend(chunk)
+                if len(body) > max_bytes:
+                    raise _image_download_too_large(api_format)
+            content_type = response.headers.get("Content-Type")
+            return DownloadedContent(
+                data=bytes(body),
+                content_type=content_type.split(";", maxsplit=1)[0].strip().lower()
+                if content_type
+                else None,
+                filename=response.url.name or None,
+            )
+
+    @asynccontextmanager
+    async def _request(
+        self,
+        *,
+        method: str,
+        url: URL,
+        headers: dict[str, str],
+        body: bytes | MultipartForm | None,
+        read_timeout: float,
+        api_format: ApiFormat,
+        retryable: bool = False,
+        media_download: bool = False,
+    ) -> AsyncIterator[aiohttp.ClientResponse]:
         if self._session is None:
             raise RuntimeError("SafeHttpTransport 尚未启动")
-
         current_url = self._validate_full_url(url)
         started = time.perf_counter()
+        redirect_count = 0
         try:
-            for redirect_count in range(self._settings.max_redirects + 1):
+            while True:
                 async with self._session.request(
-                    "GET",
+                    method.upper(),
                     current_url,
-                    headers={"Accept": "image/png,image/jpeg,image/webp"},
+                    headers=headers,
+                    data=_aiohttp_form(body) if isinstance(body, MultipartForm) else body,
                     timeout=self._timeout(read_timeout),
                     allow_redirects=False,
                 ) as response:
-                    redirected = self._download_redirect_target(
-                        current_url,
-                        response,
-                        redirect_count,
-                        api_format,
+                    redirected = (
+                        self._download_redirect_target(
+                            current_url,
+                            response,
+                            redirect_count,
+                            api_format,
+                        )
+                        if media_download
+                        else self._redirect_target(
+                            current_url,
+                            response,
+                            redirect_count,
+                            api_format,
+                            retryable,
+                        )
                     )
                     if redirected is not None:
                         current_url = redirected
+                        redirect_count += 1
                         continue
-                    if not 200 <= response.status < 300:
-                        data = await self._read_json(response, api_format, False)
-                        raise_for_upstream_status(
-                            status=response.status,
-                            data=data,
-                            api_format=api_format,
-                        )
-                    content_length = response.content_length
-                    if content_length is not None and content_length > max_bytes:
-                        raise _image_download_too_large(api_format)
-                    body = bytearray()
-                    async for chunk in response.content.iter_chunked(1024 * 1024):
-                        body.extend(chunk)
-                        if len(body) > max_bytes:
-                            raise _image_download_too_large(api_format)
+                    yield response
                     self._log_completion(started, api_format, current_url, response.status)
-                    content_type = response.headers.get("Content-Type")
-                    normalized_content_type = (
-                        content_type.split(";", maxsplit=1)[0].strip().lower()
-                        if content_type
-                        else None
-                    )
-                    return DownloadedContent(
-                        data=bytes(body),
-                        content_type=normalized_content_type,
-                        filename=current_url.name or None,
-                    )
-        except (ApplicationError, SecurityError):
-            raise
-        except (TimeoutError, aiohttp.ServerTimeoutError) as exc:
-            raise self._timeout_error(api_format, False) from exc
-        except (aiohttp.ClientConnectionError, aiohttp.ClientError, OSError) as exc:
-            raise self._connection_error(exc, api_format, False) from exc
+                    return
+        except TimeoutError as exc:
+            raise self._timeout_error(api_format, retryable) from exc
+        except (aiohttp.ClientError, OSError) as exc:
+            raise self._connection_error(exc, api_format, retryable) from exc
 
-        raise self._unexpected_redirect_error(api_format)
+    async def _stream_response(
+        self,
+        response: aiohttp.ClientResponse,
+        api_format: ApiFormat,
+        retryable: bool,
+    ) -> AsyncIterator[UpstreamSseEvent]:
+        if not 200 <= response.status < 300:
+            data = await self._read_json(response, api_format, retryable)
+            raise_for_upstream_status(
+                status=response.status,
+                data=data,
+                api_format=api_format,
+                retryable=retryable,
+            )
+        if _is_event_stream(response.headers.get("Content-Type")):
+            async for event in self._iter_sse(response, api_format):
+                yield event
+        else:
+            yield UpstreamSseEvent(
+                event=None,
+                data=await self._read_json(response, api_format, retryable),
+            )
 
     def _timeout(self, read_timeout: float) -> aiohttp.ClientTimeout:
         return aiohttp.ClientTimeout(
@@ -468,8 +386,6 @@ class SafeHttpTransport:
     ) -> AsyncIterator[UpstreamSseEvent]:
         decoder = codecs.getincrementaldecoder("utf-8")()
         buffer = ""
-        fallback_blocks: list[str] = []
-        event_count = 0
         total_bytes = 0
 
         async for chunk in response.content.iter_any():
@@ -491,51 +407,13 @@ class SafeHttpTransport:
                 buffer = buffer[match.end() :]
                 event = _parse_sse_block(block)
                 if event is not None:
-                    event_count += 1
-                    fallback_blocks.clear()
                     yield event
-                elif event_count == 0:
-                    fallback_block = _sse_json_fallback_block(block)
-                    if fallback_block:
-                        fallback_blocks.append(fallback_block)
                 match = re.search(r"\r?\n\r?\n", buffer)
 
         buffer += decoder.decode(b"", final=True)
         event = _parse_sse_block(buffer)
         if event is not None:
             yield event
-            return
-        if event_count > 0:
-            return
-
-        fallback_block = _sse_json_fallback_block(buffer)
-        if fallback_block:
-            fallback_blocks.append(fallback_block)
-        fallback_body = "\n\n".join(fallback_blocks).strip()
-        if not fallback_body:
-            return
-        try:
-            data = orjson.loads(fallback_body)
-        except orjson.JSONDecodeError as exc:
-            raise ApplicationError(
-                code="invalidUpstreamEventStream",
-                category=ErrorCategory.UPSTREAM_ERROR,
-                message="上游声明了 SSE 响应，但返回内容既不是有效事件流也不是 JSON。",
-                http_status=502,
-                retryable=False,
-                api_format=api_format,
-                upstream_status=response.status,
-            ) from exc
-
-        logger.warning(
-            "upstream declared event stream but returned a JSON body",
-            extra={
-                "api_format": api_format.value,
-                "status": response.status,
-                "response_bytes": total_bytes,
-            },
-        )
-        yield UpstreamSseEvent(event=None, data=data)
 
     def _validate_full_url(self, url: URL) -> URL:
         validated = validate_http_url(url)
@@ -637,17 +515,6 @@ class SafeHttpTransport:
         )
 
     @staticmethod
-    def _unexpected_redirect_error(api_format: ApiFormat) -> ApplicationError:
-        return ApplicationError(
-            code="unexpectedRedirectState",
-            category=ErrorCategory.INTERNAL,
-            message="上游重定向处理进入了异常状态。",
-            http_status=500,
-            retryable=False,
-            api_format=api_format,
-        )
-
-    @staticmethod
     def _log_completion(
         started: float,
         api_format: ApiFormat,
@@ -680,7 +547,10 @@ def _aiohttp_form(form: MultipartForm) -> aiohttp.FormData:
 
 
 def _is_event_stream(content_type: str | None) -> bool:
-    return content_type is not None and "text/event-stream" in content_type.lower()
+    return (
+        content_type is not None
+        and content_type.split(";", maxsplit=1)[0].strip().lower() == "text/event-stream"
+    )
 
 
 def _image_download_too_large(api_format: ApiFormat) -> ApplicationError:
@@ -692,10 +562,6 @@ def _image_download_too_large(api_format: ApiFormat) -> ApplicationError:
         retryable=False,
         api_format=api_format,
     )
-
-
-def _sse_json_fallback_block(block: str) -> str:
-    return "\n".join(line for line in block.splitlines() if not line.startswith(":"))
 
 
 def _parse_sse_block(block: str) -> UpstreamSseEvent | None:

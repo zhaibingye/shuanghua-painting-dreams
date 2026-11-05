@@ -16,6 +16,7 @@ export function ChatComposer({
   busy,
   canStop,
   maskReady,
+  markupReady,
   canOpenMask,
   onPrompt,
   onImages,
@@ -31,6 +32,7 @@ export function ChatComposer({
   busy: boolean
   canStop: boolean
   maskReady: boolean
+  markupReady?: boolean
   canOpenMask: boolean
   onPrompt: (value: string) => void
   onImages: (images: DraftImage[]) => void
@@ -112,13 +114,13 @@ export function ChatComposer({
             {conversation.apiFormat === 'openaiImage' ? (
               <Button
                 size="sm"
-                variant={maskReady ? 'secondary' : 'ghost'}
+                variant={maskReady || markupReady ? 'secondary' : 'ghost'}
                 className="rounded-full"
                 icon={<Paintbrush className="size-4" />}
                 disabled={!canOpenMask || busy}
                 onClick={onOpenMask}
               >
-                {maskReady ? '遮罩已就绪' : '绘制遮罩'}
+                {markupReady ? '标注已就绪' : maskReady ? '遮罩已就绪' : '绘制遮罩 / 标注'}
               </Button>
             ) : null}
             <span className="ml-auto hidden text-xs text-[var(--ds-text-caption)] sm:inline">

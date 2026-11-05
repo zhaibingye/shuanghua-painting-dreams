@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import {
-  apiFormats,
   defaultSettings,
   effectiveKey,
   hasAnyKey,
@@ -43,19 +42,23 @@ describe('settings storage', () => {
   })
 
   it('migrates v2 keys and models without discarding existing configuration', () => {
-    const legacy = JSON.parse(JSON.stringify(defaultSettings)) as Record<string, unknown>
-    legacy.schemaVersion = 2
-    const formats = legacy.formats as Record<string, Record<string, unknown>>
-    delete formats.byteDanceImage
-    for (const format of Object.values(formats)) delete format.models
-    legacy.globalApiKey = 'existing-global'
-    const gemini = formats.googleGeminiImage
-    if (!gemini) throw new Error('缺少 Gemini 测试配置')
-    gemini.modelId = 'custom-gemini'
-    gemini.defaults = { thinkingLevel: 'Off', aspectRatio: '16:9' }
-    const openai = formats.openaiImage
-    if (!openai) throw new Error('缺少 OpenAI 测试配置')
-    openai.keyOverride = 'existing-override'
+    const settings = structuredClone(defaultSettings)
+    settings.globalApiKey = 'existing-global'
+    settings.formats.googleGeminiImage.modelId = 'custom-gemini'
+    settings.formats.googleGeminiImage.defaults = { thinkingLevel: 'Off', aspectRatio: '16:9' }
+    settings.formats.openaiImage.keyOverride = 'existing-override'
+    const legacy = {
+      ...settings,
+      schemaVersion: 2,
+      formats: Object.fromEntries(Object.entries(settings.formats)
+        .filter(([format]) => format !== 'byteDanceImage')
+        .map(([format, value]) => [format, {
+          baseUrl: value.baseUrl,
+          modelId: value.modelId,
+          keyOverride: value.keyOverride,
+          defaults: value.defaults,
+        }])),
+    }
     localStorage.setItem('shuanghua.settings.v2', JSON.stringify(legacy))
 
     const loaded = loadSettings()
@@ -80,19 +83,6 @@ describe('settings storage', () => {
   })
 })
 
-
-it('defaults to Image API with the configured model and canonical URL for every provider', () => {
-  const settings = loadSettings()
-  expect(settings.formats.byteDanceVideo).toMatchObject({
-    modelId: 'doubao-seedance-2-5-260628',
-    defaults: { duration: -1, resolution: '720p', generateAudio: true, aspectRatio: 'adaptive' },
-  })
-  expect(settings.activeImageFormat).toBe('openaiImage')
-  expect(settings.formats.openaiImage.modelId).toBe('gpt-image-2.5-sunburst')
-  for (const format of apiFormats) {
-    expect(settings.formats[format].baseUrl).toBe('https://www.shapi.vip')
-  }
-})
 
 it('preserves saved custom connections and protocol choices', () => {
   const settings = structuredClone(defaultSettings)

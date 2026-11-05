@@ -107,7 +107,13 @@ def _parse_response(data: Mapping[str, Any], api_format: ApiFormat) -> ImageResp
 def _base64_image(item: ImageData, default_mime_type: str) -> GeneratedImage:
     return GeneratedImage(
         mime_type=item.mime_type
-        or (f"image/{item.output_format}" if item.output_format else default_mime_type),
+        or (
+            "image/svg+xml"
+            if item.output_format == "svg"
+            else f"image/{item.output_format}"
+            if item.output_format
+            else default_mime_type
+        ),
         base64_data=item.b64_json,
         revised_prompt=item.revised_prompt,
     )

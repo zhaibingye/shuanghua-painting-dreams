@@ -549,17 +549,18 @@ export interface components {
             size: string;
             /**
              * 质量
-             * @description xhigh / max 需要 GPT Image 2.5。
+             * @description xhigh / max 需要 GPT Image 2.5 / 2.6。
              * @default auto
              * @enum {string}
              */
             quality: "auto" | "low" | "medium" | "high" | "xhigh" | "max";
             /**
              * 输出格式
+             * @description SVG / GIF 仅支持 GPT Image 2.6 文生图，生成期间不提供渐进预览。
              * @default png
              * @enum {string}
              */
-            outputFormat: "png" | "jpeg" | "webp";
+            outputFormat: "png" | "jpeg" | "webp" | "svg" | "gif";
             /**
              * 输出压缩
              * @default 100
@@ -581,6 +582,37 @@ export interface components {
              * @default 1
              */
             count: number;
+            /**
+             * 复杂度
+             * @description GPT Image 2.6 的构图规划量，独立于质量；auto 使用模型默认值 high。
+             * @default auto
+             * @enum {string}
+             */
+            complexity: "auto" | "low" | "medium" | "high";
+            /**
+             * SVG 编写模型（可选）
+             * @description 仅在上游已开通 SVG 模型选择时填写；留空使用上游默认配置。
+             * @default
+             */
+            svgModel: string;
+            /**
+             * SVG 编写推理强度
+             * @description 独立于图像复杂度；可用档位取决于所选编写模型，auto 使用其默认值。
+             * @default auto
+             * @enum {string}
+             */
+            svgReasoningEffort: "auto" | "none" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
+            /**
+             * 动画帧数
+             * @default 9
+             */
+            frameCount: number;
+            /**
+             * 每帧时长（毫秒）
+             * @description 仅 GIF 生效；上游按 10 毫秒取整。
+             * @default 200
+             */
+            frameDurationMs: number;
             /**
              * Moderation
              * @default auto
@@ -616,6 +648,8 @@ export interface components {
             /** Images */
             images: (components["schemas"]["DataUrlImageAsset"] | components["schemas"]["UrlImageAsset"])[];
             mask?: components["schemas"]["DataUrlImageAsset"] | null;
+            /** @description 与第一张输入图同尺寸的透明 PNG 标注层；不可与 mask 同时使用。 */
+            markup?: components["schemas"]["DataUrlImageAsset"] | null;
             options?: components["schemas"]["OpenAIImageEditOptions"];
         };
         /** OpenAIImageGenerationRequest */
@@ -643,17 +677,18 @@ export interface components {
             size: string;
             /**
              * 质量
-             * @description xhigh / max 需要 GPT Image 2.5。
+             * @description xhigh / max 需要 GPT Image 2.5 / 2.6。
              * @default auto
              * @enum {string}
              */
             quality: "auto" | "low" | "medium" | "high" | "xhigh" | "max";
             /**
              * 输出格式
+             * @description SVG / GIF 仅支持 GPT Image 2.6 文生图，生成期间不提供渐进预览。
              * @default png
              * @enum {string}
              */
-            outputFormat: "png" | "jpeg" | "webp";
+            outputFormat: "png" | "jpeg" | "webp" | "svg" | "gif";
             /**
              * 输出压缩
              * @default 100
@@ -675,6 +710,37 @@ export interface components {
              * @default 1
              */
             count: number;
+            /**
+             * 复杂度
+             * @description GPT Image 2.6 的构图规划量，独立于质量；auto 使用模型默认值 high。
+             * @default auto
+             * @enum {string}
+             */
+            complexity: "auto" | "low" | "medium" | "high";
+            /**
+             * SVG 编写模型（可选）
+             * @description 仅在上游已开通 SVG 模型选择时填写；留空使用上游默认配置。
+             * @default
+             */
+            svgModel: string;
+            /**
+             * SVG 编写推理强度
+             * @description 独立于图像复杂度；可用档位取决于所选编写模型，auto 使用其默认值。
+             * @default auto
+             * @enum {string}
+             */
+            svgReasoningEffort: "auto" | "none" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
+            /**
+             * 动画帧数
+             * @default 9
+             */
+            frameCount: number;
+            /**
+             * 每帧时长（毫秒）
+             * @description 仅 GIF 生效；上游按 10 毫秒取整。
+             * @default 200
+             */
+            frameDurationMs: number;
             /**
              * Moderation
              * @default auto
@@ -697,17 +763,18 @@ export interface components {
             size: string;
             /**
              * 质量
-             * @description xhigh / max 需要 GPT Image 2.5。
+             * @description xhigh / max 需要 GPT Image 2.5 / 2.6。
              * @default auto
              * @enum {string}
              */
             quality: "auto" | "low" | "medium" | "high" | "xhigh" | "max";
             /**
              * 输出格式
+             * @description SVG / GIF 仅支持 GPT Image 2.6 文生图，生成期间不提供渐进预览。
              * @default png
              * @enum {string}
              */
-            outputFormat: "png" | "jpeg" | "webp";
+            outputFormat: "png" | "jpeg" | "webp" | "svg" | "gif";
             /**
              * 输出压缩
              * @default 100
@@ -729,6 +796,37 @@ export interface components {
              * @default 1
              */
             count: number;
+            /**
+             * 复杂度
+             * @description GPT Image 2.6 的构图规划量，独立于质量；auto 使用模型默认值 high。
+             * @default auto
+             * @enum {string}
+             */
+            complexity: "auto" | "low" | "medium" | "high";
+            /**
+             * SVG 编写模型（可选）
+             * @description 仅在上游已开通 SVG 模型选择时填写；留空使用上游默认配置。
+             * @default
+             */
+            svgModel: string;
+            /**
+             * SVG 编写推理强度
+             * @description 独立于图像复杂度；可用档位取决于所选编写模型，auto 使用其默认值。
+             * @default auto
+             * @enum {string}
+             */
+            svgReasoningEffort: "auto" | "none" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
+            /**
+             * 动画帧数
+             * @default 9
+             */
+            frameCount: number;
+            /**
+             * 每帧时长（毫秒）
+             * @description 仅 GIF 生效；上游按 10 毫秒取整。
+             * @default 200
+             */
+            frameDurationMs: number;
             /**
              * Moderation
              * @default auto
@@ -764,6 +862,8 @@ export interface components {
             /** Sourceimages */
             sourceImages?: (components["schemas"]["DataUrlImageAsset"] | components["schemas"]["UrlImageAsset"])[];
             mask?: components["schemas"]["DataUrlImageAsset"] | null;
+            /** @description 与第一张输入图同尺寸的透明 PNG 标注层；不可与 mask 同时使用。 */
+            markup?: components["schemas"]["DataUrlImageAsset"] | null;
             options?: components["schemas"]["OpenAIImageTurnOptions"];
         };
         /** OpenAIResponsesImageCallHistoryItem */
@@ -792,7 +892,7 @@ export interface components {
             size: string;
             /**
              * 质量
-             * @description xhigh / max 需要 GPT Image 2.5。
+             * @description xhigh / max 需要 GPT Image 2.5 / 2.6。
              * @default auto
              * @enum {string}
              */

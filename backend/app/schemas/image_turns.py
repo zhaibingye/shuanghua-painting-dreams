@@ -59,6 +59,7 @@ OpenAIResponsesHistoryItem = Annotated[
 
 
 class OpenAIResponsesImageOptions(OpenAIImageOutputOptions):
+    output_format: Literal["png", "jpeg", "webp"] = Field(default="png", title="输出格式")
     size: str = Field(default="auto", min_length=3, max_length=32, title="尺寸")
     image_model: str = Field(
         default=DEFAULT_IMAGE_MODEL,
@@ -86,10 +87,19 @@ class OpenAIImageTurnRequest(UpstreamRequest):
     prompt: str = Field(min_length=1, max_length=32000)
     source_images: list[ImageAsset] = Field(default_factory=list, max_length=16)
     mask: DataUrlImageAsset | None = None
+    markup: DataUrlImageAsset | None = Field(
+        default=None,
+        description="与第一张输入图同尺寸的透明 PNG 标注层；不可与 mask 同时使用。",
+    )
     options: OpenAIImageTurnOptions = Field(default_factory=OpenAIImageTurnOptions)
 
     @model_validator(mode="after")
     def validate_mask_inputs(self) -> "OpenAIImageTurnRequest":
+        if self.markup is not None:
+            if self.mask is not None:
+                raise ValueError("标注图不能与遮罩同时使用")
+            if not self.source_images:
+                raise ValueError("标注编辑至少需要一张主编辑图片")
         if self.mask is not None and len(self.source_images) != 1:
             raise ValueError("遮罩编辑必须且只能包含一张主编辑图片")
         return self

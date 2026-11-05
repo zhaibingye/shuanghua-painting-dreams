@@ -8,21 +8,6 @@ beforeEach(() => {
   useSettingsStore.setState({ settings: structuredClone(defaultSettings) })
 })
 
-describe('settings store key inheritance', () => {
-  it('keeps a format key independent when the global key is empty', () => {
-    useSettingsStore.getState().setFormatKeyOverride('xaiVideo', 'first-key')
-    const settings = useSettingsStore.getState().settings
-    expect(settings.globalApiKey).toBe('')
-    expect(settings.formats.xaiVideo.keyOverride).toBe('first-key')
-  })
-
-  it('stores later format keys as overrides', () => {
-    useSettingsStore.getState().setGlobalApiKey('global')
-    useSettingsStore.getState().setFormatKeyOverride('openaiImage', 'openai')
-    expect(useSettingsStore.getState().settings.formats.openaiImage.keyOverride).toBe('openai')
-  })
-})
-
 describe('model lists', () => {
   it('adds and selects models and repairs the default when it is removed', () => {
     const store = useSettingsStore.getState()

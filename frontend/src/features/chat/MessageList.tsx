@@ -210,6 +210,7 @@ function ImageResultCard({
   onMask: (asset: StoredMediaAsset) => void
 }) {
   const url = useObjectUrl(asset.blob)
+  const editable = ['image/png', 'image/jpeg', 'image/webp'].includes(asset.mimeType ?? 'image/png')
   return (
     <div className="group overflow-hidden rounded-xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-layer-1)]">
       <div className="relative bg-[var(--ds-bg-hover)]">
@@ -218,8 +219,8 @@ function ImageResultCard({
       </div>
       <div className="flex flex-wrap items-center gap-1 border-t border-[var(--ds-border-light)] p-2">
         <Button size="sm" variant="ghost" icon={<Download className="size-3.5" />} onClick={() => asset.blob && downloadBlob(asset.blob, imageFilename(provider, asset.mimeType ?? 'image/png', index))}>下载</Button>
-        <Button size="sm" variant="ghost" icon={active ? <Check className="size-3.5" /> : <RotateCcw className="size-3.5" />} onClick={() => onSetActive(asset)}>{active ? '已选中' : '设为基图'}</Button>
-        {canMask ? <Button size="sm" variant="ghost" icon={<Pencil className="size-3.5" />} onClick={() => onMask(asset)}>遮罩编辑</Button> : null}
+        {editable ? <Button size="sm" variant="ghost" icon={active ? <Check className="size-3.5" /> : <RotateCcw className="size-3.5" />} onClick={() => onSetActive(asset)}>{active ? '已选中' : '设为基图'}</Button> : null}
+        {canMask && editable ? <Button size="sm" variant="ghost" icon={<Pencil className="size-3.5" />} onClick={() => onMask(asset)}>遮罩 / 标注编辑</Button> : null}
         <Button size="sm" variant="ghost" icon={<ArrowUpRight className="size-3.5" />} disabled={!url} onClick={() => url && window.open(url, '_blank', 'noopener,noreferrer')}>查看</Button>
       </div>
       {asset.revisedPrompt ? <details className="border-t border-[var(--ds-border-light)] px-3 py-2 text-xs text-[var(--ds-text-secondary)]"><summary className="cursor-pointer">优化后的提示词</summary><p className="mt-2 whitespace-pre-wrap leading-5">{asset.revisedPrompt}</p></details> : null}

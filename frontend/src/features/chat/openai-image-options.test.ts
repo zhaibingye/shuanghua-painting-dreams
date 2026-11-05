@@ -50,6 +50,19 @@ describe('OpenAI image presets', () => {
 })
 
 describe('OpenAI model options', () => {
+  it('recognizes 2.6 capabilities and small GIF frames without relaxing still-image limits', () => {
+    const capabilities = openAIImageCapabilities('gpt-image-2.6-sunburst')
+    expect(capabilities).toMatchObject({ complexity: true, markupEditing: true, customImageSize: true })
+    expect(capabilities.outputFormats).toEqual(['png', 'jpeg', 'webp', 'svg', 'gif'])
+    expect(capabilities.qualities).toContain('max')
+    expect(openAIImageSizeError('256x256', 'gpt-image-2.6-sunburst', 'gif')).toBeUndefined()
+    expect(openAIImageSizeError('256x256', 'gpt-image-2.6-sunburst', 'png')).toBeTruthy()
+    expect(openAIImageSizeError('255x256', 'gpt-image-2.6-sunburst', 'gif')).toBeTruthy()
+    expect(openAIImageCapabilities('gpt-image-2').outputFormats).not.toContain('svg')
+    expect(normalizeOpenAIImageOptions({ outputFormat: 'svg', count: 3 }, 'gpt-image-2.6-sunburst').count).toBe(1)
+    expect(normalizeOpenAIImageOptions({ outputFormat: 'gif', complexity: 'low' }, 'gpt-image-2')).toMatchObject({ outputFormat: 'png', complexity: 'auto' })
+  })
+
   it('enables max only for Image 2.5 including snapshots', () => {
     expect(openAIImageCapabilities('gpt-image-2.5-flare-2026-09-08').qualities).toContain('max')
     expect(openAIImageCapabilities('gpt-image-2').qualities).not.toContain('max')

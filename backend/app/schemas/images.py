@@ -49,9 +49,11 @@ class OpenAIImageOutputOptions(ApiModel):
         description="auto 或 WIDTHxHEIGHT",
     )
     quality: Literal["auto", "low", "medium", "high", "xhigh", "max"] = Field(
-        default="auto", title="质量", description="xhigh / max 需要 GPT Image 2.5。"
+        default="auto", title="质量", description="xhigh / max 需要 GPT Image 2.5 / 2.6。"
     )
-    output_format: Literal["png", "jpeg", "webp"] = Field(default="png", title="输出格式")
+    output_format: Literal["png", "jpeg", "webp", "svg", "gif"] = Field(
+        default="png", title="输出格式"
+    )
     output_compression: int = Field(default=100, ge=0, le=100, title="输出压缩")
     background: Literal["auto", "opaque", "transparent"] = Field(default="auto", title="背景")
 
@@ -62,13 +64,9 @@ class OpenAIImageOutputOptions(ApiModel):
         description="最多 128 字符；请使用用户标识的哈希值。",
     )
 
-    @field_validator("size")
-    @classmethod
-    def validate_size(cls, value: str) -> str:
-        return validate_image_size(value)
-
     @model_validator(mode="after")
     def validate_output_options(self) -> Self:
+        self.size = validate_image_size(self.size, animated=self.output_format == "gif")
         if self.background == "transparent" and self.output_format == "jpeg":
             raise ValueError("透明背景不能使用 JPEG 输出格式")
         return self
@@ -79,8 +77,53 @@ class OpenAIImageBaseOptions(OpenAIImageOutputOptions):
 
 
 class OpenAIImageOptions(OpenAIImageBaseOptions):
+    output_format: Literal["png", "jpeg", "webp", "svg", "gif"] = Field(
+        default="png",
+        title="输出格式",
+        description="SVG / GIF 仅支持 GPT Image 2.6 文生图，生成期间不提供渐进预览。",
+    )
+    complexity: Literal["auto", "low", "medium", "high"] = Field(
+        default="auto",
+        title="复杂度",
+        description="GPT Image 2.6 的构图规划量，独立于质量；auto 使用模型默认值 high。",
+    )
+    svg_model: str = Field(
+        default="",
+        max_length=256,
+        title="SVG 编写模型（可选）",
+        description="仅在上游已开通 SVG 模型选择时填写；留空使用上游默认配置。",
+    )
+    svg_reasoning_effort: Literal[
+        "auto", "none", "minimal", "low", "medium", "high", "xhigh", "max"
+    ] = Field(
+        default="auto",
+        title="SVG 编写推理强度",
+        description="独立于图像复杂度；可用档位取决于所选编写模型，auto 使用其默认值。",
+    )
+    frame_count: int = Field(default=9, ge=2, le=64, title="动画帧数")
+    frame_duration_ms: int = Field(
+        default=200,
+        ge=20,
+        le=2000,
+        title="每帧时长（毫秒）",
+        description="仅 GIF 生效；上游按 10 毫秒取整。",
+    )
     moderation: Literal["auto", "low"] = Field(default="auto", title="Moderation")
     partial_images: int = Field(default=2, ge=0, le=3, title="渐进预览数量")
+
+    @model_validator(mode="after")
+    def validate_generation_format(self) -> Self:
+        if self.output_format == "svg" and self.count != 1:
+            raise ValueError("SVG 输出只能生成一张图片")
+        if (
+            self.output_format == "svg"
+            and self.svg_reasoning_effort != "auto"
+            and not self.svg_model
+        ):
+            raise ValueError("指定 SVG 编写推理强度时必须填写 SVG 编写模型")
+        if self.output_format == "gif" and self.background == "transparent":
+            raise ValueError("GIF 输出不支持透明背景，请选择 auto 或 opaque")
+        return self
 
 
 class OpenAIImageEditOptions(OpenAIImageOptions):
@@ -189,10 +232,16 @@ class OpenAIImageEditRequest(UpstreamRequest):
     prompt: str = Field(min_length=1, max_length=32000)
     images: list[ImageAsset] = Field(min_length=1, max_length=16)
     mask: DataUrlImageAsset | None = None
+    markup: DataUrlImageAsset | None = Field(
+        default=None,
+        description="与第一张输入图同尺寸的透明 PNG 标注层；不可与 mask 同时使用。",
+    )
     options: OpenAIImageEditOptions = Field(default_factory=OpenAIImageEditOptions)
 
     @model_validator(mode="after")
     def validate_mask_inputs(self) -> "OpenAIImageEditRequest":
+        if self.markup is not None and self.mask is not None:
+            raise ValueError("标注图不能与遮罩同时使用")
         if self.mask is not None and len(self.images) != 1:
             raise ValueError("遮罩编辑只能包含一张主编辑图片")
         return self

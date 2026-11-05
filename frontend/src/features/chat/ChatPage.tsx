@@ -47,6 +47,8 @@ import { normalizeByteDanceOptions, resolveModelCapabilities } from './model-cap
 import {
   openAIResponsesImageModel,
   openAIImageSizeError,
+  openAIImageCapabilities,
+  normalizeOpenAIImageOptions,
 } from './openai-image-options'
 import { ParametersDialog } from './ParametersDialog'
 import {
@@ -77,6 +79,7 @@ export function ChatPage({ onOpenSidebar }: { onOpenSidebar: () => void }) {
   const [videoBusy, setVideoBusy] = useState(false)
   const videoBusyRef = useRef(false)
   const [maskDataUrl, setMaskDataUrl] = useState<string | null>(null)
+  const [markupDataUrl, setMarkupDataUrl] = useState<string | null>(null)
   const [maskSource, setMaskSource] = useState<{
     url: string
     width: number
@@ -107,6 +110,7 @@ export function ChatPage({ onOpenSidebar }: { onOpenSidebar: () => void }) {
     setPrompt('')
     setVideoDraft({ ...defaultVideoDraft })
     setMaskDataUrl(null)
+    setMarkupDataUrl(null)
     setParametersOpen(false)
     setImages((current) => {
       revokeDraftImages(current)
@@ -117,6 +121,12 @@ export function ChatPage({ onOpenSidebar }: { onOpenSidebar: () => void }) {
   useEffect(() => {
     if (currentApiFormat !== 'byteDanceVideo' || !currentModelId) return
     setTurnOptions((current) => normalizeByteDanceOptions(current, currentModelId))
+  }, [currentApiFormat, currentConversationId, currentModelId])
+
+  useEffect(() => {
+    if (currentApiFormat !== 'openaiImage' || !currentModelId) return
+    setTurnOptions((current) => normalizeOpenAIImageOptions(current, currentModelId))
+    if (!openAIImageCapabilities(currentModelId).markupEditing) setMarkupDataUrl(null)
   }, [currentApiFormat, currentConversationId, currentModelId])
 
   useEffect(
@@ -165,7 +175,13 @@ export function ChatPage({ onOpenSidebar }: { onOpenSidebar: () => void }) {
       ? imagePreparing || activeImageTask !== null
       : videoBusy
   const setOption = (name: string, value: unknown) => {
-    const next = { ...turnOptions, [name]: value }
+    const changed = { ...turnOptions, [name]: value }
+    if (conversation.apiFormat === 'openaiImage' && name === 'outputFormat' && value === 'gif') {
+      changed.size = 'auto'
+      if (changed.background === 'transparent') changed.background = 'auto'
+    }
+    const next = conversation.apiFormat === 'openaiImage'
+      ? normalizeOpenAIImageOptions(changed, conversation.modelId) : changed
     setTurnOptions(next)
     updateFormat(conversation.apiFormat, { defaults: next })
   }
@@ -178,7 +194,7 @@ export function ChatPage({ onOpenSidebar }: { onOpenSidebar: () => void }) {
     }
     if (conversation.apiFormat === 'openaiImage' || conversation.apiFormat === 'openaiResponsesImage') {
       const imageModel = conversation.apiFormat === 'openaiImage' ? conversation.modelId : openAIResponsesImageModel(turnOptions)
-      const error = openAIImageSizeError(typeof turnOptions.size === 'string' ? turnOptions.size : 'auto', imageModel)
+      const error = openAIImageSizeError(typeof turnOptions.size === 'string' ? turnOptions.size : 'auto', imageModel, typeof turnOptions.outputFormat === 'string' ? turnOptions.outputFormat : 'png')
       if (error) {
         toast.error(error)
         setParametersOpen(true)
@@ -219,6 +235,7 @@ export function ChatPage({ onOpenSidebar }: { onOpenSidebar: () => void }) {
         draftImages,
         turnOptions,
         maskDataUrl,
+        markupDataUrl,
       })
       const now = new Date().toISOString()
       const userMessageId = `msg_${crypto.randomUUID()}`
@@ -284,6 +301,7 @@ export function ChatPage({ onOpenSidebar }: { onOpenSidebar: () => void }) {
         setPrompt('')
         setImages([])
         setMaskDataUrl(null)
+        setMarkupDataUrl(null)
       }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : '图片任务创建失败')
@@ -444,14 +462,17 @@ export function ChatPage({ onOpenSidebar }: { onOpenSidebar: () => void }) {
   }
 
   const setActiveImage = async (asset: StoredMediaAsset) => {
-    await updateConversation(conversation.id, { activeImageAssetId: asset.id })
+    await updateConversation(conversation.id, { activeImageAssetId: conversation.activeImageAssetId === asset.id ? null : asset.id })
     setMaskDataUrl(null)
-    toast.success('已设为下一轮编辑基图')
+    setMarkupDataUrl(null)
+    toast.success(conversation.activeImageAssetId === asset.id ? '已取消编辑基图' : '已设为下一轮编辑基图')
   }
 
   const openMaskForAsset = (asset: StoredMediaAsset) => {
     if (!asset.blob || !asset.width || !asset.height) return
     if (maskSource?.ownedUrl) URL.revokeObjectURL(maskSource.url)
+    setMaskDataUrl(null)
+    setMarkupDataUrl(null)
     setMaskSource({
       url: URL.createObjectURL(asset.blob),
       width: asset.width,
@@ -545,11 +566,13 @@ export function ChatPage({ onOpenSidebar }: { onOpenSidebar: () => void }) {
         videoDraft={videoDraft}
         busy={busy}
         maskReady={Boolean(maskDataUrl)}
+        markupReady={Boolean(markupDataUrl)}
         canOpenMask={canOpenMask}
         onPrompt={setPrompt}
         onImages={(next) => {
           setImages(next)
           setMaskDataUrl(null)
+          setMarkupDataUrl(null)
         }}
         onSubmit={submit}
         onStop={() => activeImageTask && cancelImageTask(activeImageTask.id)}
@@ -579,7 +602,9 @@ export function ChatPage({ onOpenSidebar }: { onOpenSidebar: () => void }) {
             if (maskSource.ownedUrl) URL.revokeObjectURL(maskSource.url)
             setMaskSource(null)
           }}
-          onConfirm={setMaskDataUrl}
+          onConfirm={(dataUrl) => { setMaskDataUrl(dataUrl); setMarkupDataUrl(null) }}
+          onConfirmMarkup={openAIImageCapabilities(conversation.modelId).markupEditing
+            ? (dataUrl) => { setMarkupDataUrl(dataUrl); setMaskDataUrl(null) } : undefined}
         />
       ) : null}
     </div>

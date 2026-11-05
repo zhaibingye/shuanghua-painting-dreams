@@ -13,6 +13,28 @@ function conversation(format: ApiFormat): StoredConversation {
 beforeEach(clearWorkspace)
 
 describe('image turn contract', () => {
+  it('sends a separate markup asset and retains 2.6 animation controls', async () => {
+    const current = { ...conversation('openaiImage'), modelId: 'gpt-image-2.6-sunburst' }
+    const markup = 'data:image/png;base64,iVBORw0KGgo='
+    const request = await buildImageTurnRequest({ conversation: current,
+      previousMessages: [], prompt: 'make the circled vase blue',
+      draftImages: [{ id: 'ref', kind: 'url', url: 'https://example.com/a.png' }],
+      turnOptions: { complexity: 'low' }, maskDataUrl: null, markupDataUrl: markup })
+    expect(request).toMatchObject({ markup: { kind: 'dataUrl', dataUrl: markup, filename: 'markup.png' },
+      mask: null, options: { complexity: 'low' } })
+    const animation = await buildImageTurnRequest({ conversation: current,
+      previousMessages: [], prompt: 'looping lantern', draftImages: [], maskDataUrl: null,
+      turnOptions: { outputFormat: 'gif', size: '256x256', frameCount: 64, frameDurationMs: 120 } })
+    expect(animation.options).toMatchObject({ outputFormat: 'gif', size: '256x256', frameCount: 64, frameDurationMs: 120 })
+  })
+
+  it.each(['svg', 'gif'])('rejects reference images for %s before submission', async (outputFormat) => {
+    await expect(buildImageTurnRequest({ conversation: { ...conversation('openaiImage'), modelId: 'gpt-image-2.6-sunburst' },
+      previousMessages: [], prompt: 'snow', draftImages: [{ id: 'ref', kind: 'url', url: 'https://example.com/a.png' }],
+      turnOptions: { outputFormat }, maskDataUrl: null,
+    })).rejects.toThrow('仅支持文生图')
+  })
+
   it('builds Seedream requests with reference images and schema defaults', async () => {
     const request = await buildImageTurnRequest({ conversation: conversation('byteDanceImage'),
       previousMessages: [], prompt: 'snow', draftImages: [{ id: 'ref', kind: 'url', url: 'https://example.com/a.png' }],

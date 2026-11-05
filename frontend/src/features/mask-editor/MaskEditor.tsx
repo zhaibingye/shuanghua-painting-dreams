@@ -3,7 +3,7 @@ import { Eraser, Paintbrush, Redo2, RotateCcw, Trash2, Undo2, X } from 'lucide-r
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { Button } from '../../components/ui/Button'
-import { Input } from '../../components/ui/Field'
+import { Input, Select } from '../../components/ui/Field'
 
 type Point = { x: number; y: number }
 type Stroke = { kind: 'stroke'; mode: 'paint' | 'erase'; brushSize: number; points: Point[] }
@@ -16,6 +16,7 @@ type MaskEditorProps = {
   height: number
   onOpenChange: (open: boolean) => void
   onConfirm: (maskDataUrl: string) => void
+  onConfirmMarkup?: (markupDataUrl: string) => void
 }
 
 export function MaskEditor({
@@ -25,6 +26,7 @@ export function MaskEditor({
   height,
   onOpenChange,
   onConfirm,
+  onConfirmMarkup,
 }: MaskEditorProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const currentStroke = useRef<Stroke | null>(null)
@@ -33,6 +35,7 @@ export function MaskEditor({
   })
   const { actions, redoActions } = history
   const [mode, setMode] = useState<'paint' | 'erase'>('paint')
+  const [editMode, setEditMode] = useState<'mask' | 'markup'>('mask')
   const [brushSize, setBrushSize] = useState(Math.max(8, Math.round(Math.min(width, height) / 30)))
 
   const render = useCallback(
@@ -118,7 +121,20 @@ export function MaskEditor({
     const context = canvas.getContext('2d', { willReadFrequently: true })
     if (!context) return
     const overlay = context.getImageData(0, 0, width, height)
-    let painted = false
+    const painted = overlay.data.some((alpha, index) => index % 4 === 3 && alpha > 0)
+    if (!painted) {
+      window.alert('请先涂抹至少一个需要编辑的区域。')
+      return
+    }
+    if (editMode === 'markup' && onConfirmMarkup) {
+      if (!overlay.data.some((alpha, index) => index % 4 === 3 && alpha === 0)) {
+        window.alert('标注层必须保留透明区域，请擦除部分标注。')
+        return
+      }
+      onConfirmMarkup(canvas.toDataURL('image/png'))
+      onOpenChange(false)
+      return
+    }
     const output = document.createElement('canvas')
     output.width = width
     output.height = height
@@ -127,15 +143,10 @@ export function MaskEditor({
     const mask = outputContext.createImageData(width, height)
     for (let index = 0; index < overlay.data.length; index += 4) {
       const selected = (overlay.data[index + 3] ?? 0) > 0
-      painted ||= selected
       mask.data[index] = 255
       mask.data[index + 1] = 255
       mask.data[index + 2] = 255
       mask.data[index + 3] = selected ? 0 : 255
-    }
-    if (!painted) {
-      window.alert('请先涂抹至少一个需要编辑的区域。')
-      return
     }
     outputContext.putImageData(mask, 0, 0)
     onConfirm(output.toDataURL('image/png'))
@@ -149,12 +160,16 @@ export function MaskEditor({
         <Dialog.Content className="ds-mask-editor">
           <header className="mask-header">
             <div>
-              <Dialog.Title className="font-semibold text-[var(--ds-text-primary)]">OpenAI 遮罩编辑器</Dialog.Title>
+              <Dialog.Title className="font-semibold text-[var(--ds-text-primary)]">{editMode === 'markup' ? 'OpenAI 标注编辑器' : 'OpenAI 遮罩编辑器'}</Dialog.Title>
               <Dialog.Description className="text-xs text-[var(--ds-text-secondary)]">
-                涂抹需要模型重新绘制的区域。
+                {editMode === 'markup' ? '用画笔圈选或勾画修改位置，并在消息中描述修改要求。' : '涂抹需要模型重新绘制的区域。'}
               </Dialog.Description>
             </div>
             <div className="mask-controls ds-scroll">
+              {onConfirmMarkup ? <Select aria-label="编辑方式" value={editMode} onChange={(event) => setEditMode(event.target.value as 'mask' | 'markup')}>
+                <option value="mask">遮罩重绘</option>
+                <option value="markup">标注引导</option>
+              </Select> : null}
               <Button
                 size="sm"
                 variant={mode === 'paint' ? 'primary' : 'secondary'}
@@ -227,13 +242,13 @@ export function MaskEditor({
 
           <footer className="mask-footer">
             <span className="text-xs text-[var(--ds-text-secondary)]">
-              输出尺寸 {width} × {height}，透明区域为编辑区域。
+              输出尺寸 {width} × {height}，{editMode === 'markup' ? '透明 PNG 标注层与原图分开提交。' : '透明区域为编辑区域。'}
             </span>
             <div className="flex gap-2">
               <Dialog.Close asChild>
                 <Button variant="secondary">取消</Button>
               </Dialog.Close>
-              <Button onClick={confirm}>应用遮罩</Button>
+              <Button onClick={confirm}>{editMode === 'markup' ? '应用标注' : '应用遮罩'}</Button>
             </div>
           </footer>
         </Dialog.Content>

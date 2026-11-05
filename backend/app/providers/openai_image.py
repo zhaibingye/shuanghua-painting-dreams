@@ -29,6 +29,7 @@ from app.schemas.images import (
     OpenAIImageEditOptions,
     OpenAIImageEditRequest,
     OpenAIImageGenerationRequest,
+    OpenAIImageOptions,
 )
 
 _PARTIAL_EVENTS = {"image_generation.partial_image", "image_edit.partial_image"}
@@ -70,6 +71,7 @@ class OpenAIImageAdapter:
             prompt=request.prompt,
             images=request.images,
             mask=request.mask,
+            markup=request.markup,
             options=request.options,
         )
         response = await self._transport.request_multipart_json(
@@ -88,8 +90,26 @@ class OpenAIImageAdapter:
         request: OpenAIImageTurnRequest,
         api_key: str,
     ) -> AsyncIterator[ImageStreamChunk]:
-        if request.source_images or request.mask is not None:
+        if request.source_images or request.mask is not None or request.markup is not None:
             raise ValueError("OpenAI 流式生成请求不能包含参考图或遮罩。")
+
+        # Keep the app's SSE interface while using the required non-streaming
+        # upstream protocol for vector and animated output.
+        if request.options.output_format in {"svg", "gif"}:
+            result = await self.generate(
+                OpenAIImageGenerationRequest(
+                    api_format=request.api_format,
+                    base_url=request.base_url,
+                    model_id=request.model_id,
+                    prompt=request.prompt,
+                    options=request.options,
+                ),
+                api_key,
+            )
+            for index, image in enumerate(result.images):
+                yield ImageStreamChunk(kind="completed", image=image, image_index=index)
+            yield ImageStreamChunk(kind="done", usage=result.usage)
+            return
 
         payload: dict[str, Any] = {
             "model": request.model_id,
@@ -119,6 +139,7 @@ class OpenAIImageAdapter:
             prompt=request.prompt,
             images=request.source_images,
             mask=request.mask,
+            markup=request.markup,
             options=request.options,
         )
         form = MultipartForm(
@@ -230,6 +251,17 @@ class OpenAIImageAdapter:
             payload["output_compression"] = options.output_compression
         if options.safety_identifier:
             payload["safety_identifier"] = options.safety_identifier
+        if isinstance(options, OpenAIImageOptions):
+            if options.complexity != "auto":
+                payload["complexity"] = options.complexity
+            if options.output_format == "svg" and options.svg_model:
+                svg: dict[str, Any] = {"model": options.svg_model}
+                if options.svg_reasoning_effort != "auto":
+                    svg["reasoning"] = {"effort": options.svg_reasoning_effort}
+                payload["svg"] = svg
+            if options.output_format == "gif":
+                payload["frame_count"] = options.frame_count
+                payload["frame_duration_ms"] = options.frame_duration_ms
         return payload
 
     async def _edit_form(
@@ -239,6 +271,7 @@ class OpenAIImageAdapter:
         prompt: str,
         images: list[ImageAsset],
         mask: DataUrlImageAsset | None,
+        markup: DataUrlImageAsset | None,
         options: OpenAIImageEditOptions,
     ) -> MultipartForm:
         prepared_images = [
@@ -265,6 +298,16 @@ class OpenAIImageAdapter:
                 )
             )
 
+        if markup is not None:
+            filename, mime_type, data = await self._prepare_image(markup, index=0)
+            if mime_type != "image/png":
+                raise _invalid_image_input("OpenAI 标注层必须是透明 PNG 图片。")
+            files.append(
+                MultipartFile(
+                    field_name="markup", filename=filename, content_type=mime_type, data=data
+                )
+            )
+
         fields: list[tuple[str, str]] = [
             ("model", model_id),
             ("prompt", prompt),
@@ -281,6 +324,8 @@ class OpenAIImageAdapter:
             fields.append(("safety_identifier", options.safety_identifier))
         if options.input_fidelity != "auto":
             fields.append(("input_fidelity", options.input_fidelity))
+        if options.complexity != "auto":
+            fields.append(("complexity", options.complexity))
         return MultipartForm(fields=tuple(fields), files=tuple(files))
 
     async def _prepare_image(
@@ -369,6 +414,10 @@ def _event_type(event_name: str | None, data: Mapping[str, Any]) -> str:
 
 
 def _mime_type(output_format: str) -> str:
+    if output_format == "svg":
+        return "image/svg+xml"
+    if output_format == "gif":
+        return "image/gif"
     if output_format == "jpeg":
         return "image/jpeg"
     if output_format == "webp":

@@ -6,7 +6,6 @@ import type { StoredConversation } from '../../storage/db'
 import { isPublicHttpUrl } from '../../utils/url'
 import { draftToApiAsset, type DraftImage } from './image-turn'
 import {
-  clampByteDanceResolution,
   normalizeByteDanceOptions,
   resolveByteDanceVideoCapabilities,
   XAI_VIDEO_RESOLUTIONS,
@@ -88,6 +87,9 @@ export function validateVideoTurn(options: {
     return null
   }
 
+  if (draft.xaiMode === 'referenceToVideo' && parseList(draft.voiceIds).length > 3) {
+    return '多参考生视频最多支持 3 个音色 ID。'
+  }
   const promptRequired = draft.xaiMode !== 'firstFrameToVideo'
   if (promptRequired && !prompt.trim()) return '当前视频模式必须填写提示词。'
   if (draft.xaiMode === 'firstFrameToVideo' && images.length === 0) {
@@ -146,15 +148,15 @@ export function buildVideoGenerationRequest(options: {
             : null,
       },
       options: {
-        duration: numberOption(byteOptions, 'duration', 5),
-        resolution: clampByteDanceResolution(turnOptions.resolution, conversation.modelId),
+        duration: byteOptions.duration,
+        resolution: byteOptions.resolution,
         aspectRatio: frameMode && capabilities.frameAspectRatios ? 'adaptive' : enumOption(
           turnOptions,
           'aspectRatio',
           ['16:9', '4:3', '1:1', '3:4', '9:16', '21:9', 'adaptive'],
           conversation.modelId.startsWith('doubao-seedance-1-0-') && draft.byteMode === 'textToVideo' ? '16:9' : 'adaptive',
         ),
-        generateAudio: booleanOption(byteOptions, 'generateAudio', false),
+        generateAudio: byteOptions.generateAudio,
         watermark: booleanOption(turnOptions, 'watermark', false),
         seed: numberOption(turnOptions, 'seed', -1),
         returnLastFrame: booleanOption(turnOptions, 'returnLastFrame', false),
@@ -181,7 +183,7 @@ export function buildVideoGenerationRequest(options: {
       firstFrame: draft.xaiMode === 'firstFrameToVideo' ? apiImages[0] ?? null : null,
       referenceImages: draft.xaiMode === 'referenceToVideo' ? apiImages : [],
       voiceIds:
-        draft.xaiMode === 'referenceToVideo' ? parseList(draft.voiceIds).slice(0, 3) : [],
+        draft.xaiMode === 'referenceToVideo' ? parseList(draft.voiceIds) : [],
     },
     options: {
       duration: numberOption(turnOptions, 'duration', 8),

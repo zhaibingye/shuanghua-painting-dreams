@@ -6,6 +6,7 @@ import { FieldShell, Input, Select, Textarea } from '../../components/ui/Field'
 import type { StoredConversation } from '../../storage/db'
 import { isImageFormat } from '../../storage/settings'
 import { ImageParameters } from './ImageParameters'
+import { resolveByteDanceVideoCapabilities } from './model-capabilities'
 import type { VideoDraft } from './video-turn'
 
 export function ParametersDialog({
@@ -58,6 +59,7 @@ export function ParametersDialog({
             ) : (
               <VideoParameters
                 format={conversation.apiFormat}
+                modelId={conversation.modelId}
                 options={options}
                 draft={videoDraft}
                 capabilities={modelCapabilities}
@@ -74,6 +76,7 @@ export function ParametersDialog({
 
 function VideoParameters({
   format,
+  modelId,
   options,
   draft,
   capabilities,
@@ -81,6 +84,7 @@ function VideoParameters({
   onDraft,
 }: {
   format: StoredConversation['apiFormat']
+  modelId: string
   options: Record<string, unknown>
   draft: VideoDraft
   capabilities: Record<string, unknown> | undefined
@@ -100,12 +104,12 @@ function VideoParameters({
   }
 
   if (format === 'byteDanceVideo') {
-    const durationMin = numberCapability(capabilities, 'durationMin', 2)
-    const durationMax = numberCapability(capabilities, 'durationMax', 15)
-    const resolutions = stringCapability(capabilities, 'resolutions', ['480p', '720p'])
-    const defaultDuration = numberCapability(capabilities, 'defaultDuration', 5)
+    const byteCapabilities = resolveByteDanceVideoCapabilities(modelId)
+    const { durationMin, durationMax, resolutions, defaultDuration } = byteCapabilities
+    const duration = num(options, 'duration', defaultDuration)
+    const automaticDuration = duration === -1
     const frameMode = draft.byteMode === 'firstFrameToVideo' || draft.byteMode === 'firstLastFrameToVideo'
-    const adaptiveOnly = frameMode && capabilities?.frameAspectRatios !== undefined
+    const adaptiveOnly = frameMode && byteCapabilities.frameAspectRatios !== undefined
     return (
       <ParameterGrid>
         <SelectField label="生成模式" value={draft.byteMode} values={['textToVideo', 'firstFrameToVideo', 'firstLastFrameToVideo', 'referenceToVideo']} labels={['文生视频', '首帧生视频', '首尾帧生视频', '参考素材生视频']} onChange={(value) => onDraft({ byteMode: value as VideoDraft['byteMode'] })} />
@@ -116,17 +120,17 @@ function VideoParameters({
           <FieldShell label="参考视频 URL"><Input value={draft.referenceVideoUrl} onChange={(event) => onDraft({ referenceVideoUrl: event.target.value })} /></FieldShell>
           <FieldShell label="参考音频 URL"><Input value={draft.referenceAudioUrl} onChange={(event) => onDraft({ referenceAudioUrl: event.target.value })} /></FieldShell>
         </> : null}
-        <NumberField label="时长（秒）" value={num(options, 'duration', defaultDuration) === -1 ? durationMin : num(options, 'duration', defaultDuration)} min={durationMin} max={durationMax} disabled={num(options, 'duration', defaultDuration) === -1} onChange={(value) => onOption('duration', value)} />
-        {capabilities?.automaticDuration === true ? <CheckField label="自动决定时长" checked={num(options, 'duration', defaultDuration) === -1} onChange={(value) => onOption('duration', value ? -1 : durationMin)} /> : null}
+        <NumberField label="时长（秒）" value={automaticDuration ? durationMin : duration} min={durationMin} max={durationMax} disabled={automaticDuration} onChange={(value) => onOption('duration', value)} />
+        {byteCapabilities.automaticDuration ? <CheckField label="自动决定时长" checked={automaticDuration} onChange={(value) => onOption('duration', value ? -1 : durationMin)} /> : null}
         <SelectField label="分辨率" value={text(options, 'resolution', '720p')} values={resolutions} onChange={(value) => onOption('resolution', value)} />
         <SelectField label="画面比例" value={adaptiveOnly ? 'adaptive' : text(options, 'aspectRatio', 'adaptive')} values={adaptiveOnly ? ['adaptive'] : ['adaptive', '16:9', '9:16', '1:1', '4:3', '3:4', '21:9']} onChange={(value) => onOption('aspectRatio', value)} />
-        {capabilities?.generateAudio === true ? <CheckField label="生成同步音频" checked={bool(options, 'generateAudio', capabilities.defaultGenerateAudio === true)} onChange={(value) => onOption('generateAudio', value)} /> : null}
+        {byteCapabilities.generateAudio ? <CheckField label="生成同步音频" checked={bool(options, 'generateAudio', byteCapabilities.defaultGenerateAudio)} onChange={(value) => onOption('generateAudio', value)} /> : null}
         <CheckField label="添加水印" checked={bool(options, 'watermark', false)} onChange={(value) => onOption('watermark', value)} />
         <CheckField label="返回尾帧" checked={bool(options, 'returnLastFrame', false)} onChange={(value) => onOption('returnLastFrame', value)} />
-        {capabilities?.seed === true ? <NumberField label="Seed" value={num(options, 'seed', -1)} min={-1} max={4294967295} onChange={(value) => onOption('seed', value)} /> : null}
-        {capabilities?.cameraFixed === true ? <CheckField label="固定机位" checked={bool(options, 'cameraFixed', false)} onChange={(value) => onOption('cameraFixed', value)} /> : null}
-        {capabilities?.webSearch === true ? <CheckField label="Web Search" checked={bool(options, 'webSearch', false)} onChange={(value) => onOption('webSearch', value)} /> : null}
-        {capabilities?.serviceTierParameter === true ? <SelectField label="服务等级" value={text(options, 'serviceTier', 'default')} values={stringCapability(capabilities, 'serviceTiers', ['default'])} onChange={(value) => onOption('serviceTier', value)} /> : null}
+        {byteCapabilities.seed ? <NumberField label="Seed" value={num(options, 'seed', -1)} min={-1} max={4294967295} onChange={(value) => onOption('seed', value)} /> : null}
+        {byteCapabilities.cameraFixed ? <CheckField label="固定机位" checked={bool(options, 'cameraFixed', false)} onChange={(value) => onOption('cameraFixed', value)} /> : null}
+        {byteCapabilities.webSearch ? <CheckField label="Web Search" checked={bool(options, 'webSearch', false)} onChange={(value) => onOption('webSearch', value)} /> : null}
+        {byteCapabilities.serviceTierParameter ? <SelectField label="服务等级" value={text(options, 'serviceTier', 'default')} values={byteCapabilities.serviceTiers} onChange={(value) => onOption('serviceTier', value)} /> : null}
       </ParameterGrid>
     )
   }
@@ -148,7 +152,7 @@ function ParameterGrid({ children }: { children: React.ReactNode }) {
   return <div className="grid gap-4">{children}</div>
 }
 
-function SelectField({ label, value, values, labels, onChange }: { label: string; value: string; values: string[]; labels?: string[]; onChange: (value: string) => void }) {
+function SelectField({ label, value, values, labels, onChange }: { label: string; value: string; values: readonly string[]; labels?: string[]; onChange: (value: string) => void }) {
   return <FieldShell label={label}><Select value={value} onChange={(event) => onChange(event.target.value)}>{values.map((item, index) => <option key={item} value={item}>{labels?.[index] ?? item}</option>)}</Select></FieldShell>
 }
 
