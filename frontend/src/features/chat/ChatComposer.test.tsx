@@ -34,6 +34,7 @@ const base = {
   onStop: vi.fn(),
   onParameters: vi.fn(),
   onOpenMask: vi.fn(),
+  onVideoDraft: vi.fn(),
 }
 afterEach(() => {
   cleanup()
@@ -84,4 +85,20 @@ it('only offers stop for a cancellable image task', () => {
   expect(screen.getByText('正在提交视频')).toBeInTheDocument()
   rerender(<ChatComposer {...base} busy canStop />)
   expect(screen.getByRole('button', { name: '停止生成' })).toBeEnabled()
+})
+
+it('exposes local Seedance references and labels the first and last frame', () => {
+  const byteConversation = { ...conversation, mediaKind: 'video' as const, apiFormat: 'byteDanceVideo' as const, modelId: 'doubao-seedance-2-5-260628' }
+  const onVideoDraft = vi.fn()
+  const { rerender } = render(<ChatComposer {...base} conversation={byteConversation} onVideoDraft={onVideoDraft}
+    videoDraft={{ ...defaultVideoDraft, byteMode: 'referenceToVideo' }} />)
+  expect(screen.getByLabelText('添加本地参考图片')).toBeEnabled()
+  expect(screen.getByText('0/30')).toBeInTheDocument()
+  fireEvent.change(screen.getByLabelText('视频创作模式'), { target: { value: 'firstLastFrameToVideo' } })
+  expect(onVideoDraft).toHaveBeenCalledWith({ byteMode: 'firstLastFrameToVideo' })
+  rerender(<ChatComposer {...base} conversation={byteConversation}
+    images={[{ id: 'first', kind: 'url', url: 'https://example.com/first.png' }, { id: 'last', kind: 'url', url: 'https://example.com/last.png' }]}
+    videoDraft={{ ...defaultVideoDraft, byteMode: 'firstLastFrameToVideo' }} />)
+  expect(screen.getByText('首帧')).toBeInTheDocument()
+  expect(screen.getByText('尾帧')).toBeInTheDocument()
 })

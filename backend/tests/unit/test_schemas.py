@@ -24,26 +24,27 @@ def test_openai_mask_requires_single_image() -> None:
         )
 
 
-def test_byte_dance_content_limit_includes_prompt() -> None:
-    with pytest.raises(ValidationError):
-        ByteDanceVideoGenerationRequest.model_validate(
-            {
-                "apiFormat": "byteDanceVideo",
-                "baseUrl": "https://shapi.vip",
-                "modelId": "doubao-seedance-2-0-260128",
-                "mode": "referenceToVideo",
-                "prompt": "reference",
-                "inputs": {
-                    "referenceImageUrls": [
-                        "https://example.com/1.png",
-                        "https://example.com/2.png",
-                        "https://example.com/3.png",
-                        "https://example.com/4.png",
-                    ],
-                    "referenceVideoUrl": "https://example.com/video.mp4",
-                },
-            }
-        )
+def test_byte_dance_reference_content_can_exceed_five_items() -> None:
+    request = ByteDanceVideoGenerationRequest.model_validate(
+        {
+            "apiFormat": "byteDanceVideo",
+            "baseUrl": "https://shapi.vip",
+            "modelId": "doubao-seedance-2-0-260128",
+            "mode": "referenceToVideo",
+            "prompt": "reference",
+            "inputs": {
+                "referenceImageUrls": [
+                    "https://example.com/1.png",
+                    "https://example.com/2.png",
+                    "https://example.com/3.png",
+                    "https://example.com/4.png",
+                ],
+                "referenceVideoUrl": "https://example.com/video.mp4",
+            },
+        }
+    )
+    assert len(request.inputs.reference_image_urls) == 4
+    assert len(request.inputs.videos) == 1
 
 
 @pytest.mark.parametrize(

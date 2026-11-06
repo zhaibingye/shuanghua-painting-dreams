@@ -565,6 +565,7 @@ export function ChatPage({ onOpenSidebar }: { onOpenSidebar: () => void }) {
         onStop={() => activeImageTask && cancelImageTask(activeImageTask.id)}
         onParameters={() => setParametersOpen(true)}
         onOpenMask={() => void openCurrentMask()}
+        onVideoDraft={(patch) => setVideoDraft((current) => ({ ...current, ...patch }))}
       />
 
       <ParametersDialog

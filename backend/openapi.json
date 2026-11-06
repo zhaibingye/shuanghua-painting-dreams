@@ -731,9 +731,7 @@
           "firstFrameUrl": {
             "anyOf": [
               {
-                "type": "string",
-                "minLength": 1,
-                "format": "uri"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -744,9 +742,7 @@
           "lastFrameUrl": {
             "anyOf": [
               {
-                "type": "string",
-                "minLength": 1,
-                "format": "uri"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -756,20 +752,16 @@
           },
           "referenceImageUrls": {
             "items": {
-              "type": "string",
-              "minLength": 1,
-              "format": "uri"
+              "type": "string"
             },
             "type": "array",
-            "maxItems": 4,
+            "maxItems": 30,
             "title": "Referenceimageurls"
           },
           "referenceVideoUrl": {
             "anyOf": [
               {
-                "type": "string",
-                "minLength": 1,
-                "format": "uri"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -780,15 +772,29 @@
           "referenceAudioUrl": {
             "anyOf": [
               {
-                "type": "string",
-                "minLength": 1,
-                "format": "uri"
+                "type": "string"
               },
               {
                 "type": "null"
               }
             ],
             "title": "Referenceaudiourl"
+          },
+          "referenceVideoUrls": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 10,
+            "title": "Referencevideourls"
+          },
+          "referenceAudioUrls": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 10,
+            "title": "Referenceaudiourls"
           }
         },
         "additionalProperties": false,
@@ -841,7 +847,7 @@
           },
           "seed": {
             "type": "integer",
-            "maximum": 4294967295.0,
+            "maximum": 2147483647.0,
             "minimum": -1.0,
             "title": "Seed",
             "default": -1
@@ -869,6 +875,33 @@
             "type": "boolean",
             "title": "Websearch",
             "default": false
+          },
+          "omniReferenceTaskType": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "reference",
+              "edit",
+              "extend"
+            ],
+            "title": "Omnireferencetasktype",
+            "default": "auto"
+          },
+          "outputFormat": {
+            "type": "string",
+            "enum": [
+              "mp4",
+              "mov"
+            ],
+            "title": "Outputformat",
+            "default": "mp4"
+          },
+          "priority": {
+            "type": "integer",
+            "maximum": 9.0,
+            "minimum": 0.0,
+            "title": "Priority",
+            "default": 0
           }
         },
         "additionalProperties": false,

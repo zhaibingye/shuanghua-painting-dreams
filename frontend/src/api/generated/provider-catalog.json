@@ -387,11 +387,27 @@
         "firstFrameToVideo": true,
         "firstLastFrameToVideo": true,
         "referenceToVideo": true,
-        "localMediaUpload": false,
+        "localMediaUpload": true,
         "tailFrameContinuation": true
       },
       "knownModels": {
         "doubao-seedance-2-5-260628": {
+          "modes": [
+            "textToVideo",
+            "firstFrameToVideo",
+            "firstLastFrameToVideo",
+            "referenceToVideo"
+          ],
+          "maxReferenceImages": 30,
+          "maxReferenceVideos": 10,
+          "maxReferenceAudios": 10,
+          "audioOnlyReference": true,
+          "omniReferenceTaskType": true,
+          "outputFormats": [
+            "mp4",
+            "mov"
+          ],
+          "priority": true,
           "defaultDuration": -1,
           "defaultResolution": "720p",
           "defaultGenerateAudio": true,
@@ -426,6 +442,21 @@
           ]
         },
         "doubao-seedance-2-0-260128": {
+          "modes": [
+            "textToVideo",
+            "firstFrameToVideo",
+            "firstLastFrameToVideo",
+            "referenceToVideo"
+          ],
+          "maxReferenceImages": 9,
+          "maxReferenceVideos": 3,
+          "maxReferenceAudios": 3,
+          "audioOnlyReference": false,
+          "omniReferenceTaskType": false,
+          "outputFormats": [
+            "mp4"
+          ],
+          "priority": true,
           "defaultDuration": 5,
           "defaultResolution": "720p",
           "defaultGenerateAudio": true,
@@ -458,6 +489,21 @@
           "returnLastFrame": true
         },
         "doubao-seedance-2-0-fast-260128": {
+          "modes": [
+            "textToVideo",
+            "firstFrameToVideo",
+            "firstLastFrameToVideo",
+            "referenceToVideo"
+          ],
+          "maxReferenceImages": 9,
+          "maxReferenceVideos": 3,
+          "maxReferenceAudios": 3,
+          "audioOnlyReference": false,
+          "omniReferenceTaskType": false,
+          "outputFormats": [
+            "mp4"
+          ],
+          "priority": true,
           "defaultDuration": 5,
           "defaultResolution": "720p",
           "defaultGenerateAudio": true,
@@ -488,6 +534,21 @@
           "returnLastFrame": true
         },
         "doubao-seedance-2-0-mini-260615": {
+          "modes": [
+            "textToVideo",
+            "firstFrameToVideo",
+            "firstLastFrameToVideo",
+            "referenceToVideo"
+          ],
+          "maxReferenceImages": 9,
+          "maxReferenceVideos": 3,
+          "maxReferenceAudios": 3,
+          "audioOnlyReference": false,
+          "omniReferenceTaskType": false,
+          "outputFormats": [
+            "mp4"
+          ],
+          "priority": true,
           "defaultDuration": 5,
           "defaultResolution": "720p",
           "defaultGenerateAudio": true,
@@ -528,7 +589,10 @@
         "returnLastFrame": false,
         "cameraFixed": false,
         "serviceTier": "default",
-        "webSearch": false
+        "webSearch": false,
+        "omniReferenceTaskType": "auto",
+        "outputFormat": "mp4",
+        "priority": 0
       }
     },
     {
@@ -1076,7 +1140,7 @@
         },
         "seed": {
           "default": -1,
-          "maximum": 4294967295,
+          "maximum": 2147483647,
           "minimum": -1,
           "title": "Seed",
           "type": "integer"
@@ -1104,6 +1168,33 @@
           "default": false,
           "title": "Websearch",
           "type": "boolean"
+        },
+        "omniReferenceTaskType": {
+          "default": "auto",
+          "enum": [
+            "auto",
+            "reference",
+            "edit",
+            "extend"
+          ],
+          "title": "Omnireferencetasktype",
+          "type": "string"
+        },
+        "outputFormat": {
+          "default": "mp4",
+          "enum": [
+            "mp4",
+            "mov"
+          ],
+          "title": "Outputformat",
+          "type": "string"
+        },
+        "priority": {
+          "default": 0,
+          "maximum": 9,
+          "minimum": 0,
+          "title": "Priority",
+          "type": "integer"
         }
       },
       "title": "ByteDanceVideoOptions",
@@ -1169,6 +1260,22 @@
           "doubao-seedance-2-5-"
         ],
         "capabilities": {
+          "modes": [
+            "textToVideo",
+            "firstFrameToVideo",
+            "firstLastFrameToVideo",
+            "referenceToVideo"
+          ],
+          "maxReferenceImages": 30,
+          "maxReferenceVideos": 10,
+          "maxReferenceAudios": 10,
+          "audioOnlyReference": true,
+          "omniReferenceTaskType": true,
+          "outputFormats": [
+            "mp4",
+            "mov"
+          ],
+          "priority": true,
           "defaultDuration": -1,
           "defaultResolution": "720p",
           "defaultGenerateAudio": true,
@@ -1209,6 +1316,21 @@
           "doubao-seedance-2-0-mini-"
         ],
         "capabilities": {
+          "modes": [
+            "textToVideo",
+            "firstFrameToVideo",
+            "firstLastFrameToVideo",
+            "referenceToVideo"
+          ],
+          "maxReferenceImages": 9,
+          "maxReferenceVideos": 3,
+          "maxReferenceAudios": 3,
+          "audioOnlyReference": false,
+          "omniReferenceTaskType": false,
+          "outputFormats": [
+            "mp4"
+          ],
+          "priority": true,
           "defaultDuration": 5,
           "defaultResolution": "720p",
           "defaultGenerateAudio": true,
@@ -1244,6 +1366,21 @@
           "doubao-seedance-2-0-"
         ],
         "capabilities": {
+          "modes": [
+            "textToVideo",
+            "firstFrameToVideo",
+            "firstLastFrameToVideo",
+            "referenceToVideo"
+          ],
+          "maxReferenceImages": 9,
+          "maxReferenceVideos": 3,
+          "maxReferenceAudios": 3,
+          "audioOnlyReference": false,
+          "omniReferenceTaskType": false,
+          "outputFormats": [
+            "mp4"
+          ],
+          "priority": true,
           "defaultDuration": 5,
           "defaultResolution": "720p",
           "defaultGenerateAudio": true,
@@ -1281,6 +1418,20 @@
           "doubao-seedance-1-5-pro-"
         ],
         "capabilities": {
+          "modes": [
+            "textToVideo",
+            "firstFrameToVideo",
+            "firstLastFrameToVideo"
+          ],
+          "maxReferenceImages": 0,
+          "maxReferenceVideos": 0,
+          "maxReferenceAudios": 0,
+          "audioOnlyReference": false,
+          "omniReferenceTaskType": false,
+          "outputFormats": [
+            "mp4"
+          ],
+          "priority": false,
           "defaultDuration": 5,
           "defaultResolution": "720p",
           "defaultGenerateAudio": true,
@@ -1308,6 +1459,19 @@
           "doubao-seedance-1-0-lite-"
         ],
         "capabilities": {
+          "modes": [
+            "textToVideo",
+            "firstFrameToVideo"
+          ],
+          "maxReferenceImages": 0,
+          "maxReferenceVideos": 0,
+          "maxReferenceAudios": 0,
+          "audioOnlyReference": false,
+          "omniReferenceTaskType": false,
+          "outputFormats": [
+            "mp4"
+          ],
+          "priority": false,
           "defaultDuration": 5,
           "defaultResolution": "720p",
           "defaultGenerateAudio": false,
@@ -1331,9 +1495,63 @@
       },
       {
         "prefixes": [
+          "doubao-seedance-1-0-pro-fast-"
+        ],
+        "capabilities": {
+          "modes": [
+            "textToVideo",
+            "firstFrameToVideo"
+          ],
+          "maxReferenceImages": 0,
+          "maxReferenceVideos": 0,
+          "maxReferenceAudios": 0,
+          "audioOnlyReference": false,
+          "omniReferenceTaskType": false,
+          "outputFormats": [
+            "mp4"
+          ],
+          "priority": false,
+          "defaultDuration": 5,
+          "defaultResolution": "1080p",
+          "defaultGenerateAudio": false,
+          "seed": true,
+          "durationMin": 2,
+          "durationMax": 12,
+          "automaticDuration": false,
+          "resolutions": [
+            "480p",
+            "720p",
+            "1080p"
+          ],
+          "generateAudio": false,
+          "cameraFixed": true,
+          "serviceTiers": [
+            "default",
+            "flex"
+          ],
+          "serviceTierParameter": true,
+          "webSearch": false
+        }
+      },
+      {
+        "prefixes": [
           "doubao-seedance-1-0-"
         ],
         "capabilities": {
+          "modes": [
+            "textToVideo",
+            "firstFrameToVideo",
+            "firstLastFrameToVideo"
+          ],
+          "maxReferenceImages": 0,
+          "maxReferenceVideos": 0,
+          "maxReferenceAudios": 0,
+          "audioOnlyReference": false,
+          "omniReferenceTaskType": false,
+          "outputFormats": [
+            "mp4"
+          ],
+          "priority": false,
           "defaultDuration": 5,
           "defaultResolution": "1080p",
           "defaultGenerateAudio": false,
@@ -1358,6 +1576,22 @@
       }
     ],
     "defaultCapabilities": {
+      "modes": [
+        "textToVideo",
+        "firstFrameToVideo",
+        "firstLastFrameToVideo",
+        "referenceToVideo"
+      ],
+      "maxReferenceImages": 30,
+      "maxReferenceVideos": 10,
+      "maxReferenceAudios": 10,
+      "audioOnlyReference": true,
+      "omniReferenceTaskType": true,
+      "outputFormats": [
+        "mp4",
+        "mov"
+      ],
+      "priority": true,
       "defaultDuration": 5,
       "defaultResolution": "720p",
       "defaultGenerateAudio": false,

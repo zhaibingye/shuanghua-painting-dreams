@@ -1,6 +1,7 @@
+import re
 from typing import Annotated, Literal
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import AfterValidator, Field, TypeAdapter, field_validator, model_validator
 
 from app.domain.enums import ApiFormat, TaskOperation, TaskStatus
 from app.domain.seedance import byte_dance_model_capabilities
@@ -17,12 +18,49 @@ ByteDanceVideoResolution = Literal["480p", "720p", "1080p", "4k"]
 XAIVideoResolution = Literal["480p", "720p", "1080p"]
 
 
+def _validate_byte_media_source(value: str, *, kind: str) -> str:
+    if re.fullmatch(r"asset://[A-Za-z0-9_-]+", value):
+        return value
+    formats = "jpeg|png|webp|bmp|tiff|gif|heic|heif" if kind == "image" else "wav|mp3|mpeg"
+    if kind != "video" and re.fullmatch(
+        rf"data:{kind}/(?:{formats});base64,[A-Za-z0-9+/=\r\n]+", value
+    ):
+        return value
+    TypeAdapter(PublicHttpUrl).validate_python(value)
+    return value
+
+
+ByteDanceImageSource = Annotated[
+    str, AfterValidator(lambda value: _validate_byte_media_source(value, kind="image"))
+]
+ByteDanceVideoSource = Annotated[
+    str, AfterValidator(lambda value: _validate_byte_media_source(value, kind="video"))
+]
+ByteDanceAudioSource = Annotated[
+    str, AfterValidator(lambda value: _validate_byte_media_source(value, kind="audio"))
+]
+
+
 class ByteDanceVideoInputs(ApiModel):
-    first_frame_url: PublicHttpUrl | None = None
-    last_frame_url: PublicHttpUrl | None = None
-    reference_image_urls: list[PublicHttpUrl] = Field(default_factory=list, max_length=4)
-    reference_video_url: PublicHttpUrl | None = None
-    reference_audio_url: PublicHttpUrl | None = None
+    first_frame_url: ByteDanceImageSource | None = None
+    last_frame_url: ByteDanceImageSource | None = None
+    reference_image_urls: list[ByteDanceImageSource] = Field(default_factory=list, max_length=30)
+    reference_video_url: ByteDanceVideoSource | None = None
+    reference_audio_url: ByteDanceAudioSource | None = None
+    reference_video_urls: list[ByteDanceVideoSource] = Field(default_factory=list, max_length=10)
+    reference_audio_urls: list[ByteDanceAudioSource] = Field(default_factory=list, max_length=10)
+
+    @property
+    def videos(self) -> list[str]:
+        return (
+            [self.reference_video_url] if self.reference_video_url else []
+        ) + self.reference_video_urls
+
+    @property
+    def audios(self) -> list[str]:
+        return (
+            [self.reference_audio_url] if self.reference_audio_url else []
+        ) + self.reference_audio_urls
 
 
 class ByteDanceVideoOptions(ApiModel):
@@ -31,11 +69,14 @@ class ByteDanceVideoOptions(ApiModel):
     aspect_ratio: Literal["16:9", "4:3", "1:1", "3:4", "9:16", "21:9", "adaptive"] = "adaptive"
     generate_audio: bool = True
     watermark: bool = False
-    seed: int = Field(default=-1, ge=-1, le=4294967295)
+    seed: int = Field(default=-1, ge=-1, le=2147483647)
     return_last_frame: bool = False
     camera_fixed: bool = False
     service_tier: Literal["default", "flex"] = "default"
     web_search: bool = False
+    omni_reference_task_type: Literal["auto", "reference", "edit", "extend"] = "auto"
+    output_format: Literal["mp4", "mov"] = "mp4"
+    priority: int = Field(default=0, ge=0, le=9)
 
     @field_validator("duration")
     @classmethod
@@ -77,23 +118,20 @@ class ByteDanceVideoGenerationRequest(UpstreamRequest):
             inputs.first_frame_url is None or inputs.last_frame_url is None
         ):
             raise ValueError("首尾帧生视频必须同时填写首帧和尾帧 URL")
-        if self.mode == "referenceToVideo":
-            has_reference = bool(
-                inputs.reference_image_urls
-                or inputs.reference_video_url
-                or inputs.reference_audio_url
-            )
-            if not self.prompt or not has_reference:
-                raise ValueError("参考生视频必须填写提示词和至少一个参考素材 URL")
-
-        content_count = int(bool(self.prompt))
-        content_count += int(inputs.first_frame_url is not None)
-        content_count += int(inputs.last_frame_url is not None)
-        content_count += len(inputs.reference_image_urls)
-        content_count += int(inputs.reference_video_url is not None)
-        content_count += int(inputs.reference_audio_url is not None)
-        if content_count > 5:
-            raise ValueError("字节视频 content 最多包含 5 个元素，文本也占一个元素")
+        if self.mode == "referenceToVideo" and not (
+            inputs.reference_image_urls or inputs.videos or inputs.audios
+        ):
+            raise ValueError("参考生视频必须提供至少一个参考素材")
+        has_frames = inputs.first_frame_url is not None or inputs.last_frame_url is not None
+        has_references = bool(inputs.reference_image_urls or inputs.videos or inputs.audios)
+        if (
+            (self.mode == "textToVideo" and (has_frames or has_references))
+            or (self.mode == "referenceToVideo" and has_frames)
+            or (self.mode in {"firstFrameToVideo", "firstLastFrameToVideo"} and has_references)
+        ):
+            raise ValueError("文生视频、首尾帧和全模态参考素材不能混用")
+        if self.mode == "firstFrameToVideo" and inputs.last_frame_url is not None:
+            raise ValueError("使用尾帧图片请选择首尾帧生视频")
         return self
 
 

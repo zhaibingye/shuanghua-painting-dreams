@@ -22,6 +22,14 @@ type ByteDanceVideoCapabilities = Readonly<{
   aspectRatios?: readonly string[]
   frameAspectRatios?: readonly string[]
   returnLastFrame?: boolean
+  modes: readonly schemas.ByteDanceVideoGenerationRequest['mode'][]
+  maxReferenceImages: number
+  maxReferenceVideos: number
+  maxReferenceAudios: number
+  audioOnlyReference: boolean
+  omniReferenceTaskType: boolean
+  outputFormats: readonly string[]
+  priority: boolean
 }>
 
 // This generated table shares its prefix order and limits with the backend.
@@ -76,5 +84,8 @@ export function normalizeByteDanceOptions(
     generateAudio: capabilities.generateAudio && (
       typeof options.generateAudio === 'boolean' ? options.generateAudio : capabilities.defaultGenerateAudio
     ),
+    omniReferenceTaskType: capabilities.omniReferenceTaskType ? options.omniReferenceTaskType ?? 'auto' : 'auto',
+    outputFormat: capabilities.outputFormats.includes(String(options.outputFormat)) ? options.outputFormat : 'mp4',
+    priority: capabilities.priority ? options.priority ?? 0 : 0,
   }
 }

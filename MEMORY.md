@@ -17,6 +17,7 @@
 - 字节图片、视频的协议选择统一在 `providers/bytedance_endpoints.py`：完整主机名 `ark.cn-beijing.volces.com`、`ark.ap-southeast.bytepluses.com` 走官方 `/api/v3`，其他主机走 `/v1`；规范化已有版本后缀并保留代理前缀。SHAPI 填根地址或 `/v1`，不要添加旧 `/doubao` 前缀，也不要失败后切协议重试，避免重复创建付费任务。
 - 字节图片：官方生成、编辑共用 `/api/v3/images/generations` 并请求 Base64；兼容接口分别用 `/v1/images/generations`、`/v1/images/edits` 并请求 URL，`n=1`，组图数量通过 sequential 参数控制。URL 由后台无 Key 下载器转为本地 Base64；已知 Seedream 家族按契约校验，Endpoint ID / 自定义别名交上游确认。
 - 字节视频：官方用 `/api/v3/contents/generations/tasks`，兼容接口用 `/v1/videos`。兼容请求顶层为 model / prompt / seconds，原生素材和选项放 metadata；queued / in_progress / completed 映射为 queued / processing / succeeded，完成媒体取 `metadata.url`，不依赖需要 API Key 的 content URL。任务创建与查询使用同一协议路径。
+- 2026-11-06 核对火山方舟创建视频任务文档：图片支持 Base64 / 公网 URL / `asset://`，无需临时图床；参考音频同样支持 Base64，视频用 URL / 素材 ID。旧的 content 合计 5 项限制已失效，2.0 支持 9 图 / 3 视频 / 3 音频，2.5 支持 30 / 10 / 10；参考模式提示词可选，仅 2.5 可单独参考音频。首尾帧与全模态参考不可混用。素材列表只按换行分隔，逗号属于 Data URL 和签名 URL 的合法内容。
 
 ## HTTP 与响应边界
 

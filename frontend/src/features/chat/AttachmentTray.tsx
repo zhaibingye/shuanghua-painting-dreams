@@ -15,12 +15,20 @@ export function AttachmentTray({
   disabled = false,
   onChange,
   onProcessingChange,
+  allowAssetId = false,
+  acceptedTypes = ['image/png', 'image/jpeg', 'image/webp'],
+  maxFileSizeMb = 50,
+  labels,
 }: {
   images: DraftImage[]
   maxImages: number
   disabled?: boolean
   onChange: (images: DraftImage[]) => void
   onProcessingChange?: (processing: boolean) => void
+  allowAssetId?: boolean
+  acceptedTypes?: string[]
+  maxFileSizeMb?: number
+  labels?: string[]
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [showUrl, setShowUrl] = useState(false)
@@ -56,10 +64,10 @@ export function AttachmentTray({
     try {
       const prepared = await Promise.all(
         files.slice(0, available).map(async (file) => {
-          if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
-            throw new Error(`${file.name} 不是支持的 PNG、JPEG 或 WebP 图片。`)
+          if (!acceptedTypes.includes(file.type)) {
+            throw new Error(`${file.name} 不是支持的图片格式。`)
           }
-          if (file.size > 50 * 1024 * 1024) throw new Error(`${file.name} 超过 50MB 大小限制。`)
+          if (file.size >= maxFileSizeMb * 1024 * 1024) throw new Error(`${file.name} 必须小于 ${maxFileSizeMb}MB。`)
           const processed = await fileToDataUrl(file)
           return { file, processed }
         }),
@@ -90,8 +98,8 @@ export function AttachmentTray({
   const addUrl = () => {
     if (disabled || processing) return
     const normalized = url.trim()
-    if (!isPublicHttpUrl(normalized)) {
-      toast.error('请输入有效的公网 HTTP/HTTPS 图片 URL')
+    if (!isPublicHttpUrl(normalized) && !(allowAssetId && /^asset:\/\/[A-Za-z0-9_-]+$/.test(normalized))) {
+      toast.error(allowAssetId ? '请输入有效的公网图片 URL 或 asset:// 素材 ID' : '请输入有效的公网 HTTP/HTTPS 图片 URL')
       return
     }
     if (images.length >= maxImages) {
@@ -114,7 +122,7 @@ export function AttachmentTray({
     <div className="grid min-w-0 gap-2">
       {images.length > 0 ? (
         <div className="ds-scroll flex min-w-0 gap-2 overflow-x-auto pb-1">
-          {images.map((image) => (
+          {images.map((image, index) => (
             <div
               key={image.id}
               className="group relative h-20 w-20 shrink-0 overflow-hidden rounded-xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-hover)]"
@@ -131,6 +139,7 @@ export function AttachmentTray({
                   URL
                 </div>
               )}
+              {labels?.[index] ? <span className="absolute bottom-0 left-0 right-0 bg-black/60 px-1 py-0.5 text-center text-[10px] text-white">{labels[index]}</span> : null}
               <button
                 type="button"
                 aria-label="删除附件"
@@ -153,7 +162,7 @@ export function AttachmentTray({
             className="h-9 flex-1"
             value={url}
             onChange={(event) => setUrl(event.target.value)}
-            placeholder="https://example.com/image.png"
+            placeholder={allowAssetId ? 'https://… 或 asset://…' : 'https://example.com/image.png'}
             onKeyDown={(event) => {
               if (event.key === 'Enter') {
                 event.preventDefault()
@@ -180,7 +189,7 @@ export function AttachmentTray({
           className="sr-only"
           aria-label="添加本地参考图片"
           type="file"
-          accept="image/png,image/jpeg,image/webp"
+          accept={acceptedTypes.join(',')}
           multiple
           disabled={disabled || processing || images.length >= maxImages}
           onChange={(event) => void chooseFiles(event)}
@@ -201,7 +210,7 @@ export function AttachmentTray({
           icon={<Link2 className="size-4" />}
           onClick={() => setShowUrl((value) => !value)}
         >
-          图片 URL
+          {allowAssetId ? '图片 URL / 素材 ID' : '图片 URL'}
         </Button>
         <span className="ml-auto text-xs text-[var(--ds-text-caption)]">
           {images.length}/{maxImages}

@@ -1,7 +1,7 @@
 """Seedance model limits and defaults from the official video generation API.
 
 https://console.volcengine.com/ark/region:cn-beijing/docs/create-video-generation-task-api
-Verified 2026-10-21. Custom suffixes do not imply additional resolutions.
+Verified 2026-11-06. Custom suffixes do not imply additional resolutions.
 """
 
 from copy import deepcopy
@@ -25,6 +25,28 @@ _SEEDANCE_2_CAPABILITIES: dict[str, Any] = {
     "defaultDuration": 5,
     "defaultResolution": "720p",
     "defaultGenerateAudio": True,
+    "modes": ["textToVideo", "firstFrameToVideo", "firstLastFrameToVideo", "referenceToVideo"],
+    "maxReferenceImages": 9,
+    "maxReferenceVideos": 3,
+    "maxReferenceAudios": 3,
+    "audioOnlyReference": False,
+    "omniReferenceTaskType": False,
+    "outputFormats": ["mp4"],
+    "priority": True,
+}
+
+_SEEDANCE_1_CAPABILITIES: dict[str, Any] = {
+    "defaultResolution": "1080p",
+    "durationMin": 2,
+    "durationMax": 12,
+    "automaticDuration": False,
+    "resolutions": ["480p", "720p", "1080p"],
+    "generateAudio": False,
+    "cameraFixed": True,
+    "serviceTiers": ["default", "flex"],
+    "serviceTierParameter": True,
+    "webSearch": False,
+    "modes": ["textToVideo", "firstFrameToVideo", "firstLastFrameToVideo"],
 }
 
 
@@ -37,6 +59,12 @@ _MODEL_FAMILIES: tuple[tuple[tuple[str, ...], dict[str, Any]], ...] = (
             "resolutions": ["480p", "720p", "1080p"],
             "defaultDuration": -1,
             "frameAspectRatios": ["adaptive"],
+            "maxReferenceImages": 30,
+            "maxReferenceVideos": 10,
+            "maxReferenceAudios": 10,
+            "audioOnlyReference": True,
+            "omniReferenceTaskType": True,
+            "outputFormats": ["mp4", "mov"],
         },
     ),
     (
@@ -59,6 +87,7 @@ _MODEL_FAMILIES: tuple[tuple[tuple[str, ...], dict[str, Any]], ...] = (
             "serviceTiers": ["default", "flex"],
             "serviceTierParameter": True,
             "webSearch": False,
+            "modes": ["textToVideo", "firstFrameToVideo", "firstLastFrameToVideo"],
         },
     ),
     (
@@ -73,22 +102,16 @@ _MODEL_FAMILIES: tuple[tuple[tuple[str, ...], dict[str, Any]], ...] = (
             "serviceTiers": ["default", "flex"],
             "serviceTierParameter": True,
             "webSearch": False,
+            "modes": ["textToVideo", "firstFrameToVideo"],
         },
     ),
     (
+        ("doubao-seedance-1-0-pro-fast-",),
+        {**_SEEDANCE_1_CAPABILITIES, "modes": ["textToVideo", "firstFrameToVideo"]},
+    ),
+    (
         ("doubao-seedance-1-0-",),
-        {
-            "defaultResolution": "1080p",
-            "durationMin": 2,
-            "durationMax": 12,
-            "automaticDuration": False,
-            "resolutions": ["480p", "720p", "1080p"],
-            "generateAudio": False,
-            "cameraFixed": True,
-            "serviceTiers": ["default", "flex"],
-            "serviceTierParameter": True,
-            "webSearch": False,
-        },
+        _SEEDANCE_1_CAPABILITIES,
     ),
 )
 
@@ -102,11 +125,26 @@ _GENERIC_CAPABILITIES: dict[str, Any] = {
     "serviceTiers": ["default"],
     "serviceTierParameter": False,
     "webSearch": False,
+    "omniReferenceTaskType": True,
+    "outputFormats": ["mp4", "mov"],
+    "priority": True,
+    "maxReferenceImages": 30,
+    "maxReferenceVideos": 10,
+    "maxReferenceAudios": 10,
+    "audioOnlyReference": True,
 }
 
 
 def _with_defaults(capabilities: dict[str, Any]) -> dict[str, Any]:
     return {
+        "modes": ["textToVideo", "firstFrameToVideo", "firstLastFrameToVideo", "referenceToVideo"],
+        "maxReferenceImages": 0,
+        "maxReferenceVideos": 0,
+        "maxReferenceAudios": 0,
+        "audioOnlyReference": False,
+        "omniReferenceTaskType": False,
+        "outputFormats": ["mp4"],
+        "priority": False,
         "defaultDuration": 5,
         "defaultResolution": "720p",
         "defaultGenerateAudio": capabilities["generateAudio"],

@@ -142,11 +142,19 @@ export interface ByteDanceVideoInputs {
   firstFrameUrl?: string | null
   lastFrameUrl?: string | null
   /**
-   * @maxItems 4
+   * @maxItems 30
    */
   referenceImageUrls?: string[]
   referenceVideoUrl?: string | null
   referenceAudioUrl?: string | null
+  /**
+   * @maxItems 10
+   */
+  referenceVideoUrls?: string[]
+  /**
+   * @maxItems 10
+   */
+  referenceAudioUrls?: string[]
 }
 /**
  * This interface was referenced by `ApiModels`'s JSON-Schema
@@ -163,6 +171,9 @@ export interface ByteDanceVideoOptions {
   cameraFixed?: boolean
   serviceTier?: 'default' | 'flex'
   webSearch?: boolean
+  omniReferenceTaskType?: 'auto' | 'reference' | 'edit' | 'extend'
+  outputFormat?: 'mp4' | 'mov'
+  priority?: number
 }
 /**
  * This interface was referenced by `ApiModels`'s JSON-Schema

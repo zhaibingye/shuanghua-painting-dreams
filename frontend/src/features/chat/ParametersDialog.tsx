@@ -8,7 +8,7 @@ import type { StoredConversation } from '../../storage/db'
 import { isImageFormat } from '../../storage/settings'
 import { ImageParameters } from './ImageParameters'
 import { byteDanceVideoDefaults, resolveByteDanceVideoCapabilities, xaiVideoResolutions } from './model-capabilities'
-import type { VideoDraft } from './video-turn'
+import { byteVideoModeLabels, type VideoDraft } from './video-turn'
 
 export function ParametersDialog({
   open,
@@ -111,14 +111,19 @@ function VideoParameters({
     const adaptiveOnly = frameMode && byteCapabilities.frameAspectRatios !== undefined
     return (
       <ParameterGrid>
-        <SelectField label="生成模式" value={draft.byteMode} values={['textToVideo', 'firstFrameToVideo', 'firstLastFrameToVideo', 'referenceToVideo']} labels={['文生视频', '首帧生视频', '首尾帧生视频', '参考素材生视频']} onChange={(value) => onDraft({ byteMode: value as VideoDraft['byteMode'] })} />
-        {(draft.byteMode === 'firstFrameToVideo' || draft.byteMode === 'firstLastFrameToVideo') ? <FieldShell label="首帧公网 URL"><Input value={draft.firstFrameUrl} onChange={(event) => onDraft({ firstFrameUrl: event.target.value })} /></FieldShell> : null}
-        {draft.byteMode === 'firstLastFrameToVideo' ? <FieldShell label="尾帧公网 URL"><Input value={draft.lastFrameUrl} onChange={(event) => onDraft({ lastFrameUrl: event.target.value })} /></FieldShell> : null}
+        <SelectField label="生成模式" value={draft.byteMode} values={byteCapabilities.modes} labels={byteCapabilities.modes.map((mode) => byteVideoModeLabels[mode])} onChange={(value) => onDraft({ byteMode: value as VideoDraft['byteMode'] })} />
+        {frameMode ? <FieldShell label="首帧 URL / 素材 ID" hint="也可留空，在消息区添加本地图片"><Input value={draft.firstFrameUrl} onChange={(event) => onDraft({ firstFrameUrl: event.target.value })} placeholder="https://… 或 asset://…" /></FieldShell> : null}
+        {draft.byteMode === 'firstLastFrameToVideo' ? <FieldShell label="尾帧 URL / 素材 ID" hint="也可留空，在消息区添加本地图片"><Input value={draft.lastFrameUrl} onChange={(event) => onDraft({ lastFrameUrl: event.target.value })} placeholder="https://… 或 asset://…" /></FieldShell> : null}
         {draft.byteMode === 'referenceToVideo' ? <>
-          <FieldShell label="参考图片 URL" hint="每行一个"><Textarea rows={3} value={draft.referenceImageUrls} onChange={(event) => onDraft({ referenceImageUrls: event.target.value })} /></FieldShell>
-          <FieldShell label="参考视频 URL"><Input value={draft.referenceVideoUrl} onChange={(event) => onDraft({ referenceVideoUrl: event.target.value })} /></FieldShell>
-          <FieldShell label="参考音频 URL"><Input value={draft.referenceAudioUrl} onChange={(event) => onDraft({ referenceAudioUrl: event.target.value })} /></FieldShell>
+          <FieldShell label="参考图片 URL / 素材 ID" hint={`每行一个，接在消息区图片之后；合计最多 ${byteCapabilities.maxReferenceImages} 张`}><Textarea rows={3} value={draft.referenceImageUrls} onChange={(event) => onDraft({ referenceImageUrls: event.target.value })} /></FieldShell>
+          <FieldShell label="参考视频 URL / 素材 ID" hint={`每行一个，最多 ${byteCapabilities.maxReferenceVideos} 段；MP4 / MOV`}><Textarea rows={3} value={draft.referenceVideoUrl} onChange={(event) => onDraft({ referenceVideoUrl: event.target.value })} /></FieldShell>
+          <FieldShell label="参考音频 URL / 素材 ID" hint={`每行一个，最多 ${byteCapabilities.maxReferenceAudios} 段；WAV / MP3${byteCapabilities.audioOnlyReference ? '，支持单独参考音频' : '，需搭配图片或视频'}`}><Textarea rows={3} value={draft.referenceAudioUrl} onChange={(event) => onDraft({ referenceAudioUrl: event.target.value })} /></FieldShell>
+          {byteCapabilities.omniReferenceTaskType ? <>
+            <SelectField label="参考任务类型" value={values.omniReferenceTaskType} values={fields.omniReferenceTaskType.enum} labels={['自动判定', '参考生成', '视频编辑', '视频延长']} onChange={(value) => onOption('omniReferenceTaskType', value)} />
+            {values.omniReferenceTaskType === 'edit' || values.omniReferenceTaskType === 'extend' ? <p className="text-xs text-[var(--ds-text-secondary)]">需要参考视频，比例选择 adaptive。{values.omniReferenceTaskType === 'edit' ? '视频编辑还需开启自动时长，输入视频需为 4–30 秒。' : '通过提示词描述向前或向后延长。'}</p> : null}
+          </> : null}
         </> : null}
+        {byteCapabilities.outputFormats.length > 1 ? <SelectField label="视频格式" value={values.outputFormat} values={byteCapabilities.outputFormats} onChange={(value) => onOption('outputFormat', value)} /> : null}
         <NumberField label="时长（秒）" value={automaticDuration ? durationMin : duration} min={durationMin} max={durationMax} disabled={automaticDuration} onChange={(value) => onOption('duration', value)} />
         {byteCapabilities.automaticDuration ? <CheckField label="自动决定时长" checked={automaticDuration} onChange={(value) => onOption('duration', value ? -1 : durationMin)} /> : null}
         <SelectField label="分辨率" value={values.resolution} values={resolutions} onChange={(value) => onOption('resolution', value)} />
@@ -130,6 +135,7 @@ function VideoParameters({
         {byteCapabilities.cameraFixed ? <CheckField label="固定机位" checked={values.cameraFixed} onChange={(value) => onOption('cameraFixed', value)} /> : null}
         {byteCapabilities.webSearch ? <CheckField label="Web Search" checked={values.webSearch} onChange={(value) => onOption('webSearch', value)} /> : null}
         {byteCapabilities.serviceTierParameter ? <SelectField label="服务等级" value={values.serviceTier} values={byteCapabilities.serviceTiers} onChange={(value) => onOption('serviceTier', value)} /> : null}
+        {byteCapabilities.priority ? <NumberField label="任务优先级" value={values.priority} min={fields.priority.minimum} max={fields.priority.maximum} onChange={(value) => onOption('priority', value)} /> : null}
       </ParameterGrid>
     )
   }

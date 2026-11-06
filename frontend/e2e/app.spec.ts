@@ -231,6 +231,84 @@ test('Seedance 2.5 默认模型、清晰度、自动时长和同步音频', asyn
   await expect(page.getByLabel('画面比例').locator('option')).toHaveText(['adaptive'])
 })
 
+test('Seedance 本地首尾帧直接提交并保存在消息中', async ({ page }) => {
+  await page.getByLabel('API Key').fill('browser-test-key')
+  await page.getByRole('button', { name: '保存 Key 并进入' }).click()
+  await createConversation(page, 'video', 'byteDanceVideo')
+  await mockSeedanceTask(page)
+  await page.getByLabel('视频创作模式').selectOption('firstLastFrameToVideo')
+  const buffer = await seedanceImage(page)
+  await page.getByLabel('添加本地参考图片').setInputFiles([
+    { name: 'first.png', mimeType: 'image/png', buffer },
+    { name: 'last.png', mimeType: 'image/png', buffer },
+  ])
+  await expect(page.getByText('2/2', { exact: true })).toBeVisible()
+  await expect(page.getByText('首帧', { exact: true })).toBeVisible()
+  await expect(page.getByText('尾帧', { exact: true })).toBeVisible()
+  const submitted = page.waitForRequest('**/api/v1/videos/generations')
+  await page.getByRole('button', { name: '发送消息' }).click()
+  const payload = (await submitted).postDataJSON()
+  expect(payload.mode).toBe('firstLastFrameToVideo')
+  expect(payload.prompt).toBe('')
+  expect(payload.inputs.firstFrameUrl).toMatch(/^data:image\/png;base64,/)
+  expect(payload.inputs.lastFrameUrl).toMatch(/^data:image\/png;base64,/)
+  await expect(page.getByText('视频任务已提交')).toBeVisible()
+  await expect(page.getByRole('img', { name: 'first.png', exact: true })).toBeVisible()
+  await expect(page.getByRole('img', { name: 'last.png', exact: true })).toBeVisible()
+})
+
+test('Seedance 多图多视频参考和 2.5 视频编辑参数', async ({ page }) => {
+  await page.getByLabel('API Key').fill('browser-test-key')
+  await page.getByRole('button', { name: '保存 Key 并进入' }).click()
+  await createConversation(page, 'video', 'byteDanceVideo')
+  await mockSeedanceTask(page)
+  await page.getByLabel('视频创作模式').selectOption('referenceToVideo')
+  const buffer = await seedanceImage(page)
+  await page.getByLabel('添加本地参考图片').setInputFiles(
+    Array.from({ length: 6 }, (_, index) => ({ name: `ref${index}.png`, mimeType: 'image/png', buffer })),
+  )
+  await expect(page.getByText('6/30', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: '参数', exact: true }).click()
+  await page.getByLabel('参考视频 URL / 素材 ID').fill('asset://video1\nasset://video2')
+  await page.getByLabel('参考音频 URL / 素材 ID').fill('asset://audio1\nasset://audio2')
+  await page.getByLabel('参考任务类型').selectOption('edit')
+  await page.getByLabel('视频格式').selectOption('mov')
+  await page.getByLabel('任务优先级').fill('5')
+  await page.getByRole('button', { name: '关闭参数面板' }).click()
+  await page.getByRole('textbox', { name: '消息', exact: true }).fill('将视频背景改为参考图中的花园')
+  const submitted = page.waitForRequest('**/api/v1/videos/generations')
+  await page.getByRole('button', { name: '发送消息' }).click()
+  const payload = (await submitted).postDataJSON()
+  expect(payload.inputs.referenceImageUrls).toHaveLength(6)
+  expect(payload.inputs.referenceVideoUrls).toEqual(['asset://video1', 'asset://video2'])
+  expect(payload.inputs.referenceAudioUrls).toEqual(['asset://audio1', 'asset://audio2'])
+  expect(payload.options).toMatchObject({ omniReferenceTaskType: 'edit', outputFormat: 'mov', duration: -1, aspectRatio: 'adaptive', priority: 5 })
+  await expect(page.getByText('视频任务已提交')).toBeVisible()
+})
+
+async function seedanceImage(page: Page): Promise<Buffer> {
+  const data = await page.evaluate(() => {
+    const canvas = document.createElement('canvas')
+    canvas.width = 512
+    canvas.height = 512
+    const context = canvas.getContext('2d')
+    if (!context) throw new Error('Canvas unavailable')
+    context.fillStyle = '#abcabc'
+    context.fillRect(0, 0, 512, 512)
+    return canvas.toDataURL().slice('data:image/png;base64,'.length)
+  })
+  return Buffer.from(data, 'base64')
+}
+
+async function mockSeedanceTask(page: Page): Promise<void> {
+  await page.route('**/api/v1/videos/generations', (route) => route.fulfill({
+    json: { requestId: 'req_seedance', task: { taskId: 'seedance_task', apiFormat: 'byteDanceVideo', operation: 'generation', status: 'queued' } },
+  }))
+  await page.route('**/api/v1/video-tasks/status', (route) => route.fulfill({
+    json: { requestId: 'req_seedance', task: { taskId: 'seedance_task', apiFormat: 'byteDanceVideo', status: 'processing' } },
+  }))
+}
+
 test('侧边栏省略超长标题和模型且保持操作按钮可见', async ({ page }) => {
   await ignoreKeyGate(page)
   const modelId = 'long-model-'.repeat(20)

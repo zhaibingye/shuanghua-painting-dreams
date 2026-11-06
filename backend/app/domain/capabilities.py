@@ -141,7 +141,7 @@ _PROVIDER_DATA: tuple[ProviderMetadata, ...] = (
             "firstFrameToVideo": True,
             "firstLastFrameToVideo": True,
             "referenceToVideo": True,
-            "localMediaUpload": False,
+            "localMediaUpload": True,
             "tailFrameContinuation": True,
         },
         known_models={
@@ -265,6 +265,39 @@ def validate_openai_image_request(
 
 def validate_byte_dance_video_request(request: ByteDanceVideoGenerationRequest) -> None:
     capabilities = byte_dance_model_capabilities(request.model_id)
+    inputs = request.inputs
+    options = request.options
+    if request.mode not in capabilities["modes"]:
+        raise _capability_error("当前模型不支持所选视频生成模式。", request.api_format)
+    for count, maximum, label in (
+        (len(inputs.reference_image_urls), capabilities["maxReferenceImages"], "参考图片"),
+        (len(inputs.videos), capabilities["maxReferenceVideos"], "参考视频"),
+        (len(inputs.audios), capabilities["maxReferenceAudios"], "参考音频"),
+    ):
+        if count > maximum:
+            raise _capability_error(f"当前模型最多支持 {maximum} 个{label}。", request.api_format)
+    if (
+        inputs.audios
+        and not (inputs.reference_image_urls or inputs.videos)
+        and not capabilities["audioOnlyReference"]
+    ):
+        raise _capability_error("当前模型的参考音频需要搭配参考图片或视频。", request.api_format)
+    task_type = options.omni_reference_task_type
+    if task_type != "auto" and (
+        not capabilities["omniReferenceTaskType"] or request.mode != "referenceToVideo"
+    ):
+        raise _capability_error("任务类型引导仅用于 Seedance 2.5 全模态参考。", request.api_format)
+    if task_type in {"edit", "extend"}:
+        if not inputs.videos or options.aspect_ratio != "adaptive":
+            raise _capability_error(
+                "视频编辑/延长需要参考视频，并使用 adaptive 比例。", request.api_format
+            )
+        if task_type == "edit" and options.duration != -1:
+            raise _capability_error("视频编辑必须使用自动时长（-1）。", request.api_format)
+    if options.output_format not in capabilities["outputFormats"]:
+        raise _capability_error("当前模型不支持所选视频输出格式。", request.api_format)
+    if options.priority and (not capabilities["priority"] or options.service_tier == "flex"):
+        raise _capability_error("当前模型或服务等级不支持任务优先级。", request.api_format)
     duration = request.options.duration
     if duration == -1 and not capabilities["automaticDuration"]:
         raise _capability_error("当前字节视频模型不支持自动时长。", request.api_format)

@@ -199,19 +199,19 @@ class ByteDanceVideoAdapter:
                     "role": "reference_image",
                 }
             )
-        if inputs.reference_video_url is not None:
+        for url in inputs.videos:
             content.append(
                 {
                     "type": "video_url",
-                    "video_url": {"url": str(inputs.reference_video_url)},
+                    "video_url": {"url": url},
                     "role": "reference_video",
                 }
             )
-        if inputs.reference_audio_url is not None:
+        for url in inputs.audios:
             content.append(
                 {
                     "type": "audio_url",
-                    "audio_url": {"url": str(inputs.reference_audio_url)},
+                    "audio_url": {"url": url},
                     "role": "reference_audio",
                 }
             )
@@ -236,6 +236,12 @@ class ByteDanceVideoAdapter:
             payload["camera_fixed"] = True
         if options.web_search:
             payload["tools"] = [{"type": "web_search"}]
+        if request.mode == "referenceToVideo" and options.omni_reference_task_type != "auto":
+            payload["omni_reference_task_type"] = options.omni_reference_task_type
+        if options.output_format != "mp4":
+            payload["output_format"] = options.output_format
+        if options.priority:
+            payload["priority"] = options.priority
         return payload
 
     def _parse_status(self, task_id: str, data: Mapping[str, Any]) -> VideoTaskResult:

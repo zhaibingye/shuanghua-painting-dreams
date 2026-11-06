@@ -3,10 +3,12 @@ import { useEffect, useRef, useState } from 'react'
 
 import { Button } from '../../components/ui/Button'
 import { Spinner } from '../../components/ui/Spinner'
+import { Select } from '../../components/ui/Field'
 import type { StoredConversation } from '../../storage/db'
 import { AttachmentTray } from './AttachmentTray'
 import type { DraftImage } from './image-turn'
-import type { VideoDraft } from './video-turn'
+import { resolveByteDanceVideoCapabilities } from './model-capabilities'
+import { byteVideoImageLimit, byteVideoModeLabels, type VideoDraft } from './video-turn'
 
 export function ChatComposer({
   conversation,
@@ -24,6 +26,7 @@ export function ChatComposer({
   onStop,
   onParameters,
   onOpenMask,
+  onVideoDraft,
 }: {
   conversation: StoredConversation
   prompt: string
@@ -40,10 +43,17 @@ export function ChatComposer({
   onStop: () => void
   onParameters: () => void
   onOpenMask: () => void
+  onVideoDraft: (patch: Partial<VideoDraft>) => void
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [attachmentsProcessing, setAttachmentsProcessing] = useState(false)
   const maxImages = imageLimit(conversation, videoDraft)
+  const byteVideo = conversation.apiFormat === 'byteDanceVideo'
+  const byteModes = resolveByteDanceVideoCapabilities(conversation.modelId).modes
+  const imageLabels = byteVideo
+    ? images.map((_, index) => videoDraft.byteMode === 'referenceToVideo' ? `参考图 ${index + 1}`
+      : videoDraft.byteMode === 'firstLastFrameToVideo' && (videoDraft.firstFrameUrl.trim() || index === 1) ? '尾帧' : '首帧')
+    : undefined
 
   useEffect(() => {
     const textarea = textareaRef.current
@@ -81,7 +91,14 @@ export function ChatComposer({
       <div className="composer-inner">
         <div className="composer-card">
           <div className="composer-content ds-scroll">
-            {maxImages > 0 ? (
+            {byteVideo ? <div className="px-2 pt-2">
+              <Select aria-label="视频创作模式" value={videoDraft.byteMode} disabled={busy} onChange={(event) => onVideoDraft({ byteMode: event.target.value as VideoDraft['byteMode'] })}>
+                {!byteModes.includes(videoDraft.byteMode) ? <option value={videoDraft.byteMode} disabled>{byteVideoModeLabels[videoDraft.byteMode]}（当前模型不支持）</option> : null}
+                {byteModes.map((mode) => <option key={mode} value={mode}>{byteVideoModeLabels[mode]}</option>)}
+              </Select>
+              {videoDraft.byteMode !== 'textToVideo' ? <p className="mt-2 text-xs text-[var(--ds-text-tertiary)]">{videoDraft.byteMode === 'referenceToVideo' ? '添加本地参考图或图片链接；视频和音频在本轮参数中添加。' : '按首帧、尾帧顺序添加图片；参数中已填写的图片地址优先使用。'}</p> : null}
+            </div> : null}
+            {maxImages > 0 || images.length > 0 ? (
               <div className="px-2 pt-1">
                 <AttachmentTray
                   images={images}
@@ -89,6 +106,10 @@ export function ChatComposer({
                   disabled={busy}
                   onChange={onImages}
                   onProcessingChange={setAttachmentsProcessing}
+                  allowAssetId={byteVideo}
+                  acceptedTypes={byteVideo ? ['image/png', 'image/jpeg', 'image/webp', 'image/bmp', 'image/gif'] : undefined}
+                  maxFileSizeMb={byteVideo ? 30 : undefined}
+                  labels={imageLabels}
                 />
               </div>
             ) : null}
@@ -172,6 +193,7 @@ export function ChatComposer({
 
 function imageLimit(conversation: StoredConversation, draft: VideoDraft): number {
   if (conversation.mediaKind === 'video') {
+    if (conversation.apiFormat === 'byteDanceVideo') return byteVideoImageLimit(conversation.modelId, draft)
     if (conversation.apiFormat !== 'xaiVideo' || draft.operation === 'extension') return 0
     if (draft.xaiMode === 'firstFrameToVideo') return 1
     return draft.xaiMode === 'referenceToVideo' ? 8 : 0

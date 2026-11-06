@@ -121,7 +121,9 @@ def test_seedance_2_5_frames_require_adaptive_ratio(mode: str) -> None:
             "mode": mode,
             "inputs": {
                 "firstFrameUrl": "https://example.com/first.png",
-                "lastFrameUrl": "https://example.com/last.png",
+                "lastFrameUrl": "https://example.com/last.png"
+                if mode == "firstLastFrameToVideo"
+                else None,
             },
             "options": {"aspectRatio": "16:9"},
         }
