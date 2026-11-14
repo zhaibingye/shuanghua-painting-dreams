@@ -5,12 +5,12 @@ import {
   completeImageMessage,
   createTurn,
   deleteConversation,
+  finishVideoSubmission,
   getAssets,
   getConversation,
   getMessage,
   getVideoTask,
   putConversation,
-  putVideoTask,
   updateConversation,
   updateMessage,
   updateVideoTask,
@@ -62,7 +62,14 @@ describe('IndexedDB conversation workspace', () => {
       text: '',
       createdAt: new Date(Date.now() + 1).toISOString(),
     }
-    await createTurn({ conversation, userMessage: user, assistantMessage: assistant, inputAssets: [] })
+    await putConversation(conversation)
+    await createTurn({
+      conversationId: conversation.id,
+      title: { previous: conversation.title, initial: 'first prompt' },
+      userMessage: user,
+      assistantMessage: assistant,
+      inputAssets: [],
+    })
 
     const asset: StoredMediaAsset = {
       id: 'asset-1',
@@ -90,6 +97,7 @@ describe('IndexedDB conversation workspace', () => {
     })
 
     expect(await listConversations()).toHaveLength(1)
+    expect(await getConversation(conversation.id)).toMatchObject({ title: 'first prompt' })
     expect((await listMessages(conversation.id))[1]?.status).toBe('succeeded')
     expect((await getAssets([asset.id]))[0]?.mimeType).toBe('image/png')
 
@@ -149,8 +157,20 @@ it('merges concurrent message and video-task updates', async () => {
     error: null, pollFailures: 0, createdAt: conversation.createdAt,
     updatedAt: conversation.updatedAt, lastPolledAt: null,
   }
-  await createTurn({ conversation, userMessage: user, assistantMessage: assistant, inputAssets: [] })
-  await putVideoTask(task)
+  await putConversation(conversation)
+  await updateConversation(conversation.id, { title: 'renamed', modelId: 'updated-model' })
+  await createTurn({
+    conversationId: conversation.id,
+    title: { previous: conversation.title, initial: 'first prompt' },
+    userMessage: user,
+    assistantMessage: assistant,
+    inputAssets: [],
+    videoTask: { ...task, status: 'submitting', upstreamTaskId: null },
+  })
+  expect(await getConversation(conversation.id)).toMatchObject({ title: 'renamed', modelId: 'updated-model' })
+  await finishVideoSubmission(task.id, { status: 'queued', upstreamTaskId: 'upstream' })
+  expect(await getMessage(assistant.id)).toMatchObject({ status: 'succeeded' })
+  expect(await getVideoTask(task.id)).toMatchObject({ status: 'queued', upstreamTaskId: 'upstream' })
   await Promise.all([
     updateMessage(assistant.id, { status: 'succeeded' }),
     updateMessage(assistant.id, { text: 'result' }),
@@ -159,4 +179,25 @@ it('merges concurrent message and video-task updates', async () => {
   ])
   expect(await getMessage(assistant.id)).toMatchObject({ status: 'succeeded', text: 'result' })
   expect(await getVideoTask(task.id)).toMatchObject({ status: 'processing', progress: 50 })
+})
+
+it('rejects a turn for a deleted conversation without restoring its records', async () => {
+  const conversation = makeConversation()
+  const userMessage: StoredMessage = {
+    id: 'user', conversationId: conversation.id, mediaKind: 'video', role: 'user',
+    status: 'succeeded', text: 'snow', attachmentAssetIds: [], outputAssetIds: [],
+    providerState: null, optionsSnapshot: {}, taskId: null, error: null,
+    createdAt: conversation.createdAt, updatedAt: conversation.updatedAt,
+  }
+  await putConversation(conversation)
+  await deleteConversation(conversation.id)
+  await expect(createTurn({
+    conversationId: conversation.id,
+    title: { previous: conversation.title, initial: 'snow' },
+    userMessage,
+    assistantMessage: { ...userMessage, id: 'assistant', role: 'assistant', status: 'pending' },
+    inputAssets: [],
+  })).rejects.toThrow('对话已不存在')
+  expect(await getConversation(conversation.id)).toBeUndefined()
+  expect(await listMessages(conversation.id)).toEqual([])
 })

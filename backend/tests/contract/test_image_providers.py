@@ -63,7 +63,11 @@ async def test_openai_generation_payload_and_response(settings: Settings, model_
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     ("model_id", "encoded_model"),
-    [("nano-banana-2", "nano-banana-2"), ("vendor/model", "vendor%2Fmodel")],
+    [
+        ("gemini-nano-banana-2.1", "gemini-nano-banana-2.1"),
+        ("nano-banana-2", "nano-banana-2"),
+        ("vendor/model", "vendor%2Fmodel"),
+    ],
 )
 async def test_gemini_edit_maps_data_url_to_inline_data(
     settings: Settings, model_id: str, encoded_model: str
@@ -214,7 +218,8 @@ async def test_openai_image_stream_emits_partial_and_final(settings: Settings) -
     assert transport.calls[0].payload["output_compression"] == 80
     assert transport.calls[0].payload["safety_identifier"] == "hashed-user"
     assert "response_format" not in transport.calls[0].payload
-    assert chunks[1].image is not None and chunks[1].image.base64_data == "ZmluYWw="
+    assert chunks[1].kind == "completed"
+    assert chunks[1].image.base64_data == "ZmluYWw="
 
 
 @pytest.mark.asyncio
@@ -276,7 +281,9 @@ async def test_openai_image_turn_with_reference_streams_edit(
     assert call.form.files[0].field_name == "image"
     assert call.form.files[0].filename == "source.png"
     assert call.form.files[0].data.startswith(b"\x89PNG")
-    assert chunks[1].image is not None and chunks[1].image.base64_data == "ZmluYWw="
+    assert chunks[1].kind == "completed"
+    assert chunks[1].image.base64_data == "ZmluYWw="
+    assert chunks[-1].kind == "done"
     assert chunks[-1].usage is not None and chunks[-1].usage.total_tokens == 18
 
 
@@ -307,6 +314,7 @@ async def test_openai_image_stream_accepts_json_success_fallback(settings: Setti
     chunks = [chunk async for chunk in adapter.stream_generate(request, "secret")]
 
     assert [chunk.kind for chunk in chunks] == ["completed", "done"]
+    assert chunks[-1].kind == "done"
     assert chunks[-1].usage is not None and chunks[-1].usage.total_tokens == 9
 
 
@@ -410,7 +418,13 @@ async def test_openai_responses_is_stateless_and_replays_image_calls(
                     "response": {
                         "id": "resp_new",
                         "usage": {"total_tokens": 42},
-                        "output": [],
+                        "output": [
+                            {
+                                "id": "ig_new",
+                                "type": "image_generation_call",
+                                "result": "bmV3",
+                            },
+                        ],
                     },
                 },
             ),
@@ -464,6 +478,8 @@ async def test_openai_responses_is_stateless_and_replays_image_calls(
         "status": "completed",
         "result": "b2xkLWltYWdl",
     }
+    assert [chunk.kind for chunk in chunks] == ["completed", "done"]
+    assert chunks[-1].kind == "done"
     assert chunks[-1].provider_state == {
         "type": "openaiResponses",
         "responseId": "resp_new",

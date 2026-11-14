@@ -3,7 +3,15 @@ from typing import Any
 
 from app.domain.enums import ApiFormat, ErrorCategory
 from app.domain.errors import ApplicationError
-from app.domain.models import GeneratedImage, ImageStreamChunk, Usage
+from app.domain.models import (
+    CompletedImage,
+    GeneratedImage,
+    ImageStreamChunk,
+    ImageStreamDone,
+    ImageTextDelta,
+    PartialImage,
+    Usage,
+)
 from app.infrastructure.config import Settings
 from app.infrastructure.upstream_errors import build_upstream_error
 from app.infrastructure.url_builder import build_upstream_url
@@ -52,6 +60,22 @@ class OpenAIResponsesImageAdapter:
         text_emitted = False
         final_usage: Usage | None = None
         response_completed = False
+        output_format = request.options.output_format
+
+        def completed_image(item: object, output_index: int) -> CompletedImage | None:
+            nonlocal completed_count
+            if not isinstance(item, Mapping) or item.get("type") != "image_generation_call":
+                return None
+            call_id = _string(item.get("id"))
+            if call_id is not None and call_id in completed_call_ids:
+                return None
+            chunk = _image_call_chunk(item, output_format, output_index, call_id)
+            if chunk is None:
+                return None
+            if call_id is not None:
+                completed_call_ids.add(call_id)
+            completed_count += 1
+            return chunk
 
         async for event in self._transport.stream_sse(
             method="POST",
@@ -91,10 +115,9 @@ class OpenAIResponsesImageAdapter:
             if event_type == "response.image_generation_call.partial_image":
                 encoded = data.get("partial_image_b64") or data.get("b64_json")
                 if isinstance(encoded, str) and encoded:
-                    yield ImageStreamChunk(
-                        kind="partial",
+                    yield PartialImage(
                         image=GeneratedImage(
-                            mime_type=_mime_type(request.options.output_format),
+                            mime_type=_mime_type(output_format),
                             base64_data=encoded,
                         ),
                         image_index=_integer(data.get("output_index")) or 0,
@@ -107,24 +130,16 @@ class OpenAIResponsesImageAdapter:
                 delta = data.get("delta")
                 if isinstance(delta, str) and delta:
                     text_emitted = True
-                    yield ImageStreamChunk(kind="text_delta", text_delta=delta)
+                    yield ImageTextDelta(delta)
                 continue
 
             if event_type == "response.output_item.done":
-                item = data.get("item")
-                if isinstance(item, Mapping) and item.get("type") == "image_generation_call":
-                    call_id = _string(item.get("id"))
-                    if call_id is None or call_id not in completed_call_ids:
-                        chunk = _image_call_chunk(
-                            item,
-                            request.options.output_format,
-                            _integer(data.get("output_index")) or completed_count,
-                        )
-                        if chunk is not None:
-                            if call_id is not None:
-                                completed_call_ids.add(call_id)
-                            completed_count += 1
-                            yield chunk
+                output_index = _integer(data.get("output_index"))
+                chunk = completed_image(
+                    data.get("item"), completed_count if output_index is None else output_index
+                )
+                if chunk is not None:
+                    yield chunk
                 continue
 
             if event_type == "response.completed":
@@ -137,27 +152,18 @@ class OpenAIResponsesImageAdapter:
                 output = response.get("output")
                 if isinstance(output, list):
                     for output_index, item in enumerate(output):
-                        if not isinstance(item, Mapping):
-                            continue
-                        if item.get("type") == "image_generation_call":
-                            call_id = _string(item.get("id"))
-                            if call_id is not None and call_id in completed_call_ids:
-                                continue
-                            chunk = _image_call_chunk(
-                                item,
-                                request.options.output_format,
-                                output_index,
-                            )
-                            if chunk is not None:
-                                if call_id is not None:
-                                    completed_call_ids.add(call_id)
-                                completed_count += 1
-                                yield chunk
-                        elif item.get("type") == "message" and not text_emitted:
+                        chunk = completed_image(item, output_index)
+                        if chunk is not None:
+                            yield chunk
+                        elif (
+                            not text_emitted
+                            and isinstance(item, Mapping)
+                            and item.get("type") == "message"
+                        ):
                             text = _message_text(item)
                             if text:
                                 text_emitted = True
-                                yield ImageStreamChunk(kind="text_delta", text_delta=text)
+                                yield ImageTextDelta(text)
                 break
 
         if not response_completed:
@@ -170,8 +176,7 @@ class OpenAIResponsesImageAdapter:
                 self.api_format,
                 "OpenAI Responses 流式响应中没有图像工具结果。",
             )
-        yield ImageStreamChunk(
-            kind="done",
+        yield ImageStreamDone(
             usage=final_usage,
             provider_state={
                 "type": "openaiResponses",
@@ -243,14 +248,13 @@ def _image_call_chunk(
     item: Mapping[str, Any],
     output_format: str,
     output_index: int,
-) -> ImageStreamChunk | None:
+    call_id: str | None,
+) -> CompletedImage | None:
     encoded = item.get("result")
     if not isinstance(encoded, str) or not encoded:
         return None
-    call_id = _string(item.get("id"))
     prompt = _string(item.get("revised_prompt")) or _string(item.get("prompt"))
-    return ImageStreamChunk(
-        kind="completed",
+    return CompletedImage(
         image=GeneratedImage(
             mime_type=_mime_type(output_format),
             base64_data=encoded,

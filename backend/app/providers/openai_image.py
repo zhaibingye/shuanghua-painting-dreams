@@ -8,7 +8,15 @@ from yarl import URL
 
 from app.domain.enums import ApiFormat, ErrorCategory
 from app.domain.errors import ApplicationError
-from app.domain.models import GeneratedImage, ImageResult, ImageStreamChunk, Usage
+from app.domain.models import (
+    CompletedImage,
+    GeneratedImage,
+    ImageResult,
+    ImageStreamChunk,
+    ImageStreamDone,
+    PartialImage,
+    Usage,
+)
 from app.infrastructure.config import Settings
 from app.infrastructure.safe_http import MultipartFile, MultipartForm, UpstreamSseEvent
 from app.infrastructure.upstream_errors import build_upstream_error
@@ -106,9 +114,8 @@ class OpenAIImageAdapter:
                 ),
                 api_key,
             )
-            for index, image in enumerate(result.images):
-                yield ImageStreamChunk(kind="completed", image=image, image_index=index)
-            yield ImageStreamChunk(kind="done", usage=result.usage)
+            for chunk in result.stream_chunks():
+                yield chunk
             return
 
         payload: dict[str, Any] = {
@@ -183,8 +190,7 @@ class OpenAIImageAdapter:
                 result = self._parse_response(data, output_format)
                 final_usage = result.usage or final_usage
                 for image in result.images:
-                    yield ImageStreamChunk(
-                        kind="completed",
+                    yield CompletedImage(
                         image=image,
                         image_index=completed_count,
                     )
@@ -195,8 +201,7 @@ class OpenAIImageAdapter:
                 encoded = data.get("b64_json") or data.get("partial_image_b64")
                 if isinstance(encoded, str) and encoded:
                     image_index = _integer(data.get("image_index"))
-                    yield ImageStreamChunk(
-                        kind="partial",
+                    yield PartialImage(
                         image=GeneratedImage(
                             mime_type=_mime_type(
                                 _string(data.get("output_format")) or output_format
@@ -219,15 +224,13 @@ class OpenAIImageAdapter:
                 completed_count += 1
                 usage = _usage(data.get("usage"))
                 final_usage = usage or final_usage
-                yield ImageStreamChunk(
-                    kind="completed",
+                yield CompletedImage(
                     image=GeneratedImage(
                         mime_type=_mime_type(_string(data.get("output_format")) or output_format),
                         base64_data=encoded,
                         revised_prompt=_string(data.get("revised_prompt")),
                     ),
                     image_index=image_index,
-                    usage=usage,
                     provider_metadata={"upstreamEventType": event_type},
                 )
 
@@ -236,7 +239,7 @@ class OpenAIImageAdapter:
                 self.api_format,
                 "OpenAI 图片生成流中没有最终图片。",
             )
-        yield ImageStreamChunk(kind="done", usage=final_usage)
+        yield ImageStreamDone(usage=final_usage)
 
     @staticmethod
     def _generation_options(options: OpenAIImageBaseOptions) -> dict[str, Any]:

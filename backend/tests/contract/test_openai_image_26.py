@@ -73,9 +73,10 @@ async def test_vector_and_animation_use_json_upstream_and_complete_app_stream(
     chunks = [chunk async for chunk in service.stream_turn(request, "key")]
 
     assert [chunk.kind for chunk in chunks] == ["completed", "done"]
-    assert chunks[0].image is not None
+    assert chunks[0].kind == "completed"
     assert chunks[0].image.mime_type == mime_type
     assert base64.b64decode(chunks[0].image.base64_data) == content
+    assert chunks[-1].kind == "done"
     assert chunks[-1].usage is not None and chunks[-1].usage.total_tokens == 42
     assert len(transport.calls) == 1
     call = transport.calls[0]

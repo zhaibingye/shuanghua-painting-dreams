@@ -469,8 +469,9 @@
           "prompt": {
             "type": "string",
             "maxLength": 32000,
-            "minLength": 1,
-            "title": "Prompt"
+            "title": "Prompt",
+            "description": "图层拆分时可省略提示词。",
+            "default": ""
           },
           "options": {
             "$ref": "#/components/schemas/ByteDanceImageOptions"
@@ -505,7 +506,6 @@
           "apiFormat",
           "baseUrl",
           "modelId",
-          "prompt",
           "images"
         ],
         "title": "ByteDanceImageEditRequest"
@@ -532,8 +532,9 @@
           "prompt": {
             "type": "string",
             "maxLength": 32000,
-            "minLength": 1,
-            "title": "Prompt"
+            "title": "Prompt",
+            "description": "图层拆分时可省略提示词。",
+            "default": ""
           },
           "options": {
             "$ref": "#/components/schemas/ByteDanceImageOptions"
@@ -544,8 +545,7 @@
         "required": [
           "apiFormat",
           "baseUrl",
-          "modelId",
-          "prompt"
+          "modelId"
         ],
         "title": "ByteDanceImageGenerationRequest"
       },
@@ -571,7 +571,7 @@
               "auto"
             ],
             "title": "组图模式",
-            "description": "5.0 pro / flash 不支持组图。",
+            "description": "适用于 5.0 lite、4.5 和 4.0。",
             "default": "disabled"
           },
           "maxImages": {
@@ -585,12 +585,42 @@
           "outputFormat": {
             "type": "string",
             "enum": [
+              "auto",
               "jpeg",
               "png"
             ],
             "title": "输出格式",
-            "description": "仅 Seedream 5.0 支持选择输出格式。",
-            "default": "jpeg"
+            "description": "auto 使用模型的默认格式。",
+            "default": "auto"
+          },
+          "background": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "transparent",
+              "opaque"
+            ],
+            "title": "背景模式",
+            "description": "透明背景使用 PNG 输出。",
+            "default": "auto"
+          },
+          "layerDecomposition": {
+            "type": "boolean",
+            "title": "拆分图层",
+            "description": "将一张图片拆成底图和多个图层。",
+            "default": false
+          },
+          "layerMaxImages": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 2.0,
+            "title": "最大输出数（含底图）",
+            "default": 30
+          },
+          "layerTextRecognition": {
+            "type": "boolean",
+            "title": "识别图层文字及样式",
+            "default": false
           },
           "optimizePromptMode": {
             "type": "string",
@@ -635,8 +665,9 @@
           "prompt": {
             "type": "string",
             "maxLength": 32000,
-            "minLength": 1,
-            "title": "Prompt"
+            "title": "Prompt",
+            "description": "图层拆分时可省略提示词。",
+            "default": ""
           },
           "options": {
             "$ref": "#/components/schemas/ByteDanceImageOptions"
@@ -669,8 +700,7 @@
         "required": [
           "apiFormat",
           "baseUrl",
-          "modelId",
-          "prompt"
+          "modelId"
         ],
         "title": "ByteDanceImageTurnRequest"
       },
@@ -1357,6 +1387,16 @@
               }
             ],
             "title": "Revisedprompt"
+          },
+          "layer": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SeedreamImageLayer"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": false,
@@ -2205,7 +2245,7 @@
             "minLength": 1,
             "title": "生图工具模型",
             "description": "auto 使用上游默认值，也可填写 gpt-image-2 等生图模型 ID。",
-            "default": "gpt-image-2.5-sunburst"
+            "default": "gpt-image-2.6-sunburst"
           },
           "action": {
             "type": "string",
@@ -2467,6 +2507,185 @@
           "version"
         ],
         "title": "ReadyResponse"
+      },
+      "SeedreamImageLayer": {
+        "properties": {
+          "zIndex": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Zindex"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "boundingBox": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SeedreamLayerBounds"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "textRecognition": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SeedreamLayerText"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "zIndex"
+        ],
+        "title": "SeedreamImageLayer"
+      },
+      "SeedreamLayerBounds": {
+        "properties": {
+          "absolute": {
+            "prefixItems": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "type": "array",
+            "maxItems": 4,
+            "minItems": 4,
+            "title": "Absolute"
+          },
+          "normalized": {
+            "prefixItems": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "type": "array",
+            "maxItems": 4,
+            "minItems": 4,
+            "title": "Normalized"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "absolute",
+          "normalized"
+        ],
+        "title": "SeedreamLayerBounds"
+      },
+      "SeedreamLayerText": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/SeedreamTextLine"
+            },
+            "type": "array",
+            "title": "Lines"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "text",
+          "lines"
+        ],
+        "title": "SeedreamLayerText"
+      },
+      "SeedreamTextLine": {
+        "properties": {
+          "boundingBox": {
+            "$ref": "#/components/schemas/SeedreamLayerBounds"
+          },
+          "runs": {
+            "items": {
+              "$ref": "#/components/schemas/SeedreamTextRun"
+            },
+            "type": "array",
+            "title": "Runs"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "boundingBox",
+          "runs"
+        ],
+        "title": "SeedreamTextLine"
+      },
+      "SeedreamTextRun": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "style": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "boolean"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Style"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "SeedreamTextRun"
       },
       "TaskOperation": {
         "type": "string",

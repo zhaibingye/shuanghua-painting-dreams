@@ -5,7 +5,7 @@
       "mediaKind": "image",
       "displayName": "Google Gemini 图像",
       "defaultBaseUrl": "https://www.shapi.vip",
-      "defaultModelId": "nano-banana-2",
+      "defaultModelId": "gemini-nano-banana-2.1",
       "genericCapabilities": {
         "textToImage": true,
         "imageEditing": true,
@@ -15,6 +15,19 @@
         "qualityControl": false
       },
       "knownModels": {
+        "gemini-nano-banana-2.1": {
+          "imageSizes": [
+            "1K",
+            "2K",
+            "4K"
+          ],
+          "maxReferenceImages": 14,
+          "thinkingLevels": [
+            "MINIMAL",
+            "MEDIUM",
+            "HIGH"
+          ]
+        },
         "nano-banana-2": {
           "imageSizes": [
             "512",
@@ -38,7 +51,7 @@
       "mediaKind": "image",
       "displayName": "OpenAI Images",
       "defaultBaseUrl": "https://www.shapi.vip",
-      "defaultModelId": "gpt-image-2.5-sunburst",
+      "defaultModelId": "gpt-image-2.6-sunburst",
       "genericCapabilities": {
         "textToImage": true,
         "imageEditing": true,
@@ -52,28 +65,6 @@
         "editPartialImages": true
       },
       "knownModels": {
-        "gpt-image-2.5-sunburst": {
-          "qualities": [
-            "auto",
-            "low",
-            "medium",
-            "high",
-            "xhigh",
-            "max"
-          ],
-          "customImageSize": true,
-          "transparentBackground": true,
-          "inputFidelities": [
-            "auto"
-          ],
-          "complexity": false,
-          "markupEditing": true,
-          "outputFormats": [
-            "png",
-            "jpeg",
-            "webp"
-          ]
-        },
         "gpt-image-2.6-sunburst": {
           "qualities": [
             "auto",
@@ -120,6 +111,28 @@
             "webp",
             "svg",
             "gif"
+          ]
+        },
+        "gpt-image-2.5-sunburst": {
+          "qualities": [
+            "auto",
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
+          "customImageSize": true,
+          "transparentBackground": true,
+          "inputFidelities": [
+            "auto"
+          ],
+          "complexity": false,
+          "markupEditing": true,
+          "outputFormats": [
+            "png",
+            "jpeg",
+            "webp"
           ]
         },
         "gpt-image-2.5-flare": {
@@ -273,7 +286,7 @@
       "mediaKind": "image",
       "displayName": "OpenAI Responses 图像",
       "defaultBaseUrl": "https://www.shapi.vip",
-      "defaultModelId": "gpt-5.6-luna",
+      "defaultModelId": "gpt-6.1-terra",
       "genericCapabilities": {
         "textToImage": true,
         "imageEditing": true,
@@ -287,7 +300,7 @@
         "qualityControl": true
       },
       "knownModels": {
-        "gpt-5.6-luna": {
+        "gpt-6.1-terra": {
           "responsesImageTool": true,
           "statelessConversation": true
         }
@@ -299,7 +312,7 @@
         "outputCompression": 100,
         "background": "auto",
         "safetyIdentifier": null,
-        "imageModel": "gpt-image-2.5-sunburst",
+        "imageModel": "gpt-image-2.6-sunburst",
         "action": "auto",
         "moderation": "auto",
         "inputFidelity": "auto",
@@ -346,7 +359,7 @@
       "mediaKind": "image",
       "displayName": "字节 Seedream 图像",
       "defaultBaseUrl": "https://www.shapi.vip",
-      "defaultModelId": "doubao-seedream-5-0-pro-260628",
+      "defaultModelId": "doubao-seedream-5-5-261028",
       "genericCapabilities": {
         "textToImage": true,
         "imageEditing": true,
@@ -356,6 +369,19 @@
         "responseFormat": "b64_json"
       },
       "knownModels": {
+        "doubao-seedream-5-5-261028": {
+          "maxReferenceImages": 10,
+          "imageSizes": [
+            "1K",
+            "1.5K",
+            "2K"
+          ],
+          "sequentialImageGeneration": false,
+          "nativeBatchCount": false,
+          "transparentBackground": true,
+          "layerDecomposition": true,
+          "layerTextRecognition": true
+        },
         "doubao-seedream-5-0-pro-260628": {
           "maxReferenceImages": 10,
           "imageSizes": [
@@ -371,7 +397,11 @@
         "watermark": true,
         "sequentialImageGeneration": "disabled",
         "maxImages": 15,
-        "outputFormat": "jpeg",
+        "outputFormat": "auto",
+        "background": "auto",
+        "layerDecomposition": false,
+        "layerMaxImages": 30,
+        "layerTextRecognition": false,
         "optimizePromptMode": "standard",
         "webSearch": false
       }
@@ -933,7 +963,7 @@
           "title": "安全标识（可选）"
         },
         "imageModel": {
-          "default": "gpt-image-2.5-sunburst",
+          "default": "gpt-image-2.6-sunburst",
           "description": "auto 使用上游默认值，也可填写 gpt-image-2 等生图模型 ID。",
           "maxLength": 256,
           "minLength": 1,
@@ -1047,7 +1077,7 @@
         },
         "sequentialImageGeneration": {
           "default": "disabled",
-          "description": "5.0 pro / flash 不支持组图。",
+          "description": "适用于 5.0 lite、4.5 和 4.0。",
           "enum": [
             "disabled",
             "auto"
@@ -1064,14 +1094,44 @@
           "type": "integer"
         },
         "outputFormat": {
-          "default": "jpeg",
-          "description": "仅 Seedream 5.0 支持选择输出格式。",
+          "default": "auto",
+          "description": "auto 使用模型的默认格式。",
           "enum": [
+            "auto",
             "jpeg",
             "png"
           ],
           "title": "输出格式",
           "type": "string"
+        },
+        "background": {
+          "default": "auto",
+          "description": "透明背景使用 PNG 输出。",
+          "enum": [
+            "auto",
+            "transparent",
+            "opaque"
+          ],
+          "title": "背景模式",
+          "type": "string"
+        },
+        "layerDecomposition": {
+          "default": false,
+          "description": "将一张图片拆成底图和多个图层。",
+          "title": "拆分图层",
+          "type": "boolean"
+        },
+        "layerMaxImages": {
+          "default": 30,
+          "maximum": 100,
+          "minimum": 2,
+          "title": "最大输出数（含底图）",
+          "type": "integer"
+        },
+        "layerTextRecognition": {
+          "default": false,
+          "title": "识别图层文字及样式",
+          "type": "boolean"
         },
         "optimizePromptMode": {
           "default": "standard",
@@ -1253,6 +1313,123 @@
       "type": "object"
     }
   },
+  "openAIImageDefaultCapabilities": {
+    "qualities": [
+      "auto",
+      "low",
+      "medium",
+      "high"
+    ],
+    "customImageSize": false,
+    "transparentBackground": true,
+    "inputFidelities": [
+      "auto"
+    ],
+    "complexity": false,
+    "markupEditing": false,
+    "outputFormats": [
+      "png",
+      "jpeg",
+      "webp"
+    ]
+  },
+  "seedreamImageFamilies": [
+    {
+      "prefix": "doubao-seedream-5-5-",
+      "sizes": [
+        "1K",
+        "1.5K",
+        "2K"
+      ],
+      "min_pixels": 921600,
+      "max_pixels": 4624220,
+      "max_reference_images": 10,
+      "sequential": false,
+      "web_search": false,
+      "fast_prompt": false,
+      "png_output": true,
+      "layers": true
+    },
+    {
+      "prefix": "doubao-seedream-5-0-pro-",
+      "sizes": [
+        "1K",
+        "1.5K",
+        "2K"
+      ],
+      "min_pixels": 921600,
+      "max_pixels": 4624220,
+      "max_reference_images": 10,
+      "sequential": false,
+      "web_search": false,
+      "fast_prompt": true,
+      "png_output": true,
+      "layers": false
+    },
+    {
+      "prefix": "doubao-seedream-5-0-flash-",
+      "sizes": [
+        "1K",
+        "1.5K",
+        "2K"
+      ],
+      "min_pixels": 921600,
+      "max_pixels": 4624220,
+      "max_reference_images": 10,
+      "sequential": false,
+      "web_search": false,
+      "fast_prompt": false,
+      "png_output": true,
+      "layers": false
+    },
+    {
+      "prefix": "doubao-seedream-5-0-lite-",
+      "sizes": [
+        "2K",
+        "3K",
+        "4K"
+      ],
+      "min_pixels": 3686400,
+      "max_pixels": 16777216,
+      "max_reference_images": 14,
+      "sequential": true,
+      "web_search": true,
+      "fast_prompt": false,
+      "png_output": true,
+      "layers": false
+    },
+    {
+      "prefix": "doubao-seedream-4-5-",
+      "sizes": [
+        "2K",
+        "4K"
+      ],
+      "min_pixels": 3686400,
+      "max_pixels": 16777216,
+      "max_reference_images": 14,
+      "sequential": true,
+      "web_search": false,
+      "fast_prompt": false,
+      "png_output": false,
+      "layers": false
+    },
+    {
+      "prefix": "doubao-seedream-4-0-",
+      "sizes": [
+        "1K",
+        "2K",
+        "4K"
+      ],
+      "min_pixels": 921600,
+      "max_pixels": 16777216,
+      "max_reference_images": 14,
+      "sequential": true,
+      "web_search": false,
+      "fast_prompt": true,
+      "png_output": false,
+      "layers": false
+    }
+  ],
   "byteDanceVideoFamilies": {
     "families": [
       {

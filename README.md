@@ -39,7 +39,7 @@
 
 服务器安装、端口访问、更新和删除，见 [部署教程](deploy/README.md)。
 
-本机运行需准备 **Node.js 26 LTS（26.13.0+）、npm 12.2.2 和 uv 0.13.7+**；Python 3.15.2 由 uv 按项目配置安装。
+本机需要 Node.js、npm 和 uv。新环境推荐使用兼容的 Node.js LTS 及其自带的 npm，并使用较新的 uv。前端构建和测试的 Node.js 兼容范围为 `^22.22.2 || ^24.15.0 || >=26.0.0`，由当前依赖决定。后端支持 Python 3.12 及以上，由 uv 选择可用的解释器。
 
 ```bash
 git clone https://github.com/zhaibingye/shuanghua-painting-dreams.git

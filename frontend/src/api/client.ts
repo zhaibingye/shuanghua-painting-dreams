@@ -40,6 +40,7 @@ export type StreamedImage = {
   revisedPrompt: string | null
   thought: boolean
   thoughtSignature: string | null
+  layer?: schemas.SeedreamImageLayer
 }
 
 export type ImageStreamEvent =

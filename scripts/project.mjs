@@ -8,9 +8,7 @@ const scriptDirectory = path.dirname(fileURLToPath(import.meta.url))
 const projectRoot = path.resolve(scriptDirectory, '..')
 const backendDirectory = path.join(projectRoot, 'backend')
 const frontendDirectory = path.join(projectRoot, 'frontend')
-const frontendModules = path.join(frontendDirectory, 'node_modules')
 const frontendIndex = path.join(frontendDirectory, 'dist', 'index.html')
-const backendEnvironment = path.join(backendDirectory, '.venv')
 
 const npmCommand = process.platform === 'win32' ? (process.env.ComSpec ?? 'cmd.exe') : 'npm'
 const uvCommand = process.platform === 'win32' ? 'uv.exe' : 'uv'
@@ -28,13 +26,6 @@ for (const signal of ['SIGINT', 'SIGTERM']) {
 
 function log(message) {
   console.log(`[project] ${message}`)
-}
-
-function assertSupportedNodeVersion() {
-  const [majorVersion, minorVersion] = process.versions.node.split('.').map(Number)
-  if (majorVersion !== 26 || minorVersion < 13) {
-    throw new Error(`需要 Node.js 26.13 或更高的 26 LTS 版本，当前版本为 ${process.version}`)
-  }
 }
 
 async function assertPathExists(targetPath, message) {
@@ -140,29 +131,6 @@ function requestShutdown(signal) {
   forceExitTimer.unref()
 }
 
-async function verifyTools() {
-  assertSupportedNodeVersion()
-  await runProcess(npmCommand, npmArguments(['--version']), {
-    cwd: projectRoot,
-    label: '检查 npm',
-  })
-  await runProcess(uvCommand, ['--version'], {
-    cwd: projectRoot,
-    label: '检查 uv',
-  })
-}
-
-async function verifyInstalledDependencies() {
-  await assertPathExists(
-    frontendModules,
-    '缺少 frontend/node_modules，请先在项目根目录执行 npm run setup',
-  )
-  await assertPathExists(
-    backendEnvironment,
-    '缺少 backend/.venv，请先在项目根目录执行 npm run setup',
-  )
-}
-
 async function setup() {
   log('安装后端完整依赖……')
   await runProcess(uvCommand, ['sync', '--frozen'], {
@@ -178,7 +146,6 @@ async function setup() {
 }
 
 async function buildFrontend() {
-  await verifyInstalledDependencies()
   log('检查 TypeScript 并构建前端生产产物……')
   await runProcess(npmCommand, npmArguments(['run', 'build']), {
     cwd: frontendDirectory,
@@ -203,7 +170,6 @@ async function startProduction() {
 }
 
 async function startDevelopment() {
-  await verifyInstalledDependencies()
   const backendPort = resolveDevelopmentPort()
   const backendHost = process.env.SHUANGHUA_HOST ?? '127.0.0.1'
   const proxyHost = backendHost === '0.0.0.0' || backendHost === '::' ? '127.0.0.1' : backendHost
@@ -253,8 +219,6 @@ async function startDevelopment() {
 }
 
 async function checkProject() {
-  await verifyInstalledDependencies()
-
   const checks = [
     [
       uvCommand,
@@ -308,7 +272,6 @@ async function main() {
     throw new Error(`未知命令 ${JSON.stringify(command)}，可用命令：${availableCommands}`)
   }
 
-  await verifyTools()
   await commands[command]()
 }
 

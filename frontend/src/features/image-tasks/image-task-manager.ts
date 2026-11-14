@@ -101,6 +101,7 @@ async function runImageTask(
             width: processed.width,
             height: processed.height,
             revisedPrompt: event.image.revisedPrompt,
+            layer: event.image.layer,
             thought: event.image.thought,
             createdAt: new Date().toISOString(),
           }

@@ -7,6 +7,8 @@ project_root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(project_root))
 
 from app.domain.capabilities import provider_metadata  # noqa: E402
+from app.domain.image_options import seedream_model_families  # noqa: E402
+from app.domain.openai_images import openai_image_capabilities  # noqa: E402
 from app.domain.options import option_schemas  # noqa: E402
 from app.domain.seedance import byte_dance_model_families  # noqa: E402
 from app.main import app  # noqa: E402
@@ -20,6 +22,8 @@ catalog.write_bytes(
         {
             "providers": provider_metadata().model_dump(by_alias=True)["providers"],
             "options": option_schemas(),
+            "openAIImageDefaultCapabilities": openai_image_capabilities(),
+            "seedreamImageFamilies": seedream_model_families(),
             "byteDanceVideoFamilies": byte_dance_model_families(),
         },
         option=orjson.OPT_INDENT_2,

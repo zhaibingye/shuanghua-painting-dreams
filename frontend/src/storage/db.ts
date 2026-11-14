@@ -1,5 +1,6 @@
 import { type DBSchema, type IDBPDatabase, openDB } from 'idb'
 
+import type { SeedreamImageLayer } from '../api/generated/models'
 import type { ApiFormat, MediaKind, VideoApiFormat } from './settings'
 
 export type StoredTaskError = {
@@ -89,6 +90,7 @@ export type StoredMediaAsset = {
   width: number | null
   height: number | null
   revisedPrompt: string | null
+  layer?: SeedreamImageLayer
   thought: boolean
   createdAt: string
 }
@@ -297,7 +299,8 @@ export async function updateMessage(
 }
 
 export async function createTurn(options: {
-  conversation: StoredConversation
+  conversationId: string
+  title: { initial: string; previous: string }
   userMessage: StoredMessage
   assistantMessage: StoredMessage
   inputAssets: StoredMediaAsset[]
@@ -308,12 +311,61 @@ export async function createTurn(options: {
     ? (['conversations', 'messages', 'assets', 'videoTasks'] as const)
     : (['conversations', 'messages', 'assets'] as const)
   const transaction = db.transaction(stores, 'readwrite')
-  await transaction.objectStore('conversations').put(options.conversation)
-  await transaction.objectStore('messages').put(options.userMessage)
-  await transaction.objectStore('messages').put(options.assistantMessage)
-  for (const asset of options.inputAssets) await transaction.objectStore('assets').put(asset)
-  if (options.videoTask) await transaction.objectStore('videoTasks').put(options.videoTask)
-  await transaction.done
+  const conversations = transaction.objectStore('conversations')
+  const conversation = await conversations.get(options.conversationId)
+  if (!conversation) {
+    await transaction.done
+    throw new Error('对话已不存在。')
+  }
+  const messages = transaction.objectStore('messages')
+  const firstTurn = await messages.index('conversationId').count(conversation.id) === 0
+  const title = firstTurn && conversation.title === options.title.previous
+    ? options.title.initial : conversation.title
+  await Promise.all([
+    conversations.put({
+      ...conversation,
+      title,
+      updatedAt: options.userMessage.createdAt,
+    }),
+    messages.add(options.userMessage),
+    messages.add(options.assistantMessage),
+    ...options.inputAssets.map((asset) => transaction.objectStore('assets').add(asset)),
+    ...(options.videoTask ? [transaction.objectStore('videoTasks').add(options.videoTask)] : []),
+    transaction.done,
+  ])
+  notifyChange()
+}
+
+export async function finishVideoSubmission(
+  taskId: string,
+  result:
+    | { upstreamTaskId: string; status: Exclude<StoredVideoStatus, 'submitting' | 'pollingError'> }
+    | { error: StoredTaskError },
+): Promise<void> {
+  const db = await database()
+  const transaction = db.transaction(['videoTasks', 'messages'], 'readwrite')
+  const tasks = transaction.objectStore('videoTasks')
+  const task = await tasks.get(taskId)
+  if (!task || task.status !== 'submitting') {
+    await transaction.done
+    return
+  }
+  const messages = transaction.objectStore('messages')
+  const message = await messages.get(task.assistantMessageId)
+  if (!message) {
+    await transaction.done
+    throw new Error('视频任务缺少对应的消息。')
+  }
+  const updatedAt = new Date().toISOString()
+  const error = 'error' in result ? result.error : null
+  const taskUpdate = 'error' in result
+    ? { status: 'failed' as const, error: result.error }
+    : { ...result, previousStatus: result.status }
+  await Promise.all([
+    tasks.put({ ...task, ...taskUpdate, updatedAt }),
+    messages.put({ ...message, status: error ? 'failed' : 'succeeded', error, updatedAt }),
+    transaction.done,
+  ])
   notifyChange()
 }
 
@@ -359,12 +411,6 @@ export async function getAssets(ids: string[]): Promise<StoredMediaAsset[]> {
   return assets.filter((asset): asset is StoredMediaAsset => asset !== undefined)
 }
 
-export async function putVideoTask(task: StoredVideoTask): Promise<void> {
-  const db = await database()
-  await db.put('videoTasks', task)
-  notifyChange()
-}
-
 export async function getVideoTask(id: string): Promise<StoredVideoTask | undefined> {
   const db = await database()
   return db.get('videoTasks', id)
@@ -408,29 +454,30 @@ export async function listActiveVideoTasks(): Promise<StoredVideoTask[]> {
 
 export async function markInterruptedImageMessages(): Promise<void> {
   const db = await database()
+  const transaction = db.transaction('messages', 'readwrite')
+  const statusIndex = transaction.store.index('status')
   const pendingGroups = await Promise.all(
     (['pending', 'streaming'] as const).map((status) =>
-      db.getAllFromIndex('messages', 'status', status),
+      statusIndex.getAll(status),
     ),
   )
   const imageMessages = pendingGroups
     .flat()
     .filter((message) => message.mediaKind === 'image' && message.role === 'assistant')
-  if (imageMessages.length === 0) return
-  const transaction = db.transaction('messages', 'readwrite')
-  for (const message of imageMessages) {
-    await transaction.store.put({
+  const updatedAt = new Date().toISOString()
+  await Promise.all([
+    ...imageMessages.map((message) => transaction.store.put({
       ...message,
       status: 'interrupted',
       error: {
         code: 'requestInterrupted',
         message: '页面关闭或刷新导致图片请求中断。',
       },
-      updatedAt: new Date().toISOString(),
-    })
-  }
-  await transaction.done
-  notifyChange()
+      updatedAt,
+    })),
+    transaction.done,
+  ])
+  if (imageMessages.length > 0) notifyChange()
 }
 
 export async function clearWorkspace(): Promise<void> {

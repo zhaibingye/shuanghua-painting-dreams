@@ -211,18 +211,29 @@ function ImageResultCard({
 }) {
   const url = useObjectUrl(asset.blob)
   const editable = ['image/png', 'image/jpeg', 'image/webp'].includes(asset.mimeType ?? 'image/png')
+  const layer = asset.layer
+  const outputDate = layer ? new Date(asset.createdAt) : undefined
   return (
     <div className="group overflow-hidden rounded-xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-layer-1)]">
       <div className="relative bg-[var(--ds-bg-hover)]">
-        {url ? <img src={url} alt={`生成结果 ${index + 1}`} className="max-h-[38rem] w-full object-contain" /> : null}
+        {url ? <img src={url} alt={layer?.zIndex === 0 ? '底图' : layer?.name ?? `生成结果 ${index + 1}`} className="max-h-[38rem] w-full object-contain" /> : null}
         {active ? <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full border border-[var(--ds-brand-border)] bg-[var(--ds-bg-layer-1)] px-2.5 py-1 text-xs text-[var(--ds-brand-text)] shadow"><Check className="size-3" />后续编辑基图</span> : null}
       </div>
       <div className="flex flex-wrap items-center gap-1 border-t border-[var(--ds-border-light)] p-2">
-        <Button size="sm" variant="ghost" icon={<Download className="size-3.5" />} onClick={() => asset.blob && downloadBlob(asset.blob, imageFilename(provider, asset.mimeType ?? 'image/png', index))}>下载</Button>
+        <Button size="sm" variant="ghost" icon={<Download className="size-3.5" />} onClick={() => asset.blob && downloadBlob(asset.blob, imageFilename(provider, asset.mimeType ?? 'image/png', index, outputDate))}>下载</Button>
         {editable ? <Button size="sm" variant="ghost" icon={active ? <Check className="size-3.5" /> : <RotateCcw className="size-3.5" />} onClick={() => onSetActive(asset)}>{active ? '已选中' : '设为基图'}</Button> : null}
         {canMask && editable ? <Button size="sm" variant="ghost" icon={<Pencil className="size-3.5" />} onClick={() => onMask(asset)}>遮罩 / 标注编辑</Button> : null}
         <Button size="sm" variant="ghost" icon={<ArrowUpRight className="size-3.5" />} disabled={!url} onClick={() => url && window.open(url, '_blank', 'noopener,noreferrer')}>查看</Button>
       </div>
+      {layer ? <div className="grid gap-1 border-t border-[var(--ds-border-light)] px-3 py-2 text-xs text-[var(--ds-text-secondary)]">
+        <p className="font-medium">{layer.zIndex === 0 ? '底图' : layer.name ?? `图层 ${layer.zIndex}`}</p>
+        {layer.description ? <p>{layer.description}</p> : null}
+        {layer.textRecognition ? <details><summary className="cursor-pointer">识别文字</summary><p className="mt-1 whitespace-pre-wrap">{layer.textRecognition.text}</p></details> : null}
+        <Button size="sm" variant="ghost" className="justify-self-start" onClick={() => downloadBlob(
+          new Blob([JSON.stringify(layer, null, 2)], { type: 'application/json' }),
+          imageFilename(provider, 'application/json', index, outputDate),
+        )}>下载图层信息</Button>
+      </div> : null}
       {asset.revisedPrompt ? <details className="border-t border-[var(--ds-border-light)] px-3 py-2 text-xs text-[var(--ds-text-secondary)]"><summary className="cursor-pointer">优化后的提示词</summary><p className="mt-2 whitespace-pre-wrap leading-5">{asset.revisedPrompt}</p></details> : null}
     </div>
   )

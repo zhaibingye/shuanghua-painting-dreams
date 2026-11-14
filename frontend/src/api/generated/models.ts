@@ -39,7 +39,10 @@ export interface ByteDanceImageEditRequest {
   apiFormat: 'byteDanceImage'
   baseUrl: string
   modelId: string
-  prompt: string
+  /**
+   * 图层拆分时可省略提示词。
+   */
+  prompt?: string
   options?: ByteDanceImageOptions
   /**
    * @minItems 1
@@ -58,7 +61,7 @@ export interface ByteDanceImageOptions {
   size?: string
   watermark?: boolean
   /**
-   * 5.0 pro / flash 不支持组图。
+   * 适用于 5.0 lite、4.5 和 4.0。
    */
   sequentialImageGeneration?: 'disabled' | 'auto'
   /**
@@ -66,9 +69,19 @@ export interface ByteDanceImageOptions {
    */
   maxImages?: number
   /**
-   * 仅 Seedream 5.0 支持选择输出格式。
+   * auto 使用模型的默认格式。
    */
-  outputFormat?: 'jpeg' | 'png'
+  outputFormat?: 'auto' | 'jpeg' | 'png'
+  /**
+   * 透明背景使用 PNG 输出。
+   */
+  background?: 'auto' | 'transparent' | 'opaque'
+  /**
+   * 将一张图片拆成底图和多个图层。
+   */
+  layerDecomposition?: boolean
+  layerMaxImages?: number
+  layerTextRecognition?: boolean
   /**
    * fast 仅支持 4.0 / 5.0 pro。
    */
@@ -103,7 +116,10 @@ export interface ByteDanceImageGenerationRequest {
   apiFormat: 'byteDanceImage'
   baseUrl: string
   modelId: string
-  prompt: string
+  /**
+   * 图层拆分时可省略提示词。
+   */
+  prompt?: string
   options?: ByteDanceImageOptions
 }
 /**
@@ -114,7 +130,10 @@ export interface ByteDanceImageTurnRequest {
   apiFormat: 'byteDanceImage'
   baseUrl: string
   modelId: string
-  prompt: string
+  /**
+   * 图层拆分时可省略提示词。
+   */
+  prompt?: string
   options?: ByteDanceImageOptions
   /**
    * @maxItems 14
@@ -287,6 +306,60 @@ export interface GeneratedImageResponse {
   mimeType: string
   base64Data: string
   revisedPrompt?: string | null
+  layer?: SeedreamImageLayer | null
+}
+/**
+ * This interface was referenced by `ApiModels`'s JSON-Schema
+ * via the `definition` "SeedreamImageLayer".
+ */
+export interface SeedreamImageLayer {
+  zIndex: number
+  name?: string | null
+  description?: string | null
+  boundingBox?: SeedreamLayerBounds | null
+  textRecognition?: SeedreamLayerText | null
+}
+/**
+ * This interface was referenced by `ApiModels`'s JSON-Schema
+ * via the `definition` "SeedreamLayerBounds".
+ */
+export interface SeedreamLayerBounds {
+  /**
+   * @minItems 4
+   * @maxItems 4
+   */
+  absolute: unknown[]
+  /**
+   * @minItems 4
+   * @maxItems 4
+   */
+  normalized: unknown[]
+}
+/**
+ * This interface was referenced by `ApiModels`'s JSON-Schema
+ * via the `definition` "SeedreamLayerText".
+ */
+export interface SeedreamLayerText {
+  text: string
+  lines: SeedreamTextLine[]
+}
+/**
+ * This interface was referenced by `ApiModels`'s JSON-Schema
+ * via the `definition` "SeedreamTextLine".
+ */
+export interface SeedreamTextLine {
+  boundingBox: SeedreamLayerBounds
+  runs: SeedreamTextRun[]
+}
+/**
+ * This interface was referenced by `ApiModels`'s JSON-Schema
+ * via the `definition` "SeedreamTextRun".
+ */
+export interface SeedreamTextRun {
+  text: string
+  style?: {
+    [k: string]: string | boolean
+  }
 }
 /**
  * This interface was referenced by `ApiModels`'s JSON-Schema

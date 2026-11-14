@@ -35,4 +35,4 @@ npm run api:generate
 
 生产构建输出到 `frontend/dist`，由 FastAPI 统一提供，不需要单独启动静态文件服务器。
 
-开发环境使用 Node.js 26 LTS（至少 26.13.0）和 npm 12.2.2。TypeScript 7 负责类型检查，Oxlint 负责 lint 和类型感知检查，`json-schema-to-typescript` 负责生成 API 模型类型。全部工具使用同一份 `package.json` 和 lock 文件。
+新环境推荐使用兼容的 Node.js LTS 和它自带的 npm。当前构建和测试依赖支持 `^22.22.2 || ^24.15.0 || >=26.0.0`，以 `package.json` 的 `engines` 为准。TypeScript 7 负责类型检查，Oxlint 负责 lint 和类型感知检查，`json-schema-to-typescript` 负责生成 API 模型类型。

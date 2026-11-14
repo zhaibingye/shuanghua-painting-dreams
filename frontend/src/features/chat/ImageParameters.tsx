@@ -1,6 +1,7 @@
 import { optionFields } from '../../api/options'
 import { FieldShell, Input, Select } from '../../components/ui/Field'
 import type { ImageApiFormat } from '../../storage/settings'
+import { geminiImageCapabilities, seedreamImageCapabilities } from './model-capabilities'
 import { OpenAIImageSizeField } from './OpenAIImageSizeField'
 import { OPENAI_IMAGE_MODELS, openAIImageCapabilities } from './openai-image-options'
 
@@ -16,6 +17,11 @@ export function ImageParameters({ format, modelId, options, onOption }: {
   const imageModel = format === 'openaiResponsesImage' && typeof selectedImageModel === 'string'
     ? selectedImageModel : modelId
   const capabilities = openAIImageCapabilities(imageModel)
+  const seedream = format === 'byteDanceImage'
+  const seedreamCapabilities = seedream ? seedreamImageCapabilities(modelId) : undefined
+  const supportsLayers = seedreamCapabilities?.layers === true
+  const splitLayers = supportsLayers && options.layerDecomposition === true
+  const gemini = format === 'googleGeminiImage' ? geminiImageCapabilities(modelId) : undefined
   const outputFormat = typeof options.outputFormat === 'string' ? options.outputFormat : String(fields.outputFormat?.default ?? 'png')
   const nonStreaming = ['svg', 'gif'].includes(outputFormat)
   return <div className="grid gap-4">
@@ -26,13 +32,24 @@ export function ImageParameters({ format, modelId, options, onOption }: {
       if (key === 'svgReasoningEffort' && (outputFormat !== 'svg' || !options.svgModel)) return null
       if (['frameCount', 'frameDurationMs'].includes(key) && outputFormat !== 'gif') return null
       if (key === 'partialImages' && nonStreaming) return null
+      if (seedream && key === 'background' && (!supportsLayers || splitLayers)) return null
+      if (key === 'layerDecomposition' && !supportsLayers) return null
+      if (['layerMaxImages', 'layerTextRecognition'].includes(key) && !splitLayers) return null
+      if (seedreamCapabilities?.sequential === false && ['sequentialImageGeneration', 'maxImages'].includes(key)) return null
+      if (seedreamCapabilities?.web_search === false && key === 'webSearch') return null
+      if (seedreamCapabilities?.fast_prompt === false && key === 'optimizePromptMode') return null
       if (key === 'maxImages' && options.sequentialImageGeneration !== 'auto') return null
       const value = options[key] ?? field.default
       const inputValue = typeof value === 'string' || typeof value === 'number' ? value : ''
       if (openAI && key === 'size' && outputFormat !== 'gif') return <OpenAIImageSizeField key={key} size={String(inputValue)} modelId={imageModel} onChange={(size) => onOption(key, size)} />
       const values = openAI && key === 'quality' ? capabilities.qualities
         : openAI && key === 'outputFormat' ? capabilities.outputFormats.filter((value) => field.enum?.includes(value))
-        : openAI && key === 'inputFidelity' ? capabilities.inputFidelities : field.enum
+        : openAI && key === 'inputFidelity' ? capabilities.inputFidelities
+        : splitLayers && key === 'size' ? ['auto', ...seedreamCapabilities.sizes]
+        : supportsLayers && key === 'outputFormat' && options.background === 'transparent' ? ['auto', 'png']
+        : seedreamCapabilities?.png_output === false && key === 'outputFormat' ? field.enum?.filter((value) => value !== 'png')
+        : gemini && key === 'imageSize' ? gemini.imageSizes
+        : gemini?.thinkingLevels && key === 'thinkingLevel' ? gemini.thinkingLevels : field.enum
       if (field.type === 'boolean') return <label key={key} className="grid gap-2 rounded-xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-hover)] p-3 text-sm">
         <span className="flex items-center justify-between gap-3"><span>{field.title}</span><input aria-label={field.title} className="size-4 accent-[var(--ds-brand-primary)]" type="checkbox" checked={value === true} onChange={(event) => onOption(key, event.target.checked)} /></span>
         {field.description ? <span className="text-xs text-[var(--ds-text-secondary)]">{field.description}</span> : null}

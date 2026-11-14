@@ -1,7 +1,5 @@
-import asyncio
 import logging
 from collections.abc import AsyncIterator
-from copy import deepcopy
 from typing import Annotated, Any
 from uuid import uuid4
 
@@ -17,7 +15,7 @@ from app.api.dependencies import (
 from app.application.image_service import ImageService
 from app.domain.enums import ErrorCategory
 from app.domain.errors import ApplicationError
-from app.domain.models import Usage
+from app.domain.models import ImageProviderState, Usage
 from app.schemas.image_turns import ImageConversationTurnRequest
 from app.schemas.images import ImageEditRequest, ImageGenerationRequest, ImageOperationResponse
 
@@ -70,7 +68,6 @@ async def _stream_turn(
     request_id: str,
 ) -> AsyncIterator[bytes]:
     image_ids: dict[int, str] = {}
-    final_usage: Usage | None = None
     yield _sse(
         "turn.started",
         {
@@ -80,7 +77,7 @@ async def _stream_turn(
     )
     try:
         async for chunk in service.stream_turn(request, api_key):
-            if chunk.kind == "partial" and chunk.image is not None:
+            if chunk.kind == "partial":
                 yield _sse(
                     "image.partial",
                     {
@@ -91,10 +88,9 @@ async def _stream_turn(
                         "providerMetadata": chunk.provider_metadata,
                     },
                 )
-            elif chunk.kind == "completed" and chunk.image is not None:
+            elif chunk.kind == "completed":
                 image_id = f"img_{uuid4().hex}"
                 image_ids[chunk.image_index] = image_id
-                final_usage = chunk.usage or final_usage
                 yield _sse(
                     "image.completed",
                     {
@@ -106,27 +102,29 @@ async def _stream_turn(
                             "revisedPrompt": chunk.image.revised_prompt,
                             "thought": chunk.image.is_thought,
                             "thoughtSignature": chunk.image.thought_signature,
+                            **(
+                                {"layer": chunk.image.layer.model_dump()}
+                                if chunk.image.layer
+                                else {}
+                            ),
                         },
                         "providerMetadata": chunk.provider_metadata,
                     },
                 )
-            elif chunk.kind == "text_delta" and chunk.text_delta:
+            elif chunk.kind == "text_delta":
                 yield _sse("text.delta", {"delta": chunk.text_delta})
-            elif chunk.kind == "done":
-                final_usage = chunk.usage or final_usage
+            else:
                 yield _sse(
                     "turn.completed",
                     {
                         "requestId": request_id,
-                        "usage": _usage_payload(final_usage),
+                        "usage": _usage_payload(chunk.usage),
                         "providerState": _resolve_provider_state(
                             chunk.provider_state,
                             image_ids,
                         ),
                     },
                 )
-    except asyncio.CancelledError:
-        raise
     except ApplicationError as error:
         yield _sse(
             "turn.failed",
@@ -160,24 +158,25 @@ async def _stream_turn(
 
 
 def _resolve_provider_state(
-    provider_state: dict[str, Any] | None,
+    provider_state: ImageProviderState | None,
     image_ids: dict[int, str],
-) -> dict[str, Any] | None:
-    if provider_state is None:
-        return None
-    resolved = deepcopy(provider_state)
-    if resolved.get("type") != "gemini":
-        return resolved
-    parts = resolved.get("parts")
-    if not isinstance(parts, list):
-        return resolved
-    for part in parts:
-        if not isinstance(part, dict) or part.get("kind") != "image":
-            continue
-        image_index = part.pop("imageIndex", None)
-        if isinstance(image_index, int):
-            part["imageId"] = image_ids.get(image_index)
-    return resolved
+) -> ImageProviderState | dict[str, Any] | None:
+    if provider_state is None or provider_state["type"] != "gemini":
+        return provider_state
+    return {
+        **provider_state,
+        "parts": [
+            part
+            if part["kind"] == "text"
+            else {
+                "kind": "image",
+                "imageId": image_ids[part["imageIndex"]],
+                "thought": part["thought"],
+                "thoughtSignature": part["thoughtSignature"],
+            }
+            for part in provider_state["parts"]
+        ],
+    }
 
 
 def _usage_payload(usage: Usage | None) -> dict[str, int | None] | None:
@@ -192,5 +191,4 @@ def _usage_payload(usage: Usage | None) -> dict[str, int | None] | None:
 
 
 def _sse(event: str, data: dict[str, Any]) -> bytes:
-    serialized = orjson.dumps(data).decode()
-    return f"event: {event}\ndata: {serialized}\n\n".encode()
+    return b"event: %b\ndata: %b\n\n" % (event.encode(), orjson.dumps(data))

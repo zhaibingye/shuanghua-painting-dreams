@@ -63,6 +63,110 @@ async def test_seedream_generation_uses_ark_contract(settings: Settings) -> None
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("options", [{}, {"background": "transparent", "size": "2880x1440"}])
+async def test_seedream_55_generation_uses_single_image_contract(
+    settings: Settings, options: dict[str, str]
+) -> None:
+    transport = FakeTransport([response({"data": [{"b64_json": "aW1hZ2U="}]})])
+    request = ByteDanceImageGenerationRequest.model_validate(
+        {
+            "apiFormat": "byteDanceImage",
+            "baseUrl": "https://ark.cn-beijing.volces.com",
+            "modelId": "doubao-seedream-5-5-261028",
+            "prompt": "雪花",
+            "options": options,
+        }
+    )
+    result = await ByteDanceImageAdapter(transport, settings).generate(request, "key")
+    call = transport.calls[0]
+    assert str(call.url) == "https://ark.cn-beijing.volces.com/api/v3/images/generations"
+    assert call.payload is not None
+    assert call.payload == {
+        "model": request.model_id,
+        "prompt": "雪花",
+        "size": options.get("size", "2K"),
+        "watermark": True,
+        "response_format": "b64_json",
+        "output_format": "png",
+        "optimize_prompt_options": {"mode": "standard"},
+        **({"background": "transparent"} if "background" in options else {}),
+    }
+    assert result.images[0].mime_type == "image/png"
+
+
+@pytest.mark.asyncio
+async def test_seedream_55_decomposition_preserves_layer_positions_and_ocr(
+    settings: Settings,
+) -> None:
+    bounds = {"absolute": [10, 20, 100, 80], "normalized": [20, 40, 200, 160]}
+    ocr = {
+        "text": "TITLE",
+        "lines": [
+            {
+                "bounding_box": bounds,
+                "runs": [
+                    {"text": "TITLE ", "style": {"bold": True, "foreground_color": "#112233"}}
+                ],
+            }
+        ],
+    }
+    transport = FakeTransport(
+        [
+            response(
+                {
+                    "data": [
+                        {
+                            "b64_json": "bGF5ZXI=",
+                            "z_index": 1,
+                            "name": "标题",
+                            "bounding_box": bounds,
+                            "text_recognition": ocr,
+                        },
+                        {"b64_json": "YmFzZQ==", "z_index": 0},
+                    ]
+                }
+            )
+        ]
+    )
+    request = ByteDanceImageEditRequest.model_validate(
+        {
+            "apiFormat": "byteDanceImage",
+            "baseUrl": "https://ark.cn-beijing.volces.com",
+            "modelId": "doubao-seedream-5-5-261028",
+            "images": [{"kind": "url", "url": "https://example.com/cover.png"}],
+            "options": {
+                "layerDecomposition": True,
+                "layerMaxImages": 8,
+                "layerTextRecognition": True,
+                "outputFormat": "jpeg",
+            },
+        }
+    )
+    result = await ImageService(ProviderRegistry.create(transport, settings)).edit(
+        request, "key", "req_test"
+    )
+    payload = transport.calls[0].payload
+    assert payload is not None
+    assert payload["image"] == "https://example.com/cover.png"
+    assert payload["layer_decomposition"] is True
+    assert payload["layer_decomposition_options"] == {"max_images": 8, "text_recognition": True}
+    assert payload["size"] == "auto"
+    assert "prompt" not in payload and "background" not in payload
+    base, layer = result.images
+    assert base.mime_type == "image/jpeg" and base.layer is not None and base.layer.z_index == 0
+    assert layer.mime_type == "image/png" and layer.layer is not None
+    assert layer.layer.model_dump(by_alias=True, mode="json")["boundingBox"]["absolute"] == [
+        10,
+        20,
+        100,
+        80,
+    ]
+    assert layer.layer.text_recognition is not None
+    assert layer.layer.text_recognition.lines[0].runs[0].text == "TITLE "
+    assert layer.layer.text_recognition.lines[0].runs[0].style["bold"] is True
+
+
+@pytest.mark.asyncio
 async def test_seedream_edit_and_group_partial_success(settings: Settings) -> None:
     transport = FakeTransport(
         [
@@ -130,7 +234,12 @@ async def test_seedream_conversation_uses_single_reference(settings: Settings) -
 
 
 @pytest.mark.asyncio
-async def test_proxy_generation_downloads_url_into_normal_image_result(settings: Settings) -> None:
+@pytest.mark.parametrize(
+    "model_id", ["doubao-seedream-5-0-pro-260628", "doubao-seedream-5-5-261028"]
+)
+async def test_proxy_generation_downloads_url_into_normal_image_result(
+    settings: Settings, model_id: str
+) -> None:
     png = b"\x89PNG\r\n\x1a\nimage-data"
     transport = FakeTransport(
         [response({"created": 123, "data": [{"url": "https://cdn.example.com/result.png"}]})],
@@ -142,7 +251,7 @@ async def test_proxy_generation_downloads_url_into_normal_image_result(settings:
         {
             "apiFormat": "byteDanceImage",
             "baseUrl": "https://shapi.vip/v1/",
-            "modelId": "doubao-seedream-5-0-pro-260628",
+            "modelId": model_id,
             "prompt": "test",
         }
     )
@@ -227,6 +336,15 @@ async def test_seedream_does_not_report_malformed_or_empty_output_as_success(
     [
         ("doubao-seedream-5-0-pro-260628", {"sequentialImageGeneration": "auto"}, 0),
         ("doubao-seedream-5-0-flash-test", {}, 11),
+        ("doubao-seedream-5-5-261028", {}, 11),
+        ("doubao-seedream-5-5-261028", {"size": "4K"}, 0),
+        ("doubao-seedream-5-5-261028", {"sequentialImageGeneration": "auto"}, 0),
+        ("doubao-seedream-5-5-261028", {"webSearch": True}, 0),
+        ("doubao-seedream-5-5-261028", {"optimizePromptMode": "fast"}, 0),
+        ("doubao-seedream-5-5-261028", {"background": "transparent", "outputFormat": "jpeg"}, 0),
+        ("doubao-seedream-5-5-261028", {"layerDecomposition": True}, 2),
+        ("doubao-seedream-5-5-261028", {"layerDecomposition": True, "size": "2880x1440"}, 1),
+        ("doubao-seedream-5-5-261028", {"layerDecomposition": True, "background": "opaque"}, 1),
         ("doubao-seedream-4-5-251128", {"size": "1K"}, 0),
         ("doubao-seedream-4-5-251128", {"size": "1024x1024"}, 0),
         ("doubao-seedream-4-0-test", {"webSearch": True}, 0),

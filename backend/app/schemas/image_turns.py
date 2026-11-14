@@ -1,4 +1,4 @@
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Self
 
 from pydantic import Field, model_validator
 
@@ -94,7 +94,7 @@ class OpenAIImageTurnRequest(UpstreamRequest):
     options: OpenAIImageTurnOptions = Field(default_factory=OpenAIImageTurnOptions)
 
     @model_validator(mode="after")
-    def validate_mask_inputs(self) -> OpenAIImageTurnRequest:
+    def validate_mask_inputs(self) -> Self:
         if self.markup is not None:
             if self.mask is not None:
                 raise ValueError("标注图不能与遮罩同时使用")

@@ -7,11 +7,11 @@ https://developers.openai.com/api/reference/resources/images/methods/generate
 import re
 from typing import TypedDict
 
-DEFAULT_IMAGE_MODEL = "gpt-image-2.5-sunburst"
+DEFAULT_IMAGE_MODEL = "gpt-image-2.6-sunburst"
 IMAGE_MODELS = (
     DEFAULT_IMAGE_MODEL,
-    "gpt-image-2.6-sunburst",
     "gpt-image-2.6-flare",
+    "gpt-image-2.5-sunburst",
     "gpt-image-2.5-flare",
     "gpt-image-2",
     "gpt-image-1.5",
@@ -45,7 +45,7 @@ def image_model_family(model_id: str) -> str:
     return model_id
 
 
-def openai_image_capabilities(model_id: str) -> ImageCapabilities:
+def openai_image_capabilities(model_id: str = "") -> ImageCapabilities:
     family = image_model_family(model_id)
     is_26 = family in {"gpt-image-2.6-sunburst", "gpt-image-2.6-flare"}
     sunburst_or_flare = is_26 or family in {"gpt-image-2.5-sunburst", "gpt-image-2.5-flare"}

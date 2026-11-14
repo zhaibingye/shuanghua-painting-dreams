@@ -2,6 +2,50 @@ import catalog from '../../api/generated/provider-catalog.json'
 import type * as schemas from '../../api/generated/models'
 import { defaultOptions, type Options } from '../../api/options'
 
+const geminiCatalog = catalog.providers.find((provider) => provider.apiFormat === 'googleGeminiImage')
+type GeminiImageCapabilities = { imageSizes: readonly string[]; thinkingLevels?: readonly string[] }
+
+export function geminiImageCapabilities(modelId: string): GeminiImageCapabilities | undefined {
+  return (geminiCatalog?.knownModels as Partial<Record<string, GeminiImageCapabilities>> | undefined)?.[modelId]
+}
+
+export function seedreamImageCapabilities(modelId: string) {
+  return catalog.seedreamImageFamilies.find(({ prefix }) => modelId.startsWith(prefix))
+}
+
+export function normalizeSeedreamImageOptions(options: Record<string, unknown>, modelId: string): Record<string, unknown> {
+  const capabilities = seedreamImageCapabilities(modelId)
+  const layers = capabilities?.layers === true
+  const splitLayers = layers && options.layerDecomposition === true
+  const size = options.size
+  let nextSize = size === 'auto' && !splitLayers ? '2K' : size
+  if (capabilities && !capabilities.sizes.includes(String(size))) {
+    if (splitLayers) {
+      nextSize = 'auto'
+    } else {
+      const dimensions = typeof size === 'string' && /^[0-9]+x[0-9]+$/i.test(size)
+        ? size.toLowerCase().split('x').map(Number) : []
+      const [width = 0, height = 0] = dimensions
+      const pixels = width * height
+      if (pixels < capabilities.min_pixels || pixels > capabilities.max_pixels ||
+          width > height * 16 || height > width * 16) nextSize = '2K'
+    }
+  }
+  return {
+    ...options,
+    size: nextSize,
+    sequentialImageGeneration: capabilities?.sequential === false ? 'disabled' : options.sequentialImageGeneration,
+    webSearch: capabilities?.web_search === false ? false : options.webSearch,
+    optimizePromptMode: capabilities?.fast_prompt === false ? 'standard' : options.optimizePromptMode,
+    outputFormat: capabilities?.png_output === false && options.outputFormat === 'png'
+      ? 'auto'
+      : layers && !splitLayers && options.background === 'transparent' && options.outputFormat === 'jpeg'
+        ? 'png' : options.outputFormat,
+    background: layers && !splitLayers ? options.background : 'auto',
+    layerDecomposition: splitLayers,
+  }
+}
+
 type ByteDanceVideoOptions = schemas.ByteDanceVideoOptions
 type ByteDanceVideoResolution = NonNullable<ByteDanceVideoOptions['resolution']>
 

@@ -10,6 +10,7 @@ import {
   type StoredMessage,
 } from '../../storage/db'
 import { fileToDataUrl } from '../../workers/image-worker-client'
+import { seedreamImageCapabilities } from './model-capabilities'
 
 export type DraftImage =
   | {
@@ -103,9 +104,19 @@ export async function buildImageTurnRequest(options: {
     apiFormat: 'xaiImage', ...connection, prompt: options.prompt, sourceImages,
     options: parseOptions('xaiImage', options.turnOptions),
   }
-  if (conversation.apiFormat === 'byteDanceImage') return {
-    apiFormat: 'byteDanceImage', ...connection, prompt: options.prompt, sourceImages,
-    options: parseOptions('byteDanceImage', options.turnOptions),
+  if (conversation.apiFormat === 'byteDanceImage') {
+    const parsedOptions = parseOptions('byteDanceImage', options.turnOptions)
+    if (parsedOptions.layerDecomposition && sourceImages.length !== 1) {
+      throw new Error('图层拆分需要一张待拆分图片，请检查编辑基图和附件。')
+    }
+    const limit = seedreamImageCapabilities(conversation.modelId)?.max_reference_images ?? 14
+    if (sourceImages.length > limit) {
+      throw new Error(`当前 Seedream 模型最多支持 ${limit} 张参考图（含编辑基图）。`)
+    }
+    return {
+      apiFormat: 'byteDanceImage', ...connection, prompt: options.prompt, sourceImages,
+      options: parsedOptions,
+    }
   }
   throw new Error('当前对话格式不支持图片生成。')
 }

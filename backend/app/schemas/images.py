@@ -1,6 +1,6 @@
 from typing import Annotated, Literal, Self
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import ConfigDict, Field, field_validator, model_validator
 
 from app.domain.enums import ApiFormat
 from app.domain.openai_images import validate_image_size
@@ -153,7 +153,7 @@ class ByteDanceImageOptions(ApiModel):
     )
     watermark: bool = Field(default=True, title="添加水印")
     sequential_image_generation: Literal["disabled", "auto"] = Field(
-        default="disabled", title="组图模式", description="5.0 pro / flash 不支持组图。"
+        default="disabled", title="组图模式", description="适用于 5.0 lite、4.5 和 4.0。"
     )
     max_images: int = Field(
         default=15,
@@ -162,9 +162,17 @@ class ByteDanceImageOptions(ApiModel):
         title="最大生成数量",
         description="组图模式下生效；参考图与输出图合计不超过 15 张。",
     )
-    output_format: Literal["jpeg", "png"] = Field(
-        default="jpeg", title="输出格式", description="仅 Seedream 5.0 支持选择输出格式。"
+    output_format: Literal["auto", "jpeg", "png"] = Field(
+        default="auto", title="输出格式", description="auto 使用模型的默认格式。"
     )
+    background: Literal["auto", "transparent", "opaque"] = Field(
+        default="auto", title="背景模式", description="透明背景使用 PNG 输出。"
+    )
+    layer_decomposition: bool = Field(
+        default=False, title="拆分图层", description="将一张图片拆成底图和多个图层。"
+    )
+    layer_max_images: int = Field(default=30, ge=2, le=100, title="最大输出数（含底图）")
+    layer_text_recognition: bool = Field(default=False, title="识别图层文字及样式")
     optimize_prompt_mode: Literal["standard", "fast"] = Field(
         default="standard", title="提示词优化", description="fast 仅支持 4.0 / 5.0 pro。"
     )
@@ -175,7 +183,7 @@ class ByteDanceImageOptions(ApiModel):
     @field_validator("size")
     @classmethod
     def validate_size(cls, value: str) -> str:
-        if value in {"1K", "1.5K", "2K", "3K", "4K"}:
+        if value in {"auto", "1K", "1.5K", "2K", "3K", "4K"}:
             return value
         parts = value.lower().split("x", maxsplit=1)
         if len(parts) != 2 or not all(part.isdigit() and int(part) > 0 for part in parts):
@@ -185,8 +193,14 @@ class ByteDanceImageOptions(ApiModel):
 
 class ByteDanceImageGenerationRequest(UpstreamRequest):
     api_format: Literal[ApiFormat.BYTE_DANCE_IMAGE]
-    prompt: str = Field(min_length=1, max_length=32000)
+    prompt: str = Field(default="", max_length=32000, description="图层拆分时可省略提示词。")
     options: ByteDanceImageOptions = Field(default_factory=ByteDanceImageOptions)
+
+    @model_validator(mode="after")
+    def validate_prompt(self) -> Self:
+        if not self.prompt and not self.options.layer_decomposition:
+            raise ValueError("图片生成或编辑需要提示词")
+        return self
 
 
 class ByteDanceImageEditRequest(ByteDanceImageGenerationRequest):
@@ -239,7 +253,7 @@ class OpenAIImageEditRequest(UpstreamRequest):
     options: OpenAIImageEditOptions = Field(default_factory=OpenAIImageEditOptions)
 
     @model_validator(mode="after")
-    def validate_mask_inputs(self) -> OpenAIImageEditRequest:
+    def validate_mask_inputs(self) -> Self:
         if self.markup is not None and self.mask is not None:
             raise ValueError("标注图不能与遮罩同时使用")
         if self.mask is not None and len(self.images) != 1:
@@ -263,11 +277,44 @@ ImageEditRequest = Annotated[
 ]
 
 
+class SeedreamLayerBounds(ApiModel):
+    absolute: tuple[int, int, int, int]
+    normalized: tuple[int, int, int, int]
+
+
+class SeedreamTextRun(ApiModel):
+    model_config = ConfigDict(str_strip_whitespace=False)
+
+    text: str
+    style: dict[str, str | bool] = Field(default_factory=dict)
+
+
+class SeedreamTextLine(ApiModel):
+    bounding_box: SeedreamLayerBounds
+    runs: list[SeedreamTextRun]
+
+
+class SeedreamLayerText(ApiModel):
+    model_config = ConfigDict(str_strip_whitespace=False)
+
+    text: str
+    lines: list[SeedreamTextLine]
+
+
+class SeedreamImageLayer(ApiModel):
+    z_index: int = Field(ge=0)
+    name: str | None = None
+    description: str | None = None
+    bounding_box: SeedreamLayerBounds | None = None
+    text_recognition: SeedreamLayerText | None = None
+
+
 class GeneratedImageResponse(ApiModel):
     id: str
     mime_type: str
     base64_data: str
     revised_prompt: str | None = None
+    layer: SeedreamImageLayer | None = None
 
 
 class ImageOperationResponse(ApiModel):

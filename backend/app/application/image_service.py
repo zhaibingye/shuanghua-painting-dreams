@@ -74,12 +74,10 @@ class ImageService:
     ) -> AsyncIterator[ImageStreamChunk]:
         if isinstance(request, OpenAIImageTurnRequest):
             validate_openai_image_request(request)
-            if request.source_images:
-                async for chunk in self._providers.openai_image.stream_edit(request, api_key):
-                    yield chunk
-            else:
-                async for chunk in self._providers.openai_image.stream_generate(request, api_key):
-                    yield chunk
+            adapter = self._providers.openai_image
+            stream = adapter.stream_edit if request.source_images else adapter.stream_generate
+            async for chunk in stream(request, api_key):
+                yield chunk
             return
         if isinstance(request, OpenAIResponsesImageTurnRequest):
             validate_openai_image_request(request)
@@ -88,50 +86,33 @@ class ImageService:
             return
         if isinstance(request, GeminiImageTurnRequest):
             result = await self._providers.google_gemini_image.conversation(request, api_key)
-            async for chunk in _result_chunks(result):
-                yield chunk
-            return
-        if isinstance(request, XAIImageTurnRequest):
+        elif isinstance(request, XAIImageTurnRequest):
+            connection = {
+                "base_url": request.base_url,
+                "model_id": request.model_id,
+                "prompt": request.prompt,
+            }
             if request.source_images:
                 xai_edit = XAIImageEditRequest(
                     api_format=request.api_format,
-                    base_url=request.base_url,
-                    model_id=request.model_id,
-                    prompt=request.prompt,
                     images=request.source_images,
                     options=request.options,
+                    **connection,
                 )
                 result = await self._providers.xai_image.edit(xai_edit, api_key)
             else:
                 xai_generation = XAIImageGenerationRequest(
                     api_format=request.api_format,
-                    base_url=request.base_url,
-                    model_id=request.model_id,
-                    prompt=request.prompt,
                     options=request.options,
+                    **connection,
                 )
                 result = await self._providers.xai_image.generate(xai_generation, api_key)
-            async for chunk in _result_chunks(result):
-                yield chunk
-            return
-        if isinstance(request, ByteDanceImageTurnRequest):
+        elif isinstance(request, ByteDanceImageTurnRequest):
             result = await self._providers.byte_dance_image.conversation(request, api_key)
-            async for chunk in _result_chunks(result):
-                yield chunk
-            return
-        raise _unsupported_request()
-
-
-async def _result_chunks(result: ImageResult) -> AsyncIterator[ImageStreamChunk]:
-    for text in result.text_outputs:
-        yield ImageStreamChunk(kind="text_delta", text_delta=text)
-    for index, image in enumerate(result.images):
-        yield ImageStreamChunk(kind="completed", image=image, image_index=index)
-    yield ImageStreamChunk(
-        kind="done",
-        usage=result.usage,
-        provider_state=result.provider_state,
-    )
+        else:
+            raise _unsupported_request()
+        for chunk in result.stream_chunks():
+            yield chunk
 
 
 def _to_response(result: ImageResult, request_id: str) -> ImageOperationResponse:
@@ -143,6 +124,7 @@ def _to_response(result: ImageResult, request_id: str) -> ImageOperationResponse
                 mime_type=image.mime_type,
                 base64_data=image.base64_data,
                 revised_prompt=image.revised_prompt,
+                layer=image.layer,
             )
             for image in result.images
             if not image.is_thought

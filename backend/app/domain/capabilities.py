@@ -1,6 +1,18 @@
 from app.domain.enums import ApiFormat, ErrorCategory, MediaKind
 from app.domain.errors import ApplicationError
-from app.domain.openai_images import IMAGE_MODELS, STANDARD_SIZES, openai_image_capabilities
+from app.domain.image_options import (
+    NANO_BANANA_21_MODEL_ID,
+    NANO_BANANA_21_SIZES,
+    NANO_BANANA_21_THINKING_LEVELS,
+    SEEDREAM_55_MODEL_ID,
+    seedream_capabilities,
+)
+from app.domain.openai_images import (
+    DEFAULT_IMAGE_MODEL,
+    IMAGE_MODELS,
+    STANDARD_SIZES,
+    openai_image_capabilities,
+)
 from app.domain.options import OPTION_MODELS
 from app.domain.seedance import DEFAULT_BYTE_DANCE_MODEL_ID
 from app.domain.seedance import byte_dance_model_capabilities as byte_dance_model_capabilities
@@ -10,6 +22,26 @@ from app.schemas.metadata import ProviderMetadata, ProviderMetadataResponse
 from app.schemas.videos import ByteDanceVideoGenerationRequest, XAIVideoGenerationRequest
 
 _DEFAULT_BASE_URL = "https://www.shapi.vip"
+_DEFAULT_RESPONSES_MODEL = "gpt-6.1-terra"
+
+
+def _seedream_metadata(model_id: str) -> dict[str, object]:
+    capabilities = seedream_capabilities(model_id)
+    assert capabilities is not None
+    metadata: dict[str, object] = {
+        "maxReferenceImages": capabilities.max_reference_images,
+        "imageSizes": list(capabilities.sizes),
+        "sequentialImageGeneration": capabilities.sequential,
+    }
+    if capabilities.layers:
+        metadata.update(
+            nativeBatchCount=capabilities.sequential,
+            transparentBackground=True,
+            layerDecomposition=True,
+            layerTextRecognition=True,
+        )
+    return metadata
+
 
 _PROVIDER_DATA: tuple[ProviderMetadata, ...] = (
     ProviderMetadata(
@@ -17,7 +49,7 @@ _PROVIDER_DATA: tuple[ProviderMetadata, ...] = (
         media_kind=MediaKind.IMAGE,
         display_name="Google Gemini 图像",
         default_base_url=_DEFAULT_BASE_URL,
-        default_model_id="nano-banana-2",
+        default_model_id=NANO_BANANA_21_MODEL_ID,
         generic_capabilities={
             "textToImage": True,
             "imageEditing": True,
@@ -27,10 +59,15 @@ _PROVIDER_DATA: tuple[ProviderMetadata, ...] = (
             "qualityControl": False,
         },
         known_models={
+            NANO_BANANA_21_MODEL_ID: {
+                "imageSizes": list(NANO_BANANA_21_SIZES),
+                "maxReferenceImages": 14,
+                "thinkingLevels": list(NANO_BANANA_21_THINKING_LEVELS),
+            },
             "nano-banana-2": {
                 "imageSizes": ["512", "1K", "2K", "4K"],
                 "maxReferenceImages": 14,
-            }
+            },
         },
         default_options={},
     ),
@@ -39,7 +76,7 @@ _PROVIDER_DATA: tuple[ProviderMetadata, ...] = (
         media_kind=MediaKind.IMAGE,
         display_name="OpenAI Images",
         default_base_url=_DEFAULT_BASE_URL,
-        default_model_id="gpt-image-2.5-sunburst",
+        default_model_id=DEFAULT_IMAGE_MODEL,
         generic_capabilities={
             "textToImage": True,
             "imageEditing": True,
@@ -62,7 +99,7 @@ _PROVIDER_DATA: tuple[ProviderMetadata, ...] = (
         media_kind=MediaKind.IMAGE,
         display_name="OpenAI Responses 图像",
         default_base_url=_DEFAULT_BASE_URL,
-        default_model_id="gpt-5.6-luna",
+        default_model_id=_DEFAULT_RESPONSES_MODEL,
         generic_capabilities={
             "textToImage": True,
             "imageEditing": True,
@@ -76,7 +113,7 @@ _PROVIDER_DATA: tuple[ProviderMetadata, ...] = (
             "qualityControl": True,
         },
         known_models={
-            "gpt-5.6-luna": {
+            _DEFAULT_RESPONSES_MODEL: {
                 "responsesImageTool": True,
                 "statelessConversation": True,
             }
@@ -112,7 +149,7 @@ _PROVIDER_DATA: tuple[ProviderMetadata, ...] = (
         media_kind=MediaKind.IMAGE,
         display_name="字节 Seedream 图像",
         default_base_url=_DEFAULT_BASE_URL,
-        default_model_id="doubao-seedream-5-0-pro-260628",
+        default_model_id=SEEDREAM_55_MODEL_ID,
         generic_capabilities={
             "textToImage": True,
             "imageEditing": True,
@@ -122,11 +159,8 @@ _PROVIDER_DATA: tuple[ProviderMetadata, ...] = (
             "responseFormat": "b64_json",
         },
         known_models={
-            "doubao-seedream-5-0-pro-260628": {
-                "maxReferenceImages": 10,
-                "imageSizes": ["1K", "1.5K", "2K"],
-                "sequentialImageGeneration": False,
-            },
+            model_id: _seedream_metadata(model_id)
+            for model_id in (SEEDREAM_55_MODEL_ID, "doubao-seedream-5-0-pro-260628")
         },
         default_options={},
     ),

@@ -2,7 +2,7 @@ import base64
 from collections.abc import Mapping
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from yarl import URL
 
 from app.domain.enums import ApiFormat
@@ -17,6 +17,7 @@ from app.providers.base import (
 )
 from app.providers.image_content import detect_image_mime_type
 from app.schemas.common import PublicHttpUrl
+from app.schemas.images import SeedreamImageLayer
 
 
 class ImageMetadata(BaseModel):
@@ -46,10 +47,23 @@ class ImageResponse(BaseModel):
     usage: UpstreamUsage | None = None
 
 
+class LayerImageData(ImageData, SeedreamImageLayer):
+    model_config = ConfigDict(extra="ignore", str_strip_whitespace=False, validate_by_alias=False)
+
+
+class LayerUrlImageData(UrlImageData, SeedreamImageLayer):
+    model_config = LayerImageData.model_config
+
+
+class LayerImageResponse(BaseModel):
+    data: list[LayerImageData | LayerUrlImageData] = Field(min_length=1)
+    usage: UpstreamUsage | None = None
+
+
 def parse_base64_images(
     data: Mapping[str, Any], *, api_format: ApiFormat, default_mime_type: str
 ) -> ImageResult:
-    response = _parse_response(data, api_format)
+    response = _parse_response(ImageResponse, data, api_format)
     images: list[GeneratedImage] = []
     for item in response.data:
         if isinstance(item, ImageData):
@@ -66,12 +80,33 @@ async def parse_generated_images(
     default_mime_type: str,
     transport: ProviderTransport,
     settings: Settings,
+    layer_decomposition: bool = False,
 ) -> ImageResult:
-    response = _parse_response(data, api_format)
+    response: ImageResponse | LayerImageResponse
+    if layer_decomposition:
+        response = _parse_response(LayerImageResponse, data, api_format)
+        indices = {item.z_index for item in response.data}
+        if 0 not in indices or len(indices) != len(response.data):
+            raise invalid_response_error(api_format, "上游返回的图层顺序不完整。")
+        response.data.sort(key=lambda item: item.z_index)
+    else:
+        response = _parse_response(ImageResponse, data, api_format)
     images: list[GeneratedImage] = []
     for item in response.data:
+        layer = (
+            SeedreamImageLayer(
+                z_index=item.z_index,
+                name=item.name,
+                description=item.description,
+                bounding_box=item.bounding_box,
+                text_recognition=item.text_recognition,
+            )
+            if isinstance(item, (LayerImageData, LayerUrlImageData))
+            else None
+        )
         if isinstance(item, ImageData):
-            images.append(_base64_image(item, default_mime_type))
+            fallback_mime_type = "image/png" if layer and layer.z_index > 0 else default_mime_type
+            images.append(_base64_image(item, fallback_mime_type, layer=layer))
         elif isinstance(item, UrlImageData):
             downloaded = await transport.download(
                 url=URL(str(item.url), encoded=True),
@@ -87,18 +122,23 @@ async def parse_generated_images(
                     mime_type=mime_type,
                     base64_data=base64.b64encode(downloaded.data).decode("ascii"),
                     revised_prompt=item.revised_prompt,
+                    layer=layer,
                 )
             )
     return _result(response, images, api_format)
 
 
-def _parse_response(data: Mapping[str, Any], api_format: ApiFormat) -> ImageResponse:
+def _parse_response[T: BaseModel](
+    model: type[T], data: Mapping[str, Any], api_format: ApiFormat
+) -> T:
     if data.get("error"):
         raise build_upstream_error(status=400, data=data, api_format=api_format)
-    return parse_response(ImageResponse, data, api_format=api_format)
+    return parse_response(model, data, api_format=api_format)
 
 
-def _base64_image(item: ImageData, default_mime_type: str) -> GeneratedImage:
+def _base64_image(
+    item: ImageData, default_mime_type: str, *, layer: SeedreamImageLayer | None = None
+) -> GeneratedImage:
     return GeneratedImage(
         mime_type=item.mime_type
         or (
@@ -110,11 +150,14 @@ def _base64_image(item: ImageData, default_mime_type: str) -> GeneratedImage:
         ),
         base64_data=item.b64_json,
         revised_prompt=item.revised_prompt,
+        layer=layer,
     )
 
 
 def _result(
-    response: ImageResponse, images: list[GeneratedImage], api_format: ApiFormat
+    response: ImageResponse | LayerImageResponse,
+    images: list[GeneratedImage],
+    api_format: ApiFormat,
 ) -> ImageResult:
     errors = [item.error.message for item in response.data if isinstance(item, ImageFailure)]
     if not images:

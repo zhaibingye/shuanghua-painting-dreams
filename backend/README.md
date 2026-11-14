@@ -52,7 +52,7 @@ uv run mypy app tests
 uv run python scripts/export_openapi.py
 ```
 
-后端使用 `backend/.python-version` 指定的 Python 3.15.2，建议使用 uv 0.13.7 或更高版本安装和管理解释器。
+后端支持 Python 3.12 及以上。推荐使用较新的 uv 管理解释器和依赖。已有兼容环境可直接运行 `uv sync`，也可以用 `uv sync --python 3.12` 指定解释器。
 
 ## 字节视频素材
 

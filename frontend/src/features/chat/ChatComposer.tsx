@@ -7,13 +7,14 @@ import { Select } from '../../components/ui/Field'
 import type { StoredConversation } from '../../storage/db'
 import { AttachmentTray } from './AttachmentTray'
 import type { DraftImage } from './image-turn'
-import { resolveByteDanceVideoCapabilities } from './model-capabilities'
+import { resolveByteDanceVideoCapabilities, seedreamImageCapabilities } from './model-capabilities'
 import { byteVideoImageLimit, byteVideoModeLabels, type VideoDraft } from './video-turn'
 
 export function ChatComposer({
   conversation,
   prompt,
   images,
+  splitLayers = false,
   videoDraft,
   busy,
   canStop,
@@ -31,6 +32,7 @@ export function ChatComposer({
   conversation: StoredConversation
   prompt: string
   images: DraftImage[]
+  splitLayers?: boolean
   videoDraft: VideoDraft
   busy: boolean
   canStop: boolean
@@ -47,7 +49,8 @@ export function ChatComposer({
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [attachmentsProcessing, setAttachmentsProcessing] = useState(false)
-  const maxImages = imageLimit(conversation, videoDraft)
+  const maxImages = splitLayers
+    ? Number(!conversation.activeImageAssetId) : imageLimit(conversation, videoDraft)
   const byteVideo = conversation.apiFormat === 'byteDanceVideo'
   const byteModes = resolveByteDanceVideoCapabilities(conversation.modelId).modes
   const imageLabels = byteVideo
@@ -107,8 +110,8 @@ export function ChatComposer({
                   onChange={onImages}
                   onProcessingChange={setAttachmentsProcessing}
                   allowAssetId={byteVideo}
-                  acceptedTypes={byteVideo ? ['image/png', 'image/jpeg', 'image/webp', 'image/bmp', 'image/gif'] : undefined}
-                  maxFileSizeMb={byteVideo ? 30 : undefined}
+                  acceptedTypes={splitLayers ? ['image/png', 'image/jpeg'] : byteVideo ? ['image/png', 'image/jpeg', 'image/webp', 'image/bmp', 'image/gif'] : undefined}
+                  maxFileSizeMb={byteVideo || splitLayers ? 30 : undefined}
                   labels={imageLabels}
                 />
               </div>
@@ -119,7 +122,7 @@ export function ChatComposer({
               className="message-input ds-scroll"
               value={prompt}
               disabled={busy}
-              placeholder={placeholder(conversation, videoDraft)}
+              placeholder={splitLayers ? '可选，描述需要拆分的元素…' : placeholder(conversation, videoDraft)}
               onChange={(event) => onPrompt(event.target.value)}
               onKeyDown={(event) => {
                 if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
@@ -175,7 +178,9 @@ export function ChatComposer({
                   size="icon"
                   className="send-button"
                   disabled={
-                    attachmentsProcessing || (conversation.mediaKind === 'image' && !prompt.trim())
+                    attachmentsProcessing || (conversation.mediaKind === 'image' && (splitLayers
+                      ? images.length + Number(Boolean(conversation.activeImageAssetId)) !== 1
+                      : !prompt.trim()))
                   }
                   icon={<Send className="size-4" />}
                   aria-label="发送消息"
@@ -200,7 +205,7 @@ function imageLimit(conversation: StoredConversation, draft: VideoDraft): number
   }
   if (conversation.apiFormat === 'googleGeminiImage') return 14
   if (conversation.apiFormat === 'byteDanceImage') {
-    const limit = /doubao-seedream-5-0-(pro|flash)-/.test(conversation.modelId) ? 10 : 14
+    const limit = seedreamImageCapabilities(conversation.modelId)?.max_reference_images ?? 14
     return limit - (conversation.activeImageAssetId ? 1 : 0)
   }
   if (conversation.apiFormat === 'openaiResponsesImage') return 16

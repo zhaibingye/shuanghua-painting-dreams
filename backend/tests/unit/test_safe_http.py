@@ -1,6 +1,6 @@
 from collections.abc import AsyncIterator
 from types import TracebackType
-from typing import cast
+from typing import Self, cast
 
 import aiohttp
 import pytest
@@ -17,7 +17,7 @@ class RedirectResponse:
     def __init__(self) -> None:
         self.headers = {"Location": "/same-target"}
 
-    async def __aenter__(self) -> RedirectResponse:
+    async def __aenter__(self) -> Self:
         return self
 
     async def __aexit__(

@@ -3,7 +3,8 @@ from typing import Any
 from urllib.parse import quote
 
 from app.domain.enums import ApiFormat
-from app.domain.models import GeneratedImage, ImageResult, Usage
+from app.domain.image_options import validate_gemini_options
+from app.domain.models import GeminiImageState, GeminiTextState, GeneratedImage, ImageResult, Usage
 from app.infrastructure.config import Settings
 from app.infrastructure.url_builder import build_upstream_url
 from app.providers.base import (
@@ -16,7 +17,6 @@ from app.providers.base import (
 from app.schemas.common import DataUrlImageAsset, ImageAsset, UrlImageAsset
 from app.schemas.image_turns import (
     GeminiConversationContent,
-    GeminiImagePart,
     GeminiImageTurnRequest,
     GeminiTextPart,
 )
@@ -83,6 +83,7 @@ class GoogleGeminiImageAdapter:
         api_key: str,
         payload: dict[str, Any],
     ) -> ImageResult:
+        validate_gemini_options(model_id, options)
         prefix = build_upstream_url(base_url, "/v1beta/models")
         url = prefix.joinpath(f"{quote(model_id, safe='')}:generateContent", encoded=True)
         response = await self._transport.request_json(
@@ -119,18 +120,13 @@ class GoogleGeminiImageAdapter:
         for part in content.parts:
             if isinstance(part, GeminiTextPart):
                 mapped: dict[str, Any] = {"text": part.text}
-                if part.thought:
-                    mapped["thought"] = True
-                if part.thought_signature:
-                    mapped["thought_signature"] = part.thought_signature
-                parts.append(mapped)
-            elif isinstance(part, GeminiImagePart):
+            else:
                 mapped = cls._image_part(part.image)
-                if part.thought:
-                    mapped["thought"] = True
-                if part.thought_signature:
-                    mapped["thought_signature"] = part.thought_signature
-                parts.append(mapped)
+            if part.thought:
+                mapped["thought"] = True
+            if part.thought_signature:
+                mapped["thought_signature"] = part.thought_signature
+            parts.append(mapped)
         return {"role": content.role, "parts": parts}
 
     @staticmethod
@@ -153,7 +149,7 @@ class GoogleGeminiImageAdapter:
 
         images: list[GeneratedImage] = []
         text_outputs: list[str] = []
-        model_parts: list[dict[str, Any]] = []
+        model_parts: list[GeminiTextState | GeminiImageState] = []
         for candidate in candidates:
             if not isinstance(candidate, Mapping):
                 continue

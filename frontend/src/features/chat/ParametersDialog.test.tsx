@@ -150,7 +150,7 @@ describe('OpenAI image parameter controls', () => {
 
   it('provides the same presets and an explicit image model for Responses', () => {
     render(<ImageDialogHarness responses />)
-    expect(screen.getByLabelText('生图工具模型')).toHaveValue('gpt-image-2.5-sunburst')
+    expect(screen.getByLabelText('生图工具模型')).toHaveValue('gpt-image-2.6-sunburst')
     expect(screen.getByLabelText('快捷比例')).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'max' })).toBeInTheDocument()
   })

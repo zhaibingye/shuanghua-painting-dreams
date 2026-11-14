@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { toast } from 'sonner'
 
 import { createVideo, type VideoCreationResponse } from '../../api/client'
-import { createTurn, updateMessage, updateVideoTask, type StoredConversation } from '../../storage/db'
+import { createTurn, finishVideoSubmission, type StoredConversation } from '../../storage/db'
 import { defaultSettings } from '../../storage/settings'
 import { useSettingsStore } from '../../stores/settings-store'
 import { ChatPage } from './ChatPage'
@@ -24,8 +24,7 @@ vi.mock('../../api/client', async (importOriginal) => ({
 vi.mock('../../storage/db', async (importOriginal) => ({
   ...await importOriginal<typeof import('../../storage/db')>(),
   createTurn: vi.fn(),
-  updateMessage: vi.fn(),
-  updateVideoTask: vi.fn(),
+  finishVideoSubmission: vi.fn(),
 }))
 
 function conversation(id: string): StoredConversation {
@@ -53,8 +52,7 @@ beforeEach(() => {
   useSettingsStore.setState({ settings: { ...structuredClone(defaultSettings), globalApiKey: 'test-key' } })
   vi.mocked(createTurn).mockResolvedValue(undefined)
   vi.mocked(createVideo).mockResolvedValue(response)
-  vi.mocked(updateMessage).mockResolvedValue(undefined)
-  vi.mocked(updateVideoTask).mockResolvedValue(undefined)
+  vi.mocked(finishVideoSubmission).mockResolvedValue(undefined)
   Object.defineProperty(HTMLElement.prototype, 'scrollTo', { configurable: true, value: vi.fn() })
 })
 
@@ -84,6 +82,7 @@ describe('video submission lifecycle', () => {
     await user.click(screen.getByRole('button', { name: '发送消息' }))
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('storage full'))
     expect(createVideo).not.toHaveBeenCalled()
+    expect(finishVideoSubmission).not.toHaveBeenCalled()
     expect(screen.getByRole('textbox', { name: '消息' })).toHaveValue('snow')
     expect(screen.getByRole('button', { name: '发送消息' })).toBeEnabled()
   })

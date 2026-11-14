@@ -36,7 +36,7 @@ describe('settings storage', () => {
     settings.globalApiKey = 'saved'
     saveSettings(settings)
     expect(loadSettings().globalApiKey).toBe('saved')
-    expect(loadSettings().formats.openaiResponsesImage.modelId).toBe('gpt-5.6-luna')
+    expect(loadSettings().formats.openaiResponsesImage.modelId).toBe('gpt-6.1-terra')
     localStorage.setItem('shuanghua.settings.v2', '{broken')
     expect(loadSettings().globalApiKey).toBe('')
   })
@@ -62,12 +62,32 @@ describe('settings storage', () => {
     localStorage.setItem('shuanghua.settings.v2', JSON.stringify(legacy))
 
     const loaded = loadSettings()
-    expect(loaded.schemaVersion).toBe(3)
+    expect(loaded.schemaVersion).toBe(4)
     expect(loaded.globalApiKey).toBe('existing-global')
     expect(loaded.formats.openaiImage.keyOverride).toBe('existing-override')
     expect(loaded.formats.googleGeminiImage.models).toEqual(['custom-gemini'])
     expect(loaded.formats.googleGeminiImage.defaults.thinkingLevel).toBe('MINIMAL')
     expect(loaded.formats.byteDanceImage.modelId).toBeTruthy()
+  })
+
+  it('upgrades previous built-in defaults while retaining model lists and custom connections', () => {
+    const settings = structuredClone(defaultSettings)
+    settings.formats.byteDanceImage.modelId = 'doubao-seedream-5-0-pro-260628'
+    settings.formats.byteDanceImage.models = ['doubao-seedream-5-0-pro-260628', 'ep-custom']
+    settings.formats.byteDanceImage.defaults.outputFormat = 'jpeg'
+    settings.formats.openaiImage.modelId = 'gpt-image-2.5-sunburst'
+    settings.formats.openaiImage.baseUrl = 'https://custom.example'
+    settings.formats.openaiResponsesImage.modelId = 'gpt-5.6-luna'
+    settings.formats.openaiResponsesImage.defaults.imageModel = 'gpt-image-2.5-sunburst'
+    localStorage.setItem('shuanghua.settings.v2', JSON.stringify({ ...settings, schemaVersion: 3 }))
+
+    const loaded = loadSettings()
+    expect(loaded.formats.byteDanceImage.modelId).toBe('doubao-seedream-5-5-261028')
+    expect(loaded.formats.byteDanceImage.models).toEqual(['doubao-seedream-5-0-pro-260628', 'ep-custom', 'doubao-seedream-5-5-261028'])
+    expect(loaded.formats.byteDanceImage.defaults.outputFormat).toBe('auto')
+    expect(loaded.formats.openaiImage.modelId).toBe('gpt-image-2.5-sunburst')
+    expect(loaded.formats.openaiResponsesImage.modelId).toBe('gpt-6.1-terra')
+    expect(loaded.formats.openaiResponsesImage.defaults.imageModel).toBe('gpt-image-2.6-sunburst')
   })
 
   it('preserves model lists and an explicitly empty independent key', () => {
@@ -78,7 +98,7 @@ describe('settings storage', () => {
     settings.formats.openaiImage.keyOverride = ''
     saveSettings(settings)
     const loaded = loadSettings()
-    expect(loaded.formats.openaiImage.models).toEqual(['gpt-image-2.5-sunburst', 'custom-image'])
+    expect(loaded.formats.openaiImage.models).toEqual(['gpt-image-2.6-sunburst', 'custom-image'])
     expect(effectiveKey(loaded, 'openaiImage')).toBe('')
   })
 })

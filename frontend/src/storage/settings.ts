@@ -32,7 +32,7 @@ export type FormatSettings = {
 }
 
 export type StoredSettings = {
-  schemaVersion: 3
+  schemaVersion: 4
   appearance: { theme: ThemeMode }
   globalApiKey: string
   activeImageFormat: ImageApiFormat
@@ -42,7 +42,7 @@ export type StoredSettings = {
 }
 
 export const defaultSettings: StoredSettings = {
-  schemaVersion: 3,
+  schemaVersion: 4,
   appearance: { theme: 'system' },
   globalApiKey: '',
   activeImageFormat: 'openaiImage',
@@ -66,7 +66,7 @@ const formatSettingsSchema = z.object({
 })
 
 const settingsSchema = z.object({
-  schemaVersion: z.union([z.literal(2), z.literal(3)]),
+  schemaVersion: z.union([z.literal(2), z.literal(3), z.literal(4)]),
   appearance: z.object({ theme: z.enum(['system', 'light', 'dark']) }),
   globalApiKey: z.string(),
   activeImageFormat: z.enum(imageApiFormats),
@@ -76,6 +76,12 @@ const settingsSchema = z.object({
 })
 
 const storageKey = 'shuanghua.settings.v2'
+const previousDefaultModels: Partial<Record<ApiFormat, string>> = {
+  googleGeminiImage: 'nano-banana-2',
+  openaiImage: 'gpt-image-2.5-sunburst',
+  openaiResponsesImage: 'gpt-5.6-luna',
+  byteDanceImage: 'doubao-seedream-5-0-pro-260628',
+}
 
 export function loadSettings(): StoredSettings {
   const raw = localStorage.getItem(storageKey)
@@ -85,19 +91,29 @@ export function loadSettings(): StoredSettings {
   const result = settingsSchema.safeParse(parsed)
   if (!result.success) return structuredClone(defaultSettings)
   const stored = result.data
-  const settings = { ...structuredClone(defaultSettings), ...stored, schemaVersion: 3 as const,
+  const settings: StoredSettings = { ...stored, schemaVersion: 4,
     formats: structuredClone(defaultSettings.formats) }
   for (const format of apiFormats) {
     const current = stored.formats[format]
     if (!current) continue
-    const defaults = { ...settings.formats[format].defaults, ...current.defaults }
+    const builtIn = settings.formats[format]
+    const defaults = { ...builtIn.defaults, ...current.defaults }
     if (stored.schemaVersion === 2 && format === 'googleGeminiImage') {
       const legacy: Record<string, string> = { High: 'HIGH', Low: 'LOW', Off: 'MINIMAL' }
       const level = String(defaults.thinkingLevel)
       defaults.thinkingLevel = legacy[level] ?? level
     }
-    settings.formats[format] = { ...current, defaults,
-      models: [...new Set([...(current.models ?? []), current.modelId])] }
+    const upgradeDefault = stored.schemaVersion < 4 && current.baseUrl === builtIn.baseUrl &&
+      current.modelId === previousDefaultModels[format]
+    if (upgradeDefault && format === 'openaiResponsesImage' && defaults.imageModel === 'gpt-image-2.5-sunburst') {
+      defaults.imageModel = builtIn.defaults.imageModel
+    }
+    if (upgradeDefault && format === 'byteDanceImage' && defaults.outputFormat === 'jpeg') {
+      defaults.outputFormat = builtIn.defaults.outputFormat
+    }
+    const modelId = upgradeDefault ? builtIn.modelId : current.modelId
+    settings.formats[format] = { ...current, modelId, defaults,
+      models: [...new Set([...(current.models ?? []), current.modelId, modelId])] }
   }
   return settings
 }

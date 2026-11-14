@@ -27,11 +27,11 @@ test('Key 引导、对话创建和设置持久化', async ({ page }) => {
   const dialog = page.getByRole('dialog')
   await expect(dialog.getByLabel('API 格式')).toHaveValue('openaiImage')
   await expect(dialog.getByLabel('模型 ID')).toHaveCount(0)
-  await expect(dialog.getByText(/默认模型：gpt-image-2.5-sunburst/)).toBeVisible()
+  await expect(dialog.getByText(/默认模型：gpt-image-2\.6-sunburst/)).toBeVisible()
   await expect(dialog.getByText('https://www.shapi.vip', { exact: true })).toBeVisible()
   await dialog.getByRole('button', { name: '创建对话' }).click()
-  await expect(page.getByText('OpenAI Images · gpt-image-2.5-sunburst').last()).toBeVisible()
-  await expect(page.getByLabel('当前模型')).toHaveValue('gpt-image-2.5-sunburst')
+  await expect(page.getByText('OpenAI Images · gpt-image-2.6-sunburst').last()).toBeVisible()
+  await expect(page.getByLabel('当前模型')).toHaveValue('gpt-image-2.6-sunburst')
 
   await openSettings(page)
   await expect(page.getByLabel('全局 Key', { exact: true })).toHaveValue('browser-test-key')
@@ -55,7 +55,7 @@ test('OpenAI Responses 默认启用可配置的渐进式图片', async ({ page }
   await expect(page.getByLabel('渐进预览数量')).toHaveValue('2')
   await page.getByLabel('渐进预览数量').fill('3')
   await expect(page.getByLabel('渐进预览数量')).toHaveValue('3')
-  await expect(page.getByRole('dialog').getByText('gpt-5.6-luna', { exact: true })).toBeVisible()
+  await expect(page.getByRole('dialog').getByText('gpt-6.1-terra', { exact: true })).toBeVisible()
 })
 
 test('切换对话不会中断正在运行的图片任务', async ({ page }) => {
@@ -402,16 +402,61 @@ test('按格式管理模型，新对话无需填写模型，且可切换并持�
   await createConversation(page, 'image', 'byteDanceImage', 'vendor/ep-custom-image')
   await expect(page.getByLabel('当前模型')).toHaveValue('vendor/ep-custom-image')
   await page.getByLabel('消息', { exact: true }).fill('保留的草稿')
-  await page.getByLabel('当前模型').selectOption('doubao-seedream-5-0-pro-260628')
+  await page.getByLabel('当前模型').selectOption('doubao-seedream-5-5-261028')
   await expect(page.getByLabel('消息', { exact: true })).toHaveValue('保留的草稿')
   await page.getByRole('button', { name: '参数', exact: true }).click()
   await expect(page.getByLabel('尺寸', { exact: true })).toHaveValue('2K')
   await expect(page.getByLabel('添加水印')).toBeChecked()
+  await expect(page.getByLabel('组图模式')).toHaveCount(0)
+  await page.getByLabel('背景模式').selectOption('transparent')
+  await expect(page.getByLabel('输出格式').locator('option[value="jpeg"]')).toHaveCount(0)
   await page.getByRole('button', { name: '关闭参数面板' }).click()
   await page.screenshot({ path: test.info().outputPath('chat-models.png'), fullPage: true })
   await page.reload()
   await expect(page.getByLabel('当前模型').locator('option[value="vendor/ep-custom-image"]')).toHaveCount(1)
-  await expect(page.getByLabel('当前模型')).toHaveValue('doubao-seedream-5-0-pro-260628')
+  await expect(page.getByLabel('当前模型')).toHaveValue('doubao-seedream-5-5-261028')
+})
+
+test('Seedream 5.5 可以拆分图层并保留 OCR 结果', async ({ page }) => {
+  await page.getByLabel('API Key').fill('browser-test-key')
+  await page.getByRole('button', { name: '保存 Key 并进入' }).click()
+  await createConversation(page, 'image', 'byteDanceImage')
+  await page.getByRole('button', { name: '参数', exact: true }).click()
+  await page.getByLabel('拆分图层', { exact: true }).check()
+  await page.getByLabel('识别图层文字及样式').check()
+  await expect(page.getByLabel('尺寸', { exact: true })).toHaveValue('auto')
+  await expect(page.getByLabel('背景模式')).toHaveCount(0)
+  await page.getByRole('button', { name: '关闭参数面板' }).click()
+  await page.locator('input[type="file"]').setInputFiles({ name: 'cover.png', mimeType: 'image/png', buffer: tinyPng })
+  const layer = { zIndex: 1, name: '标题图层', textRecognition: { text: 'TITLE', lines: [] } }
+  await page.route('**/api/v1/images/conversation-turns/stream', async (route) => {
+    const image = { mimeType: 'image/png', base64Data: tinyPng.toString('base64'), revisedPrompt: null, thought: false, thoughtSignature: null }
+    const body = [
+      'event: turn.started\ndata: {"requestId":"req_layers","apiFormat":"byteDanceImage"}\n\n',
+      `event: image.completed\ndata: ${JSON.stringify({ index: 0, image: { ...image, id: 'base', layer: { zIndex: 0 } } })}\n\n`,
+      `event: image.completed\ndata: ${JSON.stringify({ index: 1, image: { ...image, id: 'title', layer } })}\n\n`,
+      'event: turn.completed\ndata: {"requestId":"req_layers","usage":null,"providerState":null}\n\n',
+    ].join('')
+    await route.fulfill({ status: 200, contentType: 'text/event-stream', body })
+  })
+
+  await expect(page.getByText('1/1', { exact: true })).toBeVisible()
+  const sent = page.waitForRequest('**/api/v1/images/conversation-turns/stream')
+  await page.getByRole('button', { name: '发送消息' }).click()
+  const request = (await sent).postDataJSON() as unknown
+  expect(request).toMatchObject({
+    modelId: 'doubao-seedream-5-5-261028', prompt: '',
+    sourceImages: [{ kind: 'dataUrl' }],
+    options: { layerDecomposition: true, layerTextRecognition: true, background: 'auto', size: 'auto' },
+  })
+  await expect(page.getByText('标题图层', { exact: true })).toBeVisible()
+  await page.reload()
+  await page.getByText('识别文字', { exact: true }).click()
+  await expect(page.getByText('TITLE', { exact: true })).toBeVisible()
+  const downloading = page.waitForEvent('download')
+  await page.getByRole('button', { name: '下载图层信息' }).last().click()
+  const download = await downloading
+  expect(JSON.parse(await readFile(await download.path(), 'utf8'))).toEqual(layer)
 })
 
 test('独立 Key 不会改写全局 Key 或其他格式', async ({ page }) => {
@@ -438,13 +483,13 @@ test('恢复默认设置会更新配置并在刷新后保留', async ({ page }) 
   await page.getByLabel('主题').selectOption('dark')
   await page.getByRole('button', { name: '恢复默认设置' }).click()
   await expect(page.getByLabel('Base URL')).toHaveValue('https://www.shapi.vip')
-  await expect(page.getByLabel('默认模型', { exact: true })).toHaveValue('gpt-image-2.5-sunburst')
+  await expect(page.getByLabel('默认模型', { exact: true })).toHaveValue('gpt-image-2.6-sunburst')
   await expect(page.getByLabel('主题')).toHaveValue('system')
   await page.getByRole('button', { name: '关闭设置' }).click()
   await page.reload()
   await openSettings(page)
   await expect(page.getByLabel('Base URL')).toHaveValue('https://www.shapi.vip')
-  await expect(page.getByLabel('默认模型', { exact: true })).toHaveValue('gpt-image-2.5-sunburst')
+  await expect(page.getByLabel('默认模型', { exact: true })).toHaveValue('gpt-image-2.6-sunburst')
 })
 
 

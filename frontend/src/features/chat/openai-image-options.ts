@@ -1,11 +1,19 @@
-// Keep model capabilities aligned with backend/app/domain/openai_images.py.
-// Official Image API docs verified 2026-11-05.
-export const OPENAI_IMAGE_MODELS = [
-  'gpt-image-2.5-sunburst', 'gpt-image-2.5-flare', 'gpt-image-2',
-  'gpt-image-2.6-sunburst', 'gpt-image-2.6-flare',
-  'gpt-image-1.5', 'gpt-image-1', 'gpt-image-1-mini', 'chatgpt-image-latest',
-] as const
-export const OPENAI_IMAGE_QUALITIES = ['auto', 'low', 'medium', 'high', 'xhigh', 'max'] as const
+import catalog from '../../api/generated/provider-catalog.json'
+import { defaultOptions } from '../../api/options'
+
+type OpenAIImageCapabilities = {
+  qualities: readonly string[]
+  customImageSize: boolean
+  complexity: boolean
+  markupEditing: boolean
+  outputFormats: readonly string[]
+  inputFidelities: readonly string[]
+}
+
+const openAIProvider = catalog.providers.find((provider) => provider.apiFormat === 'openaiImage')
+if (!openAIProvider) throw new Error('供应商目录缺少 OpenAI Images。')
+const knownModels = new Map<string, OpenAIImageCapabilities>(Object.entries(openAIProvider.knownModels))
+export const OPENAI_IMAGE_MODELS = [...knownModels.keys()]
 export const OPENAI_STANDARD_SIZES = ['auto', '1024x1024', '1536x1024', '1024x1536'] as const
 export const OPENAI_ASPECT_RATIOS = ['1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3', '21:9', '9:21'] as const
 export const OPENAI_RESOLUTION_TIERS = ['1K', '2K', '4K'] as const
@@ -13,23 +21,12 @@ export type OpenAIResolutionTier = (typeof OPENAI_RESOLUTION_TIERS)[number]
 export type OpenAIAspectRatio = (typeof OPENAI_ASPECT_RATIOS)[number]
 
 export function openAIResponsesImageModel(options: Record<string, unknown>): string {
-  return typeof options.imageModel === 'string' ? options.imageModel : OPENAI_IMAGE_MODELS[0]
+  return typeof options.imageModel === 'string' ? options.imageModel : defaultOptions('openaiResponsesImage').imageModel
 }
 
-export function openAIImageCapabilities(modelId: string) {
+export function openAIImageCapabilities(modelId: string): OpenAIImageCapabilities {
   const family = modelId.replace(/-\d{4}-\d{2}-\d{2}$/, '')
-  const is26 = ['gpt-image-2.6-sunburst', 'gpt-image-2.6-flare'].includes(family)
-  const sunburstOrFlare = is26 || ['gpt-image-2.5-sunburst', 'gpt-image-2.5-flare'].includes(family)
-  return {
-    qualities: sunburstOrFlare
-      ? [...OPENAI_IMAGE_QUALITIES] : OPENAI_IMAGE_QUALITIES.slice(0, 4),
-    customImageSize: family === 'gpt-image-2' || sunburstOrFlare,
-    complexity: is26,
-    markupEditing: sunburstOrFlare,
-    outputFormats: is26 ? ['png', 'jpeg', 'webp', 'svg', 'gif'] : ['png', 'jpeg', 'webp'],
-    inputFidelities: ['gpt-image-1', 'gpt-image-1.5'].includes(family)
-      ? ['auto', 'low', 'high'] : family === 'gpt-image-1-mini' ? ['auto', 'low'] : ['auto'],
-  }
+  return knownModels.get(family) ?? catalog.openAIImageDefaultCapabilities
 }
 
 // K tiers target a long edge of 1024 / 2048 / 3840. Clamp to the API's pixel
@@ -75,7 +72,7 @@ export function openAIImageSizeError(size: string, modelId: string, outputFormat
 
 export function normalizeOpenAIImageOptions(options: Record<string, unknown>, modelId: string): Record<string, unknown> {
   const capabilities = openAIImageCapabilities(modelId)
-  const quality = typeof options.quality === 'string' && capabilities.qualities.includes(options.quality as typeof OPENAI_IMAGE_QUALITIES[number])
+  const quality = typeof options.quality === 'string' && capabilities.qualities.includes(options.quality)
     ? options.quality : 'auto'
   const inputFidelity = typeof options.inputFidelity === 'string' && capabilities.inputFidelities.includes(options.inputFidelity)
     ? options.inputFidelity : 'auto'

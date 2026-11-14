@@ -16,21 +16,19 @@ git clone --branch main https://github.com/zhaibingye/shuanghua-painting-dreams.
 cd "$HOME/shuanghua"
 ```
 
-通过 [nvm](https://github.com/nvm-sh/nvm#installing-and-updating) 安装仓库 `.nvmrc` 指定的 Node.js 26 LTS，再安装 npm、PM2 和 [uv](https://docs.astral.sh/uv/getting-started/installation/)：
+可以使用已有的兼容 Node.js、npm 和 uv。新环境可参考下列命令通过 nvm 安装 Node.js 24，再安装 PM2 和 uv。Node.js 的兼容范围见项目首页，后端支持 Python 3.12 及以上。[nvm 安装说明](https://github.com/nvm-sh/nvm#installing-and-updating) · [uv 安装说明](https://docs.astral.sh/uv/getting-started/installation/)
 
 ```bash
 export NVM_DIR="$HOME/.nvm"
 curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.41.0/install.sh | bash
 . "$NVM_DIR/nvm.sh"
-nvm install
-nvm alias default "$(cat .nvmrc)"
-npm install -g npm@12.2.2 pm2
+nvm install 24
+nvm alias default 24
+npm install -g pm2
 
 curl -LsSf https://astral.sh/uv/install.sh | sh
 export PATH="$HOME/.local/bin:$PATH"
 ```
-
-项目要求 uv 0.13.7+。下一步安装依赖时，uv 会按 `backend/.python-version` 自动准备 Python 3.15.2。
 
 ### 2. 配置端口并启动
 
@@ -82,14 +80,13 @@ sudo ufw allow 3002/tcp
 
 ## 二、更新
 
-在服务器上执行；每一步成功后再继续。安装依赖期间会暂停服务，重启时会重新构建前端。
+在服务器上执行。安装依赖期间会暂停服务，重启时会重新构建前端。如需在重启前运行测试和静态检查，可在 `npm run setup` 后执行 `npm run check`。
 
 ```bash
 cd "$HOME/shuanghua"
 git pull --ff-only origin main
 pm2 stop shuanghua
 npm run setup
-npm run check
 pm2 restart deploy/pm2/ecosystem.config.cjs --only shuanghua --update-env
 pm2 save
 curl -fsS http://127.0.0.1:3002/api/v1/health/ready
@@ -101,7 +98,7 @@ curl -fsS http://127.0.0.1:3002/api/v1/health/ready
 
 `backend/.env` 不受 Git 管理，常规更新会保留它；浏览器中的对话、图片和设置也会保留。继续使用相同的浏览器与访问地址，才能读取原有本地记录。
 
-如果更新后 Node.js 版本要求变化，先运行 `nvm install && nvm use`，重新安装 npm 和 PM2，并按 `pm2 startup` 的输出更新开机自启配置，再继续上述安装与重启步骤。
+如果切换了 PM2 使用的 Node.js 安装，在对应环境里安装 PM2，并按 `pm2 startup` 的输出更新开机自启配置。
 
 仅修改 `backend/.env` 时，执行 `pm2 restart deploy/pm2/ecosystem.config.cjs --only shuanghua --update-env` 即可。
 
