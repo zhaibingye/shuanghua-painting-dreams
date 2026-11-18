@@ -37,18 +37,7 @@
 
 ## 开始使用
 
-服务器安装、端口访问、更新和删除，见 [部署教程](deploy/README.md)。
-
-本机需要 Node.js、npm 和 uv。新环境推荐使用兼容的 Node.js LTS 及其自带的 npm，并使用较新的 uv。前端构建和测试的 Node.js 兼容范围为 `^22.22.2 || ^24.15.0 || >=26.0.0`，由当前依赖决定。后端支持 Python 3.12 及以上，由 uv 选择可用的解释器。
-
-```bash
-git clone https://github.com/zhaibingye/shuanghua-painting-dreams.git
-cd shuanghua-painting-dreams
-npm run setup
-npm start
-```
-
-打开 <http://localhost:3002>，填写 API Key；在「设置」中配置上游地址和模型，再创建图片或视频对话。
+服务器部署、卸载和更新均通过 PM2 管理进程。详见 [PM2 部署教程](deploy/README.md)。
 
 API Key 保存在当前浏览器，请求时经本服务转发给上游。清除网站数据会删除本地记录；更换浏览器、访问地址或端口后，原有数据不会自动共享。
 
@@ -56,6 +45,7 @@ API Key 保存在当前浏览器，请求时经本服务转发给上游。清除
 
 前端使用 React、TypeScript、Vite 和 Tailwind CSS，后端使用 FastAPI、Pydantic 和 aiohttp。生产模式由后端在同一端口提供页面与 API。
 
+- `npm run setup`：首次开发时安装前后端依赖。
 - `npm run dev`：启动开发环境，前端地址为 <http://localhost:5173>。
 - `npm run check`：运行测试、静态检查与生产构建。
 - `npm run e2e`：运行浏览器测试，首次运行前执行 `npm run e2e:install`。

@@ -1,127 +1,64 @@
-# 部署、更新与删除
+# PM2 部署教程
 
-使用 Linux + PM2 运行，前端页面和 API 共用一个端口，默认 `3002`。以下以 Ubuntu / Debian、项目目录 `~/shuanghua` 为例。
+以下以 Ubuntu / Debian 为例，安装目录为 `~/shuanghua`，默认端口为 `3002`。三部分都使用同一个 Linux 用户执行 PM2 命令。
 
-## 一、部署并通过端口访问
+## 1. 部署
 
-### 1. 准备环境和代码
-
-在服务器终端中执行。安装和后续 PM2 操作使用同一个 Linux 用户。
+准备 Git、curl、Node.js 24.15 或更高的 24.x 版本、npm 和 uv。新服务器可以用下面的命令安装。 [nvm 安装说明](https://github.com/nvm-sh/nvm#installing-and-updating) · [uv 安装说明](https://docs.astral.sh/uv/getting-started/installation/)
 
 ```bash
-sudo apt update
-sudo apt install -y git curl ca-certificates
-
-git clone --branch main https://github.com/zhaibingye/shuanghua-painting-dreams.git "$HOME/shuanghua"
-cd "$HOME/shuanghua"
-```
-
-可以使用已有的兼容 Node.js、npm 和 uv。新环境可参考下列命令通过 nvm 安装 Node.js 24，再安装 PM2 和 uv。Node.js 的兼容范围见项目首页，后端支持 Python 3.12 及以上。[nvm 安装说明](https://github.com/nvm-sh/nvm#installing-and-updating) · [uv 安装说明](https://docs.astral.sh/uv/getting-started/installation/)
-
-```bash
-export NVM_DIR="$HOME/.nvm"
+sudo apt update && sudo apt install -y git curl ca-certificates
 curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.41.0/install.sh | bash
-. "$NVM_DIR/nvm.sh"
+. "${NVM_DIR:-$HOME/.nvm}/nvm.sh"
 nvm install 24
-nvm alias default 24
-npm install -g pm2
-
-curl -LsSf https://astral.sh/uv/install.sh | sh
+curl -fsSL https://astral.sh/uv/install.sh | sh
 export PATH="$HOME/.local/bin:$PATH"
 ```
 
-### 2. 配置端口并启动
+安装 PM2、下载项目并启动服务。
 
 ```bash
-cd "$HOME/shuanghua"
-cat > backend/.env <<'EOF'
-SHUANGHUA_ENV=production
-SHUANGHUA_HOST=0.0.0.0
-PORT=3002
-WEB_CONCURRENCY=2
-EOF
-
-npm run setup
+npm install -g pm2 &&
+git clone --branch main https://github.com/zhaibingye/shuanghua-painting-dreams.git "$HOME/shuanghua" &&
+cd "$HOME/shuanghua" &&
+cp backend/.env.example backend/.env &&
+npm run setup &&
 pm2 start deploy/pm2/ecosystem.config.cjs --only shuanghua
-pm2 save
 ```
 
-`0.0.0.0` 允许从服务器外部连接。修改 `PORT` 即可换端口；后文的访问地址、端口转发和防火墙规则也要使用同一端口。
-
-首次启动会先构建前端，再启动服务。查看状态与日志：
+PM2 启动时会先构建前端。用 `pm2 logs shuanghua --lines 50 --nostream` 查看进度，构建完成后运行健康检查。
 
 ```bash
-pm2 status
-pm2 logs shuanghua --lines 50 --nostream
 curl -fsS http://127.0.0.1:3002/api/v1/health/ready
 ```
 
-健康检查返回 `"status":"ready"` 表示服务已启动。若仍在构建，稍后重新检查；启动失败时查看上面的日志。
+返回 `"status":"ready"` 后，运行 `pm2 startup`，按提示执行它输出的命令，再运行 `pm2 save`，让服务在服务器重启后自动恢复。 [PM2 开机自启说明](https://pm2.keymetrics.io/docs/usage/startup/)
 
-设置开机自启：
+需要从外部访问时，在服务器防火墙和云安全组中放行 TCP `3002`，然后打开 `http://服务器公网IP:3002`，填写 API Key 并在「设置」中配置上游地址和模型。若修改了 `backend/.env` 中的 `PORT`，访问地址、健康检查和放行规则都使用新端口。
+
+## 2. 卸载
+
+从 PM2 移除应用并保存进程列表，避免服务器重启后恢复。确认 `~/shuanghua` 是安装目录后，再删除目录及其中的配置和日志。
 
 ```bash
-pm2 startup
+pm2 delete shuanghua &&
+pm2 save --force &&
+cd "$HOME" && rm -rf -- "$HOME/shuanghua"
 ```
 
-执行它输出的注册命令，然后运行 `pm2 save`。[PM2 官方说明](https://pm2.keymetrics.io/docs/usage/startup/)
+如果这个用户的 PM2 只用于霜华绘梦，可以运行 `pm2 unstartup` 并按提示移除 PM2 的开机自启。若部署时为本站单独放行了端口，可一并移除对应的防火墙和云安全组规则。浏览器里的 API Key 和对话记录可通过清除此站点的数据删除。 [PM2 命令参考](https://pm2.keymetrics.io/docs/usage/commands/)
 
-### 3. 通过端口访问
+## 3. 更新
 
-如需从公网检查页面，先在云服务器安全组和系统防火墙中放行 **TCP 3002**。使用 UFW 的服务器可执行：
-
-```bash
-sudo ufw allow 3002/tcp
-```
-
-浏览器直接打开 **`http://服务器公网IP:3002`** 即可使用。也可以通过指向该服务器的域名加端口访问。
-
-进入页面后填写 API Key，在「设置」中配置上游地址、接口格式和模型。供应商 Key 在浏览器中填写，不需要写入服务器 `.env`。
-
-## 二、更新
-
-在服务器上执行。安装依赖期间会暂停服务，重启时会重新构建前端。如需在重启前运行测试和静态检查，可在 `npm run setup` 后执行 `npm run check`。
+拉取新版代码后暂停服务，再安装依赖并按配置重启。更新期间服务会中断，`backend/.env` 会保留。
 
 ```bash
-cd "$HOME/shuanghua"
-git pull --ff-only origin main
-pm2 stop shuanghua
-npm run setup
-pm2 restart deploy/pm2/ecosystem.config.cjs --only shuanghua --update-env
+cd "$HOME/shuanghua" &&
+git pull --ff-only origin main &&
+pm2 stop shuanghua &&
+npm run setup &&
+pm2 restart deploy/pm2/ecosystem.config.cjs --only shuanghua --update-env &&
 pm2 save
-curl -fsS http://127.0.0.1:3002/api/v1/health/ready
 ```
 
-重启后的健康检查可能需要等待构建完成。失败时查看 `pm2 logs shuanghua --lines 50 --nostream`。
-
-更新时通过配置文件重启，PM2 会重新读取配置并创建项目的 `logs/` 目录。仅按进程名重启不会执行这一步；若旧命令报 `ENOENT ... logs/shuanghua.out.log`，在项目目录执行 `mkdir -p logs`，再运行上面的重启命令。
-
-`backend/.env` 不受 Git 管理，常规更新会保留它；浏览器中的对话、图片和设置也会保留。继续使用相同的浏览器与访问地址，才能读取原有本地记录。
-
-如果切换了 PM2 使用的 Node.js 安装，在对应环境里安装 PM2，并按 `pm2 startup` 的输出更新开机自启配置。
-
-仅修改 `backend/.env` 时，执行 `pm2 restart deploy/pm2/ecosystem.config.cjs --only shuanghua --update-env` 即可。
-
-## 三、删除
-
-先移除服务，并保存 PM2 进程列表，防止重启服务器后恢复：
-
-```bash
-pm2 delete shuanghua
-pm2 save --force
-```
-
-确认 `~/shuanghua` 就是本教程创建的项目目录后，删除代码、依赖、配置和日志：
-
-```bash
-cd "$HOME"
-rm -rf -- "$HOME/shuanghua"
-```
-
-若前面用 UFW 放行过端口，再移除该规则，并在云服务器安全组中删除对应规则：
-
-```bash
-sudo ufw delete allow 3002/tcp
-```
-
-删除服务器项目不会清除浏览器本地数据。如需一并删除 Key、设置、对话和图片，在浏览器设置中清除此站点的网站数据。
+重启时会重新构建前端。构建完成后，使用部署部分的健康检查确认服务恢复。
